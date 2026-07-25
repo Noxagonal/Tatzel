@@ -1,3 +1,9 @@
+module;
+
+#include <vector>
+#include <string>
+#include <string_view>
+
 export module UI.ElementAdapter.ElementAdapter;
 
 export import UI.UI.LogicalElement;
@@ -28,6 +34,10 @@ public:
 
 	virtual ~ElementAdapter() = default;
 
+	virtual auto CreatePartsFor( ui::LogicalElement& element ) const -> void = 0;
+	virtual auto CreatePartsFor( ui::Heading& element ) const -> void = 0;
+
+	/*
 	virtual auto CreateElement( ui::LogicalElement* element ) -> ui::LogicalElement* = 0;
 	//virtual auto CreateLabel( ui::Label* element ) -> ui::LogicalElement = 0;
 	//virtual auto CreateContainer( ui::Container* element ) -> ui::LogicalElement = 0;
@@ -42,6 +52,12 @@ public:
 	//virtual auto CreateCard( ui::Card* element ) -> ui::LogicalElement = 0;
 	//virtual auto CreateHeader( ui::Header* element ) -> ui::LogicalElement = 0;
 	//virtual auto CreateFooter( ui::Footer* element ) -> ui::LogicalElement = 0;
+	*/
+
+	static auto MakePartID( ui::LogicalElement& element, std::string_view name ) -> std::string
+	{
+		return std::string{ element.GetID() } + "|" + std::string{ name };
+	}
 };
 
 

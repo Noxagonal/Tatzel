@@ -1,8 +1,17 @@
 
+export type DomPart = {
+	part_id: string;
+	parent_id: string;
+	tag: string;
+	classes: Array<string>;
+	attributes: Record<string, string>;
+	text_content: string;
+};
+
 export type ReceiveServerMessage =
-	| { op: "create_element"; parent_id: string; tag: string; id: string }
+	| { op: "connected"; message: string }
+	| { op: "create_element"; parts: Array<DomPart> }
 	| { op: "delete_element"; id: string }
-	| { op: "set_tag"; id: string; tag: string } // Deprecated: Removing this.
 	| { op: "set_attribute"; id: string; attribute: string; attribute_value: string }
 	| { op: "remove_attribute"; id: string; attribute: string; }
 	| { op: "add_class"; id: string; class_name: string }

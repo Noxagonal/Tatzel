@@ -1,3 +1,7 @@
+module;
+
+#include <vector>
+
 export module UI.ElementAdapter.TatzelElementAdapter;
 
 export import UI.ElementAdapter.ElementAdapter;
@@ -7,7 +11,7 @@ namespace tatzel {
 
 
 export
-class TatzelElementAdapter : public ElementAdapter
+class TatzelElementAdapter final : public ElementAdapter
 {
 public:
 
@@ -19,6 +23,10 @@ public:
 	auto operator=( const TatzelElementAdapter& ) -> TatzelElementAdapter& = default;
 	auto operator=( TatzelElementAdapter&& ) -> TatzelElementAdapter& = default;
 
+	virtual auto CreatePartsFor( ui::LogicalElement& element ) const -> void override;
+	virtual auto CreatePartsFor( ui::Heading& element ) const -> void override;
+
+	/*
 	auto CreateElement( ui::LogicalElement* element ) -> ui::LogicalElement* override;
 	//auto CreateLabel( ui::Label* element ) -> ui::LogicalElement override;
 	//auto CreateContainer( ui::Container* element ) -> ui::LogicalElement override;
@@ -33,6 +41,7 @@ public:
 	//auto CreateCard( ui::Card* element ) -> ui::LogicalElement override;
 	//auto CreateHeader( ui::Header* element ) -> ui::LogicalElement override;
 	//auto CreateFooter( ui::Footer* element ) -> ui::LogicalElement override;
+	*/
 };
 
 

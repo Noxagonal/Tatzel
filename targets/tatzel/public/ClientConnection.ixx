@@ -10,6 +10,7 @@ import UI.ClientDOMTree;
 import UI.ClientUpdater;
 import UI.PageBuilderCore;
 import UI.Page;
+import UI.ElementAdapter.ElementAdapter;
 
 
 namespace tatzel {
@@ -29,10 +30,11 @@ public:
 	auto operator=( ClientConnection&& ) -> ClientConnection& = default;
 
 	drogon::WebSocketConnectionPtr ws_connection = nullptr;
-	Page* page;
-	std::unique_ptr<ClientDOMTree> client_dom_tree;
-	std::unique_ptr<ClientUpdater> client_updater;
-	std::unique_ptr<PageBuilderCore> page_builder_core;
+	Page* page = nullptr;
+	std::unique_ptr<ClientDOMTree> client_dom_tree = nullptr;
+	std::unique_ptr<ClientUpdater> client_updater = nullptr;
+	std::unique_ptr<ElementAdapter> element_adapter = nullptr;
+	std::unique_ptr<PageBuilderCore> page_builder_core = nullptr;
 };
 
 

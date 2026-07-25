@@ -55,7 +55,7 @@ public:
 
 	auto Heading( std::string_view text, ui::HeadingStyle style = ui::HeadingStyle::H1 ) -> ui::Heading*
 	{
-		auto* new_element = AddChild<tatzel::ui::Heading>();
+		auto* new_element = AddChild<tatzel::ui::Heading>( text, style );
 
 		return new_element;
 	}
@@ -191,7 +191,7 @@ public:
 //	}
 
 private:
-
+/*
 	auto BindSetProperty(
 		ui::LogicalElementDerived auto* element,
 		auto* property,
@@ -262,37 +262,33 @@ private:
 		assert( client_updater );
 		client_updater->SetOnClick( element->id );
 	}
-
-	template<ui::LogicalElementDerived NewElementT>
-	auto AddChild() -> NewElementT*
+*/
+	template<
+		ui::LogicalElementDerived NewElementT,
+		typename ...ArgsT>
+	auto AddChild( ArgsT&& ...args ) -> NewElementT*
 	{
 		auto* owning_parent = this->parent;
 		assert( owning_parent );
 
-		// TODO: ElementAdapter should be invoked here to set up the element parts.
-		auto parts = std::vector<dom::ElementPart>{
-			{ "root", "div" }
-		};
+		auto* element_adapter = this->core->GetElementAdapter();
+		assert( element_adapter );
 
 		auto new_element = std::make_unique<NewElementT>(
 			this->GenerateElementUUID(),
 			owning_parent,
-			parts
+			std::forward<ArgsT>( args )...
 		);
+
+		element_adapter->CreatePartsFor( *new_element );
+
 		auto* new_element_ptr = new_element.get();
-
-		// TODO: Serialize and add initial values when creating a new element
-		// so we don't need to separately assign the properties after creation.
-
 		owning_parent->InsertChild( std::move( new_element ) );
 
 		auto* client_updater = this->core->GetClientUpdater();
 		assert( client_updater );
-		// TODO: This needs to be changed to reflect the new architecture with element parts / dom parts.
 		client_updater->CreateElement(
-			owning_parent->GetID(),
-			new_element_ptr->GetID(),
-			new_element_ptr->GetParts()[ 0 ].tag
+			new_element_ptr->GetParts()
 		);
 
 		return new_element_ptr;

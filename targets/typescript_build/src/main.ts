@@ -5,15 +5,14 @@ import { registerBrowserEventHandlers } from "./events.js";
 import {
 	addClass,
 	createElement,
-	deleteElement,
+	removeElement,
+	setAttribute,
 	removeAttribute,
 	removeClass,
-	setAttribute,
 	setModalOpen,
 	setOnChange,
 	setOnClick,
 	setOnSubmit,
-	setTag,
 	setText,
 	setValue,
 } from "./dom-ops.js";
@@ -48,15 +47,11 @@ socket.addEventListener(
 
 	switch (message.op) {
 		case "create_element":
-			createElement(message.parent_id, message.tag, message.id);
+			createElement(message.parts);
 			break;
 
 		case "delete_element":
-			deleteElement(message.id);
-			break;
-
-		case "set_tag": // Deprecated: Going to be removed.
-			setTag(message.id, message.tag);
+			removeElement(message.id);
 			break;
 
 		case "set_attribute":

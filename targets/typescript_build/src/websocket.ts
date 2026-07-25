@@ -14,6 +14,8 @@ export function parseServerMessage(event: MessageEvent): ReceiveServerMessage
 		throw new Error("Expected text WebSocket message");
 	}
 
+	console.log(event.data);
+
 	return JSON.parse(event.data) as ReceiveServerMessage;
 }
 

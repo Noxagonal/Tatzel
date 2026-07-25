@@ -1,59 +1,39 @@
 
 import { stringToBoolean } from "./utilities.js";
-
+import { DomPart } from "./protocol.js"
 
 export function createElement(
-	parentId: string,
-	tag: string,
-	id: string
+	parts: Array<DomPart>
 ): void
 {
-	const parent = document.getElementById(parentId);
+	parts.forEach(part => {
+		const domElementParent = document.getElementById(part.parent_id);
+		if (domElementParent === null)
+		{
+			console.error("Parent not found: ", part.parent_id);
+			return;
+		}
 
-	if (parent === null)
-	{
-		console.error("Parent not found:", parentId);
-		return;
-	}
+		const domElement = document.createElement(part.tag);
 
-	const element = document.createElement(tag);
-	element.id = id;
+		domElement.id = part.part_id;
+		domElement.className = part.classes.join(" ");
+		for (const [key, value] of Object.entries(part.attributes))
+		{
+			domElement.setAttribute(key, value);
+		}
 
-	parent.appendChild(element);
+		if (part.text_content !== "" ) domElement.textContent = part.text_content;
+
+		domElementParent.appendChild(domElement);
+	});
+
 }
 
 
-export function deleteElement(id: string): void
+export function removeElement(id: string): void
 {
 	document.getElementById(id)?.remove();
-}
-
-
-// Deprecated: This function will be deleted.
-export function setTag(
-	id: string,
-	tag: string
-): void
-{
-	const oldElement = document.getElementById(id);
-	if (!oldElement) {
-		console.warn("SetTag failed, element not found:", id);
-		return;
-	}
-
-	const newElement = document.createElement(tag);
-
-	// Copy attributes, including id.
-	for (const attribute of oldElement.attributes) {
-		newElement.setAttribute(attribute.name, attribute.value);
-	}
-
-	// Move child nodes over.
-	while (oldElement.firstChild) {
-		newElement.appendChild(oldElement.firstChild);
-	}
-
-	oldElement.replaceWith(newElement);
 }
 
 

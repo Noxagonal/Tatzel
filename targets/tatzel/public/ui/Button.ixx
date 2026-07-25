@@ -25,10 +25,9 @@ public:
 
 	inline Button(
 		std::string_view id,
-		LogicalElement* parent,
-		std::span<const dom::ElementPart> parts
+		LogicalElement* parent
 	) :
-		LogicalElement{ id, parent, parts }
+		LogicalElement{ id, parent }
 	{}
 
 	inline virtual auto InvokeOnClick() -> void override

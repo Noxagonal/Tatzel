@@ -2,14 +2,11 @@ module;
 
 #include <string_view>
 #include <string>
-#include <span>
 #include <stdexcept>
 
 export module UI.DOM.Heading;
 
 export import UI.UI.LogicalElement;
-
-import UI.Property;
 
 
 namespace tatzel::ui {
@@ -60,13 +57,27 @@ public:
 	inline Heading(
 		std::string_view id,
 		LogicalElement* parent,
-		std::span<const dom::ElementPart> parts
+		std::string_view text,
+		HeadingStyle heading_style
 	) :
-		LogicalElement{ id, parent, parts }
+		LogicalElement{ id, parent },
+		text{ std::string{ text } },
+		heading_style{ heading_style }
 	{}
 
-	Property<std::string> text;
-	ReadOnlyProperty<HeadingStyle> heading_style = HeadingStyle::H1;
+	auto GetText() -> std::string_view { return this->text; }
+	auto SetText( std::string_view text )
+	{
+		// Invoke the element adapter to update the corresponding parts.
+		this->text = text;
+	}
+
+	auto GetHeadingStyle() -> HeadingStyle { return this->heading_style; }
+
+private:
+
+	std::string text;
+	HeadingStyle heading_style = HeadingStyle::H1;
 };
 
 

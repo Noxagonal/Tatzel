@@ -10,14 +10,17 @@ import UI.ClientConnection;
 
 tatzel::ClientDOMTree::ClientDOMTree() :
 	root{
-		"",
+		"root",
 		nullptr,
 		std::span<const dom::ElementPart>{ {
 			dom::ElementPart{
-				"root",
+				"root|base",
+				"",
 				"main",
 				std::span<const std::string_view>{ { "container" } } }
-			} }
+			} },
+			0,
+			0
 		}
 {}
 

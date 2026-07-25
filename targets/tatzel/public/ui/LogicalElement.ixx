@@ -1,7 +1,10 @@
 module;
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <span>
 #include <string>
 #include <string_view>
@@ -23,13 +26,29 @@ public:
 
 	inline LogicalElement(
 		std::string_view id,
+		LogicalElement* parent
+	) :
+		id{ id },
+		parent{ parent }
+	{}
+
+	inline LogicalElement(
+		std::string_view id,
 		LogicalElement* parent,
-		std::span<const dom::ElementPart> parts
+		std::span<const dom::ElementPart> parts,
+		size_t base_part_index,
+		size_t child_root_part_index
 	) :
 		id{ id },
 		parent{ parent },
 		part_list{ parts.begin(), parts.end() }
-	{}
+	{
+		assert( base_part_index < this->part_list.size() );
+		assert( child_root_part_index < this->part_list.size() );
+
+		this->base_part = &this->part_list[ base_part_index ];
+		this->child_root_part = &this->part_list[ child_root_part_index ];
+	}
 
 	LogicalElement( const LogicalElement& ) = default;
 	LogicalElement( LogicalElement&& ) = default;
@@ -40,15 +59,31 @@ public:
 
 	auto GetID() const noexcept -> std::string_view { return id; }
 	auto GetParent() const noexcept -> LogicalElement* { return parent; }
-	auto GetParts() const noexcept -> std::span<const dom::ElementPart> { return part_list; }
 
-	auto GetPartID( std::size_t part_index ) const -> std::string
+	auto SetParts( std::vector<dom::ElementPart>&& part_list, size_t base_part_index, size_t child_root_part_index ) -> void
 	{
-		assert( part_index < part_list.size() );
+		assert( this->part_list.empty() && "Parts can only be assigned once." );
+		// WARNING: Parts can only be assigned once because the address for the parts must not change.
+		// This is a limitation of current architecture, this may change later.
+		this->part_list = std::move( part_list );
 
-		return std::string{ std::string_view{ GetID() } }
-			+ "--"
-			+ std::string{ part_list[ part_index ].name };
+		assert( base_part_index < this->part_list.size() );
+		assert( child_root_part_index < this->part_list.size() );
+
+		this->base_part = &this->part_list[ base_part_index ];
+		this->child_root_part = &this->part_list[ child_root_part_index ];
+	}
+
+	auto GetParts() const noexcept -> std::span<const dom::ElementPart> { return part_list; }
+	auto GetBasePart() -> dom::ElementPart&
+	{
+		assert( this->base_part );
+		return *this->base_part;
+	}
+	auto GetChildRootPart() -> dom::ElementPart&
+	{
+		assert( this->child_root_part );
+		return *this->child_root_part;
 	}
 
 	template<typename ElementT>
@@ -60,6 +95,15 @@ public:
 		return child_ptr;
 	}
 
+	auto FindPart( std::string_view part_name ) -> dom::ElementPart*
+	{
+		auto result = std::ranges::find_if( this->part_list, [ this, part_name ]( const auto& part ){
+			return part.GetPartID() == this->id + "|" + std::string{ part_name };
+		} );
+		if( result == this->part_list.end() ) return nullptr;
+		return &*result;
+	}
+
 	auto GetChildren() const -> const std::vector<std::unique_ptr<LogicalElement>>& { return child_list; }
 
 private:
@@ -68,6 +112,9 @@ private:
 	LogicalElement* parent = nullptr;
 	std::vector<dom::ElementPart> part_list;
 	std::vector<std::unique_ptr<LogicalElement>> child_list;
+
+	dom::ElementPart* base_part = nullptr;
+	dom::ElementPart* child_root_part = nullptr;
 };
 
 
