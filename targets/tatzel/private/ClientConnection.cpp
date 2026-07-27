@@ -14,7 +14,7 @@ tatzel::ClientConnection::ClientConnection(
 ) :
 	ws_connection( ws_connection )
 {
-	client_dom_tree = std::make_unique<ClientDOMTree>();
+	client_dom_tree = std::make_unique<ClientElementTree>();
 	client_updater = std::make_unique<ClientUpdater>( ws_connection );
 
 	// TODO: Make it possible to use other element adapters in the future.

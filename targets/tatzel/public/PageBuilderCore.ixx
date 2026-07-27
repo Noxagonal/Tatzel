@@ -4,7 +4,7 @@ module;
 
 export module UI.PageBuilderCore;
 
-import UI.ClientDOMTree;
+import UI.ClientElementTree;
 import UI.ClientUpdater;
 import UI.UI.LogicalElement;
 import UI.ElementAdapter.ElementAdapter;
@@ -18,7 +18,7 @@ class PageBuilderCore
 {
 public:
 	inline PageBuilderCore(
-		ClientDOMTree& dom_tree,
+		ClientElementTree& dom_tree,
 		ClientUpdater& client_updater,
 		ElementAdapter& element_adapter
 	) :
@@ -40,7 +40,7 @@ public:
 
 private:
 
-	ClientDOMTree* dom_tree = nullptr;
+	ClientElementTree* dom_tree = nullptr;
 	ui::LogicalElement* root_element = nullptr;
 	ClientUpdater* client_updater = nullptr;
 	ElementAdapter* element_adapter = nullptr;

@@ -2,7 +2,7 @@ module;
 
 #include <string_view>
 
-export module UI.ClientDOMTree;
+export module UI.ClientElementTree;
 
 import UI.UI.LogicalElement;
 
@@ -11,16 +11,16 @@ namespace tatzel {
 
 
 export
-class ClientDOMTree
+class ClientElementTree
 {
 public:
-	ClientDOMTree();
-	ClientDOMTree( const ClientDOMTree& ) = delete;
-	ClientDOMTree( ClientDOMTree&& ) = default;
-	~ClientDOMTree();
+	ClientElementTree();
+	ClientElementTree( const ClientElementTree& ) = delete;
+	ClientElementTree( ClientElementTree&& ) = default;
+	~ClientElementTree();
 
-	auto operator=( const ClientDOMTree& ) -> ClientDOMTree& = delete;
-	auto operator=( ClientDOMTree&& ) -> ClientDOMTree& = default;
+	auto operator=( const ClientElementTree& ) -> ClientElementTree& = delete;
+	auto operator=( ClientElementTree&& ) -> ClientElementTree& = default;
 
 	template<typename ElementT>
 	auto FindElementById( std::string_view id ) -> ElementT*

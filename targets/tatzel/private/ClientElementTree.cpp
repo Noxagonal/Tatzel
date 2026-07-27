@@ -2,13 +2,13 @@ module;
 
 #include "PCH.hpp"
 
-module UI.ClientDOMTree;
+module UI.ClientElementTree;
 
 import UI.ClientConnection;
 
 
 
-tatzel::ClientDOMTree::ClientDOMTree() :
+tatzel::ClientElementTree::ClientElementTree() :
 	root{
 		"root",
 		nullptr,
@@ -24,5 +24,5 @@ tatzel::ClientDOMTree::ClientDOMTree() :
 		}
 {}
 
-tatzel::ClientDOMTree::~ClientDOMTree()
+tatzel::ClientElementTree::~ClientElementTree()
 {}
