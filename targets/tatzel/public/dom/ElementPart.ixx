@@ -26,8 +26,7 @@ public:
 		std::string_view parent_id,
 		std::string_view tag,
 		std::span<const std::string_view> classes = {},
-		std::span<const Attribute> attributes = {},
-		std::optional<std::size_t> parent_index = std::nullopt
+		std::span<const Attribute> attributes = {}
 	) :
 		part_id{ std::string{ part_id } },
 		parent_id{ std::string{ parent_id } },
