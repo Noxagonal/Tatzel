@@ -14,7 +14,9 @@ export function registerBrowserEventHandlers(): void
 
 		sendToServer({
 			op: "on_click",
-			id: element.id
+			data: {
+				part_id: element.id
+			}
 		});
 	});
 
@@ -37,8 +39,10 @@ export function registerBrowserEventHandlers(): void
 
 		sendToServer({
 			op: "on_change",
-			id: element.id,
-			value: elementValue
+			data: {
+				part_id: element.id,
+				value: elementValue
+			}
 		});
 	});
 
@@ -56,7 +60,9 @@ export function registerBrowserEventHandlers(): void
 
 		sendToServer({
 			op: "on_submit",
-			id: element.id
+			data: {
+				part_id: element.id
+			}
 		});
 	});
 }

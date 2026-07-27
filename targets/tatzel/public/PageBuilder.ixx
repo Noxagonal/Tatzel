@@ -287,7 +287,7 @@ private:
 
 		auto* client_updater = this->core->GetClientUpdater();
 		assert( client_updater );
-		client_updater->CreateElement(
+		client_updater->CreateElementParts(
 			new_element_ptr->GetParts()
 		);
 

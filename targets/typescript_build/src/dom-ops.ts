@@ -1,9 +1,25 @@
 
 import { stringToBoolean } from "./utilities.js";
-import { DomPart } from "./protocol.js"
+import {
+	ReceiveData_CreateElementPart,
+	ReceiveData_RemoveElementPart,
+	ReceiveData_SetAttribute,
+	ReceiveData_RemoveAttribute,
+	ReceiveData_AddClass,
+	ReceiveData_RemoveClass,
+	ReceiveData_SetText,
+	ReceiveData_SetValue,
+	ReceiveData_SetModalOpen,
+	ReceiveData_SetOnClick,
+	ReceiveData_SetOnChange,
+	ReceiveData_SetOnSubmit,
+	SendData_OnSubmit
+} from "./protocol.js"
 
-export function createElement(
-	parts: Array<DomPart>
+
+
+export function createElementPart(
+	parts: Array<ReceiveData_CreateElementPart>
 ): void
 {
 	parts.forEach(part => {
@@ -31,127 +47,192 @@ export function createElement(
 }
 
 
-export function removeElement(id: string): void
+export function removeElementPart(
+	parts: Array<ReceiveData_RemoveElementPart>
+): void
 {
-	document.getElementById(id)?.remove();
+	parts.forEach(part => {
+		document.getElementById(part.part_id)?.remove();
+	});
 }
 
 
 export function setAttribute(
-	id: string,
-	attribute: string,
-	value: string
+	parts: Array<ReceiveData_SetAttribute>
 ): void
 {
-	if (attribute.toLowerCase().startsWith("on")) {
-		console.warn("Blocked event-handler attribute:", attribute);
-		return;
-	}
+	parts.forEach(part => {
+		if (part.attribute.toLowerCase().startsWith("on")) {
+			console.warn("Blocked event-handler attribute:", part.attribute);
+			return;
+		}
 
-	document.getElementById(id)?.setAttribute(attribute, value);
+		document.getElementById(part.part_id)?.setAttribute(part.attribute, part.attribute_value);
+	});
 }
 
 
 export function removeAttribute(
-	id: string,
-	attribute: string
+	parts: Array<ReceiveData_RemoveAttribute>
 ): void
 {
-	document.getElementById(id)?.removeAttribute(attribute);
+	parts.forEach(part => {
+		document.getElementById(part.part_id)?.removeAttribute(part.attribute);
+	});
 }
 
 
 export function addClass(
-	id: string,
-	className: string
+	parts: Array<ReceiveData_AddClass>
 ): void
 {
-	document.getElementById(id)?.classList.add(className);
+	parts.forEach(part => {
+		document.getElementById(part.part_id)?.classList.add(part.class_name);
+	});
 }
 
 
 export function removeClass(
-	id: string,
-	className: string
+	parts: Array<ReceiveData_RemoveClass>
 ): void
 {
-	document.getElementById(id)?.classList.remove(className);
+	parts.forEach(part => {
+		document.getElementById(part.part_id)?.classList.remove(part.class_name);
+	});
 }
 
 
 export function setText(
-	id: string,
-	text: string
+	parts: Array<ReceiveData_SetText>
 ): void
 {
-	const element = document.getElementById(id);
-	if (element !== null) element.textContent = text;
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
+		if (element !== null) element.textContent = part.text;
+	});
 }
 
 
 export function setValue(
-	id: string,
-	value: string
+	parts: Array<ReceiveData_SetValue>
 ): void
 {
-	const element = document.getElementById(id);
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
 
-	if (element === null) {
-		console.warn("setValue failed, element not found: ", id);
-		return;
-	}
-
-	if (element instanceof HTMLInputElement) {
-		if (element.type === "checkbox") {
-			element.checked = stringToBoolean(value);
+		if (element === null) {
+			console.warn("setValue failed, element not found: ", part.part_id);
 			return;
 		}
-		element.value = value;
-		return;
-	}
 
-	if (element instanceof HTMLTextAreaElement) {
-		element.value = value;
+		if (element instanceof HTMLInputElement) {
+		if (element.type === "checkbox") {
+			element.checked = stringToBoolean(part.value);
+			return;
+		}
+		element.value = part.value;
 		return;
-	}
+		}
 
-	if (element instanceof HTMLSelectElement) {
-		element.value = value;
-		return;
-	}
+		if (element instanceof HTMLTextAreaElement) {
+			element.value = part.value;
+			return;
+		}
 
-	console.warn("setValue called on unsupported element: ", element, " | While trying to assing value: ", value);
+		if (element instanceof HTMLSelectElement) {
+			element.value = part.value;
+			return;
+		}
+
+		console.warn("setValue called on unsupported element: ", element, " | While trying to assing value: ", part.value);
+	});
 }
 
 
 export function setModalOpen(
-	id: string,
-	open: boolean
+	parts: Array<ReceiveData_SetModalOpen>
 ): void
 {
-	const element = document.getElementById(id);
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
 
-	if (!element) {
-		console.warn("SetModalOpen failed, element not found:", id);
-		return;
-	}
-
-	if (!(element instanceof HTMLDialogElement)) {
-		console.warn("SetModalOpen failed, element is not a dialog:", id);
-		return;
-	}
-
-	if (open) {
-		if (!element.open) {
-			element.showModal();
+		if (!element) {
+			console.warn("SetModalOpen failed, element not found:", part.part_id);
+			return;
 		}
-	}
-	else {
-		if (element.open) {
-			element.close();
+
+		if (!(element instanceof HTMLDialogElement)) {
+			console.warn("SetModalOpen failed, element is not a dialog:", part.part_id);
+			return;
 		}
-	}
+
+		if (part.open) {
+			if (!element.open) {
+				element.showModal();
+			}
+		}
+		else {
+			if (element.open) {
+				element.close();
+			}
+		}
+	});
 }
+
+
+export function setOnClick(
+	parts: Array<ReceiveData_SetOnClick>
+): void
+{
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
+
+		if (element === null)
+		{
+			console.error("Element not found:", part.part_id);
+			return;
+		}
+
+		element.dataset.uiOnClick = "true";
+	});
+}
+
+
+export function setOnChange(
+	parts: Array<ReceiveData_SetOnChange>
+): void
+{
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
+
+		if (element === null)
+		{
+			console.error("Element not found:", part.part_id);
+			return;
+		}
+
+		element.dataset.uiOnChange = "true";
+	});
+}
+
+
+export function setOnSubmit(
+	parts: Array<ReceiveData_SetOnSubmit>
+): void
+{
+	parts.forEach(part => {
+		const element = document.getElementById(part.part_id);
+
+		if (element === null)
+		{
+			console.error("Element not found:", part.part_id);
+			return;
+		}
+
+		element.dataset.uiOnSubmit = "true";
+	});
+}
+
 
 
 export function getElementValue(element: Element): null | string | boolean
@@ -172,46 +253,4 @@ export function getElementValue(element: Element): null | string | boolean
 
 	console.warn("getElementValue called on unsupported element: ", element);
 	return null;
-}
-
-
-export function setOnClick(id: string): void
-{
-	const element = document.getElementById(id);
-
-	if (element === null)
-	{
-		console.error("Element not found:", id);
-		return;
-	}
-
-	element.dataset.uiOnClick = "true";
-}
-
-
-export function setOnChange(id: string): void
-{
-	const element = document.getElementById(id);
-
-	if (element === null)
-	{
-		console.error("Element not found:", id);
-		return;
-	}
-
-	element.dataset.uiOnChange = "true";
-}
-
-
-export function setOnSubmit(id: string): void
-{
-	const element = document.getElementById(id);
-
-	if (element === null)
-	{
-		console.error("Element not found:", id);
-		return;
-	}
-
-	element.dataset.uiOnSubmit = "true";
 }

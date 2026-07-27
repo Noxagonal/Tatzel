@@ -4,8 +4,8 @@ import { socket, parseServerMessage, sendToServer } from "./websocket.js";
 import { registerBrowserEventHandlers } from "./events.js";
 import {
 	addClass,
-	createElement,
-	removeElement,
+	createElementPart,
+	removeElementPart,
 	setAttribute,
 	removeAttribute,
 	removeClass,
@@ -26,9 +26,11 @@ socket.addEventListener(
 	() => {
 	sendToServer({
 		op: "connect",
-		route_path: window.location.pathname,
-		query: window.location.search,
-		hash: window.location.hash
+		data: {
+			route_path: window.location.pathname,
+			query: window.location.search,
+			hash: window.location.hash
+		}
 	});
 });
 
@@ -46,52 +48,52 @@ socket.addEventListener(
 	}
 
 	switch (message.op) {
-		case "create_element":
-			createElement(message.parts);
+		case "create_element_part":
+			createElementPart(message.data);
 			break;
 
-		case "delete_element":
-			removeElement(message.id);
+		case "remove_element_part":
+			removeElementPart(message.data);
 			break;
 
 		case "set_attribute":
-			setAttribute(message.id, message.attribute, message.attribute_value);
+			setAttribute(message.data);
 			break;
 
 		case "remove_attribute":
-			removeAttribute(message.id, message.attribute);
+			removeAttribute(message.data);
 			break;
 
 		case "add_class":
-			addClass(message.id, message.class_name);
+			addClass(message.data);
 			break;
 
 		case "remove_class":
-			removeClass(message.id, message.class_name);
+			removeClass(message.data);
 			break;
 
 		case "set_text":
-			setText(message.id, message.text);
+			setText(message.data);
 			break;
 
 		case "set_value":
-			setValue(message.id, message.value);
+			setValue(message.data);
 			break;
 
 		case "set_modal_open":
-			setModalOpen(message.id, message.open);
+			setModalOpen(message.data);
 			break;
 
 		case "set_on_click":
-			setOnClick(message.id);
+			setOnClick(message.data);
 			break;
 
 		case "set_on_change":
-			setOnChange(message.id);
+			setOnChange(message.data);
 			break;
 
 		case "set_on_submit":
-			setOnSubmit(message.id);
+			setOnSubmit(message.data);
 			break;
 
 		default:

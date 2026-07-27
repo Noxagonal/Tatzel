@@ -62,8 +62,15 @@ public:
 
 		if( json_op == "connect" )
 		{
+			auto& json_data = json[ "data" ];
+			if( json_data.empty() )
+			{
+				ws_connection->send( R"({"type":"error","message":"Payload not found"})"  );
+				return;
+			}
+
 			// Handle new connection.
-			auto route_path = json[ "route_path" ].asString();
+			auto route_path = json_data[ "route_path" ].asString();
 			auto* page = tatzel::GetGlobalApp().FindRegisteredPage( route_path );
 
 			if( page == nullptr )
@@ -85,24 +92,45 @@ public:
 
 		if( json_op == "on_click" )
 		{
-			auto id = json[ "id" ].asString();
-			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Clickable>( id );
+			auto& json_data = json[ "data" ];
+			if( json_data.empty() )
+			{
+				ws_connection->send( R"({"type":"error","message":"Payload not found"})"  );
+				return;
+			}
+
+			auto part_id = json_data[ "part_id" ].asString();
+			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Clickable>( part_id );
 			if( element ) element->InvokeOnClick();
 			return;
 		}
 
 		if( json_op == "on_change" )
 		{
-			auto id = json[ "id" ].asString();
-			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Changeable>( id );
+			auto& json_data = json[ "data" ];
+			if( json_data.empty() )
+			{
+				ws_connection->send( R"({"type":"error","message":"Payload not found"})"  );
+				return;
+			}
+
+			auto part_id = json_data[ "part_id" ].asString();
+			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Changeable>( part_id );
 			if( element ) element->InvokeOnChange( json[ "value" ].asString() );
 			return;
 		}
 
 		if( json_op == "on_submit" )
 		{
-			auto id = json[ "id" ].asString();
-			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Submittable>( id );
+			auto& json_data = json[ "data" ];
+			if( json_data.empty() )
+			{
+				ws_connection->send( R"({"type":"error","message":"Payload not found"})"  );
+				return;
+			}
+
+			auto part_id = json_data[ "part_id" ].asString();
+			auto element = client_connection->client_dom_tree->FindElementById<tatzel::ui::interface::Submittable>( part_id );
 			if( element ) element->InvokeOnSubmit();
 			return;
 		}
