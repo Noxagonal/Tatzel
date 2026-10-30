@@ -88,16 +88,18 @@ test("the running example maps logical updates and events across real WebSockets
 	let first;
 	let second;
 	try {
+		// Drogon upgrades only the first request on a TCP connection. Close the
+		// HTTP probes so Node's shared HTTP/WebSocket pool opens a fresh socket.
 		const deadline = Date.now() + 5000;
 		let response;
 		while (Date.now() < deadline) {
-			try { response = await fetch("http://127.0.0.1:8080/", { signal: AbortSignal.timeout(1000) }); if (response.ok) break; }
+			try { response = await fetch("http://127.0.0.1:8080/", { signal: AbortSignal.timeout(1000), headers: { Connection: "close" } }); if (response.ok) break; }
 			catch {}
 			await pause(50);
 		}
 		assert.ok(response?.ok, diagnostics);
 		assert.match(await response.text(), /id="root\|main"/);
-		const script = await fetch("http://127.0.0.1:8080/app/main.js");
+		const script = await fetch("http://127.0.0.1:8080/app/main.js", { headers: { Connection: "close" } });
 		assert.equal(script.status, 200);
 		assert.match(await script.text(), /registerBrowserEventHandlers/);
 
