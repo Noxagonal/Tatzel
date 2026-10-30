@@ -33,6 +33,7 @@ such as Heading::SetText().
 
 - C++ classes, enums, concepts, and template type parameters use PascalCase.
 - C++ functions use PascalCase and trailing return types: auto GetText() -> std::string_view.
+  Overrides of third-party interfaces keep the names required by that interface.
 - Local variables, parameters, data members, and namespaces use snake_case.
 - Acronyms in C++ names stay uppercase: GetID(), FindElementByPartID().
 - Browser TypeScript functions and variables use camelCase; wire fields use snake_case.

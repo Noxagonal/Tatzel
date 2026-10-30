@@ -2,9 +2,12 @@ name: Documentation and browser checks
 
 on:
   push:
-    branches: [dev, main]
   pull_request:
   workflow_dispatch:
+
+concurrency:
+  group: tatzel-validation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
