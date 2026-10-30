@@ -45,7 +45,7 @@ public:
 	 * @brief Replaces the heading text and notifies its adapter.
 	 * @param text New logical text.
 	 * @pre Called on the owning event loop.
-	 * @post The heading owns text; a bound adapter updates its DOM representation.
+	 * @post The heading owns text; a bound adapter queues its DOM text update.
 	 */
 	auto SetText( std::string_view text ) -> void
 	{

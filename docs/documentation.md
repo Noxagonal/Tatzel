@@ -21,7 +21,7 @@ repository root:
 
 ```sh
 python3 tools/check_documentation.py
-doxygen Doxyfile
+python3 tools/build_documentation.py
 python3 -m http.server 8081 --directory build/docs/html
 ```
 

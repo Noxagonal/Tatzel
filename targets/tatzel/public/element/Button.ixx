@@ -37,7 +37,7 @@ public:
 	 * @brief Replaces the label and notifies the adapter.
 	 * @param text New logical label.
 	 * @pre Called on the owning event loop.
-	 * @post The button owns text; a bound adapter updates its DOM representation.
+	 * @post The button owns text; a bound adapter queues its DOM text update.
 	 */
 	auto SetText( std::string_view text ) -> void
 	{

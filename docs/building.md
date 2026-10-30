@@ -74,7 +74,7 @@ Runtime asset packaging and configurable resource roots remain future work.
 ```sh
 npm test
 python3 tools/check_documentation.py
-doxygen Doxyfile
+python3 tools/build_documentation.py
 ```
 
 The documentation commands require Python 3.10 or newer and Doxygen 1.9.8 or
