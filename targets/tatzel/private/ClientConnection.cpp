@@ -1,24 +1,21 @@
 module;
 
-#include <drogon/WebSocketConnection.h>
-
 #include "PCH.hpp"
 
 module UI.ClientConnection;
 
+import UI.ClientElementTree;
+import UI.ClientUpdater;
+import UI.PageBuilderCore;
+
 import UI.ElementAdapter.TatzelElementAdapter;
 
-
-tatzel::ClientConnection::ClientConnection(
-	drogon::WebSocketConnectionPtr ws_connection
-) :
-	ws_connection( ws_connection )
+tatzel::ClientConnection::ClientConnection( drogon::WebSocketConnectionPtr ws_connection ) :
+	ws_connection{ std::move( ws_connection ) }
 {
-	client_dom_tree = std::make_unique<ClientElementTree>();
-	client_updater = std::make_unique<ClientUpdater>( ws_connection );
-
-	// TODO: Make it possible to use other element adapters in the future.
-	element_adapter = std::make_unique<TatzelElementAdapter>();
-
-	page_builder_core = std::make_unique<PageBuilderCore>( *client_dom_tree, *client_updater, *element_adapter );
+	assert( this->ws_connection );
+	client_updater = std::make_unique<ClientUpdater>( this->ws_connection );
+	element_adapter = std::make_unique<TatzelElementAdapter>( *client_updater );
+	element_tree = std::make_unique<ClientElementTree>();
+	page_builder_core = std::make_unique<PageBuilderCore>( *element_tree, *client_updater, *element_adapter );
 }

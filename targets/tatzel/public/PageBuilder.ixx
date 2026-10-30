@@ -1,9 +1,14 @@
+/** @file @brief Scoped application API for creating logical controls. */
 module;
 
-#include <memory>
-#include <vector>
-#include <functional>
 #include <cassert>
+#include <concepts>
+#include <functional>
+#include <memory>
+#include <string>
+#include <string_view>
+#include <type_traits>
+#include <utility>
 
 export module UI.PageBuilder;
 
@@ -11,326 +16,135 @@ import UI.PageBuilderCore;
 import UI.ClientUpdater;
 import UI.Utility;
 
-export import UI.UI.LogicalElement;
-export import UI.DOM.Label;
-export import UI.DOM.Container;
-export import UI.DOM.Button;
-export import UI.DOM.Heading;
-export import UI.DOM.Paragraph;
-export import UI.DOM.Span;
-export import UI.DOM.Link;
-export import UI.DOM.Image;
-export import UI.DOM.HorizontalRule;
-export import UI.DOM.Modal;
-export import UI.DOM.Card;
-export import UI.DOM.Header;
-export import UI.DOM.Footer;
-
+export import UI.Element.LogicalElement;
+export import UI.Element.Heading;
+export import UI.Element.Button;
+export import UI.Element.Container;
 
 namespace tatzel {
 
-
-export
-template<ui::LogicalElementDerived ElementT = ui::LogicalElement>
+/**
+ * @brief Lightweight borrowed handle for building a logical subtree.
+ * @tparam ElementT Type of the logical parent represented by this scope.
+ * @details Copying the handle preserves its scope. It may be captured by a page
+ * callback, provided the owning client page still exists when it is used.
+ */
+export template<ui::LogicalElementDerived ElementT = ui::LogicalElement>
 class PageBuilder
 {
 public:
-	PageBuilder(
-		PageBuilderCore& core,
-		ElementT& parent
-	) :
-		core( &core ),
-		parent( &parent )
-	{}
-	PageBuilder( const PageBuilder& other ) = default;
-	~PageBuilder() = default;
+	/**
+	 * @brief Creates a scoped logical builder.
+	 * @param core Client-owned framework services.
+	 * @param parent Logical parent for new controls.
+	 * @pre core and parent belong to the same live client page.
+	 * @post New controls are inserted under parent.
+	 */
+	PageBuilder( PageBuilderCore& core, ElementT& parent ) : core{ &core }, parent{ &parent } {}
 
-	auto operator=( const PageBuilder& other ) -> PageBuilder& = default;
+	/**
+	 * @brief Creates a builder for another logical parent on the same page.
+	 * @tparam NewParentT New logical parent type.
+	 * @param new_parent Parent for the new scope.
+	 * @return Borrowed builder with the new logical parent.
+	 * @pre new_parent belongs to this builder's live client page.
+	 * @post This builder's scope is unchanged.
+	 */
+	template<ui::LogicalElementDerived NewParentT>
+	auto Scope( NewParentT& new_parent ) const -> PageBuilder<NewParentT> { return { *core, new_parent }; }
 
-	template<ui::LogicalElementDerived NewParentScopeT = ui::LogicalElement>
-	auto Scope( NewParentScopeT& new_parent ) const -> PageBuilder<NewParentScopeT>
-	{
-		return { *core, new_parent };
-	}
-
+	/**
+	 * @brief Creates a logical heading and its adapter-selected DOM representation.
+	 * @param text Initial logical text.
+	 * @param style Semantic heading level.
+	 * @return Borrowed heading pointer, valid for the client page lifetime.
+	 * @pre The builder's page is alive and is accessed on its owning event loop.
+	 * @post The heading is owned by the logical parent and DOM creation is queued.
+	 */
 	auto Heading( std::string_view text, ui::HeadingStyle style = ui::HeadingStyle::H1 ) -> ui::Heading*
 	{
-		auto* new_element = AddChild<tatzel::ui::Heading>( text, style );
-
-		return new_element;
+		return AddChild<ui::Heading>( text, style );
 	}
 
-	/*
-	auto Label( std::string_view text ) -> dom::Label*
+	/**
+	 * @brief Creates a logical button with a server-side click callback.
+	 * @param text Initial logical label.
+	 * @param on_click Callback invoked on the owning event loop.
+	 * @return Borrowed button pointer, valid for the client page lifetime.
+	 * @pre The page is alive; captured objects outlive callback invocations.
+	 * @post The button is owned by the parent and browser clicks can reach its callback.
+	 */
+	auto Button( std::string_view text, std::function<void()> on_click ) -> ui::Button*
 	{
-		auto* new_element = AddChild<tatzel::ui::Label>( text );
-
-		this->BindSetText( new_element, &new_element->text );
-
-		new_element->text = text;
-
-		return new_element;
+		auto* button = AddChild<ui::Button>( text, std::move( on_click ) );
+		core->GetClientUpdater()->SetOnClick( button->GetBasePart().GetPartID() );
+		return button;
 	}
 
-	auto Button( std::string_view text, std::function<void()> on_click ) -> dom::Button*
-	{
-		auto* new_element = AddChild<tatzel::ui::Button>( text );
-
-		this->BindSetText( new_element, &new_element->text );
-		this->BindEventOnClick( new_element );
-
-		new_element->text = text;
-		new_element->on_click = std::move( on_click );
-
-		return new_element;
-	}
-
-	auto Paragraph( std::string_view text ) -> dom::Paragraph*
-	{
-		auto* new_element = AddChild<tatzel::ui::Paragraph>( text );
-
-		this->BindSetText( new_element, &new_element->text );
-
-		new_element->text = text;
-
-		return new_element;
-	}
-
-	auto Span( std::string_view text ) -> dom::Span*
-	{
-		auto* new_element = AddChild<tatzel::ui::Span>( text );
-
-		this->BindSetText( new_element, &new_element->text );
-
-		new_element->text = text;
-
-		return new_element;
-	}
-
-	auto Link( std::string_view text, std::string_view href ) -> dom::Link*
-	{
-		auto* new_element = AddChild<tatzel::ui::Link>( text, href );
-
-		this->BindSetText( new_element, &new_element->text );
-		this->BindSetAttribute( new_element, &new_element->href, "href" );
-
-		new_element->text = text;
-		new_element->href = href;
-
-		return new_element;
-	}
-
-	auto Image( std::string_view src ) -> dom::Image*
-	{
-		auto* new_element = AddChild<tatzel::ui::Image>( src );
-
-		this->BindSetAttribute( new_element, &new_element->src, "src" );
-
-		new_element->src = src;
-
-		return new_element;
-	}
-
-	auto HorizontalRule() -> dom::HorizontalRule*
-	{
-		auto* new_element = AddChild<tatzel::ui::HorizontalRule>();
-
-		return new_element;
-	}
-
+	/**
+	 * @brief Creates a logical container and builds its logical children.
+	 * @tparam ChildBuilderFn Callable accepting a scoped builder and optionally its parent pointer.
+	 * @param child_builder_fn Function that builds the container's logical children.
+	 * @return Borrowed container pointer, valid for the client page lifetime.
+	 * @pre The page is alive and the callback is invocable with a scoped builder.
+	 * @post The container and callback-created children belong to this page.
+	 */
 	template<typename ChildBuilderFn>
-	auto Container( ChildBuilderFn&& child_builder_fn ) -> dom::Container*
+	auto Container( ChildBuilderFn&& child_builder_fn ) -> ui::Container*
 	{
-		auto* new_element = AddChild<tatzel::ui::Container>();
-
-		this->BuildChildren( *new_element, std::forward<ChildBuilderFn>( child_builder_fn ) );
-
-		return new_element;
+		auto* container = AddChild<ui::Container>();
+		BuildChildren( *container, std::forward<ChildBuilderFn>( child_builder_fn ) );
+		return container;
 	}
-
-	template<typename ChildBuilderFn>
-	auto Card( ChildBuilderFn&& child_builder_fn ) -> dom::Card*
-	{
-		auto* new_element = AddChild<tatzel::ui::Card>();
-
-		this->BuildChildren( *new_element, std::forward<ChildBuilderFn>( child_builder_fn ) );
-
-		return new_element;
-	}
-
-	template<typename ChildBuilderFn>
-	auto Header( ChildBuilderFn&& child_builder_fn ) -> dom::Header*
-	{
-		auto* new_element = AddChild<tatzel::ui::Header>();
-
-		this->BuildChildren( *new_element, std::forward<ChildBuilderFn>( child_builder_fn ) );
-
-		return new_element;
-	}
-
-	template<typename ChildBuilderFn>
-	auto Footer( ChildBuilderFn&& child_builder_fn ) -> dom::Footer*
-	{
-		auto* new_element = AddChild<tatzel::ui::Footer>();
-
-		this->BuildChildren( *new_element, std::forward<ChildBuilderFn>( child_builder_fn ) );
-
-		return new_element;
-	}
-*/
-//	template<typename ChildBuilderFn>
-//	auto Modal( ChildBuilderFn&& child_builder_fn ) -> dom::Modal*
-//	{
-//		auto* new_element = AddChild<tatzel::ui::Modal>( false /* Closed by default */ );
-//
-//		this->BindSetModalOpen( new_element, &new_element->open );
-//
-//		this->BuildChildren( *new_element, std::forward<ChildBuilderFn>( child_builder_fn ) );
-//
-//		return new_element;
-//	}
 
 private:
-/*
-	auto BindSetProperty(
-		ui::LogicalElementDerived auto* element,
-		auto* property,
-		auto&& update_fn
-	) -> void
-	{
-		assert( element );
-		assert( property );
-
-		using UpdateFn = decltype( update_fn );
-
-		auto* client_updater = this->core->GetClientUpdater();
-		assert( client_updater );
-		auto element_id = std::string_view{ element->GetID() };
-
-		property->OnSet( [client_updater, element_id = std::string{ element_id }, update_fn = std::forward<UpdateFn>( update_fn ) ]( const auto& value ) mutable {
-			std::invoke( update_fn, client_updater, element_id, value );
-		} );
-	}
-
-	auto BindSetText(
-		ui::LogicalElementDerived auto* element,
-		auto* property
-	) -> void
-	{
-		BindSetProperty(
-			element,
-			property,
-			[]( ClientUpdater* updater, std::string_view id, std::string_view value ) {
-				updater->SetText( id, value );
-			}
-		);
-	}
-
-	auto BindSetAttribute(
-		ui::LogicalElementDerived auto* element,
-		auto* property,
-		std::string_view attribute
-	) -> void
-	{
-		BindSetProperty(
-			element,
-			property,
-			[attribute = std::string{ attribute }]( ClientUpdater* updater, std::string_view id, std::string_view value ) {
-				updater->SetAttribute( id, attribute, value );
-			}
-		);
-	}
-
-	auto BindSetModalOpen(
-		ui::LogicalElementDerived auto* element,
-		auto* property
-	) -> void
-	{
-		BindSetProperty(
-			element,
-			property,
-			[]( ClientUpdater* updater, std::string_view id, bool value ) {
-				updater->SetModalOpen( id, value );
-			}
-		);
-	}
-
-	auto BindEventOnClick( ui::LogicalElementDerived auto* element ) -> void
-	{
-		assert( element );
-		auto* client_updater = this->core->GetClientUpdater();
-		assert( client_updater );
-		client_updater->SetOnClick( element->id );
-	}
-*/
-	template<
-		ui::LogicalElementDerived NewElementT,
-		typename ...ArgsT>
+	/**
+	 * @brief Allocates a logical control, maps its parts, and transfers ownership.
+	 * @tparam NewElementT Logical control type.
+	 * @tparam ArgsT Constructor argument types after identity and logical parent.
+	 * @param args Constructor arguments forwarded to the logical control.
+	 * @return Borrowed pointer to the owned logical control.
+	 * @pre The builder's page is alive and the adapter supports NewElementT.
+	 * @post The parent owns the control at a stable address and DOM creation is queued.
+	 */
+	template<ui::LogicalElementDerived NewElementT, typename ...ArgsT>
 	auto AddChild( ArgsT&& ...args ) -> NewElementT*
 	{
-		auto* owning_parent = this->parent;
-		assert( owning_parent );
-
-		auto* element_adapter = this->core->GetElementAdapter();
-		assert( element_adapter );
-
-		auto new_element = std::make_unique<NewElementT>(
-			this->GenerateElementUUID(),
-			owning_parent,
-			std::forward<ArgsT>( args )...
-		);
-
-		element_adapter->CreatePartsFor( *new_element );
-
-		auto* new_element_ptr = new_element.get();
-		owning_parent->InsertChild( std::move( new_element ) );
-
-		auto* client_updater = this->core->GetClientUpdater();
-		assert( client_updater );
-		client_updater->CreateElementParts(
-			new_element_ptr->GetParts()
-		);
-
-		return new_element_ptr;
+		assert( parent && core );
+		auto element = std::make_unique<NewElementT>(
+			std::string{ "ui-" } + GenerateUUID(), parent, std::forward<ArgsT>( args )... );
+		core->GetElementAdapter()->CreatePartsFor( *element );
+		auto* result = parent->InsertChild( std::move( element ) );
+		core->GetClientUpdater()->CreateElementParts( result->GetParts() );
+		return result;
 	}
 
+	/**
+	 * @brief Invokes a child builder within a newly created logical scope.
+	 * @tparam ParentT Logical parent type.
+	 * @tparam ChildBuilderFn Child-builder callable type.
+	 * @param child_parent Logical parent for the callback's scope.
+	 * @param child_builder_fn Callable taking the scoped builder and optionally the parent pointer.
+	 * @pre The callable accepts one of the documented builder signatures.
+	 * @post The callable has run once in the child scope.
+	 */
 	template<ui::LogicalElementDerived ParentT, typename ChildBuilderFn>
-	auto BuildChildren( ParentT& parent, ChildBuilderFn&& child_builder_fn ) -> void
+	auto BuildChildren( ParentT& child_parent, ChildBuilderFn&& child_builder_fn ) -> void
 	{
-		using ScopedBuilderT = PageBuilder<ParentT>;
-		auto scoped_builder = this->Scope( parent );
-
+		auto scoped_builder = Scope( child_parent );
+		using ScopedBuilderT = decltype( scoped_builder );
 		if constexpr( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&, ParentT*> )
-		{
-			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder, &parent );
-		}
-		else if constexpr( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&> )
-		{
-			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder );
-		}
+			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder, &child_parent );
 		else
 		{
-			static_assert(
-				std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&> ||
-				std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&, ParentT*>,
-				"Child builder must be callable as fn(PageBuilder<ParentT>) or fn(PageBuilder<ParentT>, ParentT*)"
-			);
+			static_assert( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&>,
+				"Child builder must accept a scoped builder and optionally its logical parent pointer." );
+			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder );
 		}
 	}
 
-	auto GetParent() const noexcept -> ElementT* { return parent; }
-	auto GetRoot() const noexcept -> ui::LogicalElement* { return core->GetRootElement(); }
-
-private:
-
-	auto GenerateElementUUID() const -> std::string
-	{
-		return std::string( "ui-" ) + tatzel::GenerateUUID();
-	}
-
-	PageBuilderCore* core = nullptr;
-	ElementT* parent = nullptr;
+	PageBuilderCore* core;
+	ElementT* parent;
 };
-
 
 }

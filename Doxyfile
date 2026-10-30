@@ -1,0 +1,33 @@
+PROJECT_NAME           = Tatzel
+PROJECT_BRIEF          = "Logical C++ controls with a server-driven browser DOM"
+OUTPUT_DIRECTORY       = build/docs
+INPUT                  = docs CODING_CONVENTIONS.md targets/tatzel/public
+FILE_PATTERNS          = *.md *.dox *.ixx
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE  = docs/index.md
+MARKDOWN_SUPPORT       = YES
+EXTENSION_MAPPING      = ixx=C++
+FILTER_PATTERNS        = "*.ixx=python3 tools/doxygen_filter.py"
+FILTER_SOURCE_FILES    = NO
+INCLUDE_PATH           = targets/development/private
+EXAMPLE_PATH           = targets/development/private
+EXAMPLE_PATTERNS       = *.cpp
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+HIDE_UNDOC_MEMBERS      = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC  = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = YES
+GENERATE_HTML          = YES
+GENERATE_TREEVIEW      = YES
+HTML_OUTPUT            = html
+HTML_TIMESTAMP         = NO
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+GENERATE_LATEX         = NO
+HAVE_DOT               = NO
+QUIET                  = YES

@@ -1,0 +1,37 @@
+name: Documentation and browser checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check documentation contracts and links
+        run: python3 tools/check_documentation.py
+      - name: Build and test browser code
+        run: |
+          npm ci
+          npm run build
+          npm test
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen
+      - name: Generate static documentation
+        run: doxygen Doxyfile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tatzel-documentation
+          path: build/docs/html
+          if-no-files-found: error

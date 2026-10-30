@@ -3,6 +3,11 @@ import { sendToServer } from "./websocket.js";
 import { getElementValue } from "./dom-ops.js";
 
 
+/**
+ * @brief Registers delegated DOM events that identify their owning logical controls by part ID.
+ * @pre Called once after the browser document exists.
+ * @post Click, change, and submit events send the documented op/data payloads.
+ */
 export function registerBrowserEventHandlers(): void
 {
 	document.addEventListener("click", (event) => {

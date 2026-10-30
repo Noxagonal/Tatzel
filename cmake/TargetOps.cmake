@@ -3,6 +3,13 @@ include_guard(GLOBAL)
 include("${CMAKE_CURRENT_LIST_DIR}/FileOps.cmake")
 
 
+#[[!
+@brief Attach a target's public/private sources, headers, and module interfaces.
+@param TARGET_NAME Existing CMake target to configure.
+@param BASE_FOLDER Directory containing public and private source folders.
+@pre TARGET_NAME exists and the source folders follow the documented layout.
+@post Files are attached with their corresponding visibility and module interfaces skip the PCH.
+]]
 function(set_default_target_files
 	TARGET_NAME
 	BASE_FOLDER

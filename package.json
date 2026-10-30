@@ -2,12 +2,10 @@
   "name": "tatzel",
   "version": "1.0.0",
   "description": "Tatzel is a proof-of-concept C++ server-driven web UI framework inspired by projects like NiceGUI.",
-  "main": "index.js",
   "scripts": {
     "build": "tsc -p .",
     "watch": "tsc -p . --watch",
-    "testing": "echo \"Error...\" && exit 1",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --test tests/browser/*.test.mjs"
   },
   "repository": {
     "type": "git",
@@ -15,12 +13,16 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/Noxagonal/Tatzel/issues"
   },
   "homepage": "https://github.com/Noxagonal/Tatzel#readme",
   "devDependencies": {
     "typescript": "^7.0.2"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=24"
   }
 }

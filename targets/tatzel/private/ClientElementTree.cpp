@@ -1,28 +1,19 @@
 module;
 
-#include "PCH.hpp"
+#include <array>
+#include <string_view>
+#include <vector>
 
 module UI.ClientElementTree;
 
-import UI.ClientConnection;
-
-
+import UI.DOM.ElementPart;
 
 tatzel::ClientElementTree::ClientElementTree() :
 	root{
-		"root",
-		nullptr,
-		std::span<const dom::ElementPart>{ {
-			dom::ElementPart{
-				"root|main",
-				"",
-				"main",
-				std::span<const std::string_view>{ { "container" } } }
-			} },
-			0,
-			0
-		}
-{}
-
-tatzel::ClientElementTree::~ClientElementTree()
+		"root", nullptr,
+		std::vector<dom::ElementPart>{
+			dom::ElementPart{ "root|main", "", "main", std::array<std::string_view, 1>{ "container" } }
+		},
+		0, 0
+	}
 {}

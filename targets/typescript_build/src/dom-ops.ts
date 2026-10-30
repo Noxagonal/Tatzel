@@ -1,6 +1,6 @@
 
 import { stringToBoolean } from "./utilities.js";
-import {
+import type {
 	ReceiveData_CreateElementPart,
 	ReceiveData_RemoveElementPart,
 	ReceiveData_SetAttribute,
@@ -13,11 +13,16 @@ import {
 	ReceiveData_SetOnClick,
 	ReceiveData_SetOnChange,
 	ReceiveData_SetOnSubmit,
-	SendData_OnSubmit
 } from "./protocol.js"
 
 
 
+/**
+ * @brief Creates concrete DOM nodes in parent-before-child order.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Every parent exists before its child is processed.
+ * @post Valid parts have corresponding DOM nodes; missing parents are reported.
+ */
 export function createElementPart(
 	parts: Array<ReceiveData_CreateElementPart>
 ): void
@@ -36,7 +41,7 @@ export function createElementPart(
 		domElement.className = part.classes.join(" ");
 		for (const [key, value] of Object.entries(part.attributes))
 		{
-			domElement.setAttribute(key, value);
+			if (!key.toLowerCase().startsWith("on")) domElement.setAttribute(key, value);
 		}
 
 		if (part.text_content !== "" ) domElement.textContent = part.text_content;
@@ -47,6 +52,12 @@ export function createElementPart(
 }
 
 
+/**
+ * @brief Removes concrete DOM nodes.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre None.
+ * @post Existing target nodes and their DOM descendants are removed.
+ */
 export function removeElementPart(
 	parts: Array<ReceiveData_RemoveElementPart>
 ): void
@@ -57,6 +68,12 @@ export function removeElementPart(
 }
 
 
+/**
+ * @brief Updates concrete HTML attributes.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Target IDs refer to existing DOM nodes.
+ * @post Allowed attributes are set; inline event-handler attributes are blocked.
+ */
 export function setAttribute(
 	parts: Array<ReceiveData_SetAttribute>
 ): void
@@ -72,6 +89,12 @@ export function setAttribute(
 }
 
 
+/**
+ * @brief Removes concrete HTML attributes.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre None.
+ * @post The named attributes are absent from existing targets.
+ */
 export function removeAttribute(
 	parts: Array<ReceiveData_RemoveAttribute>
 ): void
@@ -82,6 +105,12 @@ export function removeAttribute(
 }
 
 
+/**
+ * @brief Adds CSS tokens to concrete DOM nodes.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Each class name is one nonempty CSS token.
+ * @post Existing target nodes contain the supplied class.
+ */
 export function addClass(
 	parts: Array<ReceiveData_AddClass>
 ): void
@@ -92,6 +121,12 @@ export function addClass(
 }
 
 
+/**
+ * @brief Removes CSS tokens from concrete DOM nodes.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Each class name is one nonempty CSS token.
+ * @post Existing target nodes no longer contain the supplied class.
+ */
 export function removeClass(
 	parts: Array<ReceiveData_RemoveClass>
 ): void
@@ -102,6 +137,12 @@ export function removeClass(
 }
 
 
+/**
+ * @brief Replaces concrete DOM text content.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Replacing target descendants is intended.
+ * @post Existing targets contain the supplied plain text.
+ */
 export function setText(
 	parts: Array<ReceiveData_SetText>
 ): void
@@ -113,6 +154,12 @@ export function setText(
 }
 
 
+/**
+ * @brief Updates the value of concrete browser form controls.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Targets are inputs, text areas, or selects.
+ * @post Supported targets have the new value; checkbox strings become booleans.
+ */
 export function setValue(
 	parts: Array<ReceiveData_SetValue>
 ): void
@@ -144,11 +191,17 @@ export function setValue(
 			return;
 		}
 
-		console.warn("setValue called on unsupported element: ", element, " | While trying to assing value: ", part.value);
+		console.warn("setValue called on unsupported element: ", element, " | While trying to assign value: ", part.value);
 	});
 }
 
 
+/**
+ * @brief Opens or closes concrete HTML dialogs.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Targets are connected HTML dialog nodes.
+ * @post Supported targets have the requested modal state.
+ */
 export function setModalOpen(
 	parts: Array<ReceiveData_SetModalOpen>
 ): void
@@ -180,6 +233,12 @@ export function setModalOpen(
 }
 
 
+/**
+ * @brief Marks concrete DOM nodes as logical click event sources.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Targets exist and their logical owners accept clicks.
+ * @post Event delegation can identify the marked parts.
+ */
 export function setOnClick(
 	parts: Array<ReceiveData_SetOnClick>
 ): void
@@ -198,6 +257,12 @@ export function setOnClick(
 }
 
 
+/**
+ * @brief Marks concrete DOM nodes as logical change event sources.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Targets exist and their logical owners accept changes.
+ * @post Event delegation can identify the marked parts.
+ */
 export function setOnChange(
 	parts: Array<ReceiveData_SetOnChange>
 ): void
@@ -216,6 +281,12 @@ export function setOnChange(
 }
 
 
+/**
+ * @brief Marks concrete DOM nodes as logical submit event sources.
+ * @param parts Validated DOM operation payloads using browser part IDs.
+ * @pre Targets exist and their logical owners accept submissions.
+ * @post Event delegation can identify the marked parts.
+ */
 export function setOnSubmit(
 	parts: Array<ReceiveData_SetOnSubmit>
 ): void
@@ -235,6 +306,13 @@ export function setOnSubmit(
 
 
 
+/**
+ * @brief Reads a concrete browser form control value.
+ * @param element Concrete DOM form control.
+ * @returns Control value, or null for unsupported nodes.
+ * @pre None.
+ * @post The DOM is unchanged.
+ */
 export function getElementValue(element: Element): null | string | boolean
 {
 	if (element instanceof HTMLInputElement) {

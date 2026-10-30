@@ -1,108 +1,71 @@
 module;
 
 #include "PCH.hpp"
+#include <stdexcept>
 
 module UI.ElementAdapter.TatzelElementAdapter;
 
-auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::LogicalElement& element ) const -> void
+import UI.DOM.ElementPart;
+
+namespace {
+
+/**
+ * @brief Converts a logical heading level at the DOM adapter boundary.
+ * @param style Semantic heading level.
+ * @return HTML tag for the level.
+ * @pre style is a defined HeadingStyle value.
+ * @post No logical or browser state is changed.
+ * @throws std::invalid_argument If style is not a defined value.
+ */
+auto HeadingStyleToTag( tatzel::ui::HeadingStyle style ) -> std::string_view
 {
-	auto* parent_element = element.GetParent();
-	auto parent_element_child_root_part = parent_element->GetChildRootPart();
-	auto parts = std::vector<dom::ElementPart>{
-		dom::ElementPart{ this->MakePartID( element, "base" ), parent_element_child_root_part.GetPartID(), "div" }
-	};
-	element.SetParts( std::move( parts ), 0, 0 );
+	switch( style )
+	{
+	case tatzel::ui::HeadingStyle::H1: return "h1";
+	case tatzel::ui::HeadingStyle::H2: return "h2";
+	case tatzel::ui::HeadingStyle::H3: return "h3";
+	case tatzel::ui::HeadingStyle::H4: return "h4";
+	case tatzel::ui::HeadingStyle::H5: return "h5";
+	case tatzel::ui::HeadingStyle::H6: return "h6";
+	}
+	throw std::invalid_argument{ "Invalid heading style" };
 }
 
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::LogicalElement& element ) const -> void
+{
+	auto& parent_part = element.GetParent()->GetChildRootPart();
+	element.SetParts( { dom::ElementPart{ MakePartID( element, "base" ), parent_part.GetPartID(), "div" } }, 0, 0 );
+}
 
 auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Heading& element ) const -> void
 {
-	auto* parent_element = element.GetParent();
-	auto parent_element_child_root_part = parent_element->GetChildRootPart();
+	auto& parent_part = element.GetParent()->GetChildRootPart();
 	auto parts = std::vector<dom::ElementPart>{
-		dom::ElementPart{ this->MakePartID( element, "base" ), parent_element_child_root_part.GetPartID(), ui::HeadingStyleToTag( element.GetHeadingStyle() ) }
+		dom::ElementPart{ MakePartID( element, "base" ), parent_part.GetPartID(), HeadingStyleToTag( element.GetHeadingStyle() ) }
 	};
-	parts[ 0 ].text_content = element.GetText();
+	parts.front().SetTextContent( element.GetText() );
 	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		auto& part = element.GetBasePart();
+		part.SetTextContent( element.GetText() );
+		client_updater->SetText( part.GetPartID(), element.GetText() );
+	} );
 }
 
-
-/*
-
-auto tatzel::TatzelElementAdapter::CreateLabel( ui::Label* element ) -> ui::LogicalElement
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Button& element ) const -> void
 {
-	return { element, {} };
+	auto& parent_part = element.GetParent()->GetChildRootPart();
+	auto parts = std::vector<dom::ElementPart>{
+		dom::ElementPart{ MakePartID( element, "base" ), parent_part.GetPartID(), "button" }
+	};
+	parts.front().AddAttribute( "type", "button" );
+	parts.front().SetTextContent( element.GetText() );
+	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		auto& part = element.GetBasePart();
+		part.SetTextContent( element.GetText() );
+		client_updater->SetText( part.GetPartID(), element.GetText() );
+	} );
 }
-
-
-auto tatzel::TatzelElementAdapter::CreateContainer( ui::Container* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateButton( ui::Button* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateHeading( ui::Heading* element ) -> ui::Heading*
-{
-	return {};
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateParagraph( ui::Paragraph* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateSpan( ui::Span* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateLink( ui::Link* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateImage( ui::Image* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateHorizontalRule( ui::HorizontalRule* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateModal( ui::Modal* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateCard( ui::Card* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateHeader( ui::Header* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-
-
-auto tatzel::TatzelElementAdapter::CreateFooter( ui::Footer* element ) -> ui::LogicalElement
-{
-	return { element, {} };
-}
-*/

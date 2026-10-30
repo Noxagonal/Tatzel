@@ -1,50 +1,43 @@
+/** @file @brief Borrowed framework context shared by scoped logical builders. */
 module;
-
-#include <memory>
 
 export module UI.PageBuilderCore;
 
 import UI.ClientElementTree;
 import UI.ClientUpdater;
-import UI.UI.LogicalElement;
 import UI.ElementAdapter.ElementAdapter;
-
 
 namespace tatzel {
 
-
-export
-class PageBuilderCore
+/** @brief Gives builders access to the client-owned logical tree, adapter, and DOM sender. */
+export class PageBuilderCore
 {
 public:
-	inline PageBuilderCore(
-		ClientElementTree& dom_tree,
-		ClientUpdater& client_updater,
-		ElementAdapter& element_adapter
-	) :
-		dom_tree( &dom_tree ),
-		root_element( &dom_tree.root ),
-		client_updater( &client_updater ),
-		element_adapter( &element_adapter )
+	/**
+	 * @brief Binds the framework services used by scoped builders.
+	 * @param element_tree Logical tree owned by the client connection.
+	 * @param client_updater DOM protocol sender owned by the client connection.
+	 * @param element_adapter Logical-to-DOM adapter owned by the client connection.
+	 * @pre All services outlive this context and every builder copied from it.
+	 * @post Accessors return the supplied services without taking ownership.
+	 */
+	PageBuilderCore( ClientElementTree& element_tree, ClientUpdater& client_updater, ElementAdapter& element_adapter ) :
+		element_tree{ &element_tree }, client_updater{ &client_updater }, element_adapter{ &element_adapter }
 	{}
 
-	PageBuilderCore( const PageBuilderCore& ) = default;
-	~PageBuilderCore() = default;
-
-	auto operator=( const PageBuilderCore& ) -> PageBuilderCore& = default;
-
-	inline auto GetDOMTree() { return dom_tree; }
-	inline auto GetRootElement() { return root_element; }
-	inline auto GetClientUpdater() { return client_updater; }
-	inline auto GetElementAdapter() { return element_adapter; }
+	/** @brief Reads the logical tree. @return Borrowed tree. @pre Bound services are alive. @post State is unchanged. */
+	auto GetElementTree() const noexcept -> ClientElementTree* { return element_tree; }
+	/** @brief Reads the logical root. @return Borrowed root control. @pre Bound services are alive. @post State is unchanged. */
+	auto GetRootElement() const noexcept -> ui::LogicalElement* { return &element_tree->root; }
+	/** @brief Reads the DOM message sender. @return Borrowed updater. @pre Bound services are alive. @post State is unchanged. */
+	auto GetClientUpdater() const noexcept -> ClientUpdater* { return client_updater; }
+	/** @brief Reads the logical-to-DOM adapter. @return Borrowed adapter. @pre Bound services are alive. @post State is unchanged. */
+	auto GetElementAdapter() const noexcept -> ElementAdapter* { return element_adapter; }
 
 private:
-
-	ClientElementTree* dom_tree = nullptr;
-	ui::LogicalElement* root_element = nullptr;
-	ClientUpdater* client_updater = nullptr;
-	ElementAdapter* element_adapter = nullptr;
+	ClientElementTree* element_tree;
+	ClientUpdater* client_updater;
+	ElementAdapter* element_adapter;
 };
-
 
 }

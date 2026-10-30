@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 4.0)
 
-include("${CMAKE_SOURCE_DIR}/cmake/TargetOps.cmake")
+include("${Tatzel_SOURCE_DIR}/cmake/TargetOps.cmake")
 
 
 ##############################################################
