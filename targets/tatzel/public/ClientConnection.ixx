@@ -1,4 +1,7 @@
-/** @file @brief Services and logical state owned by a single WebSocket session. */
+/**
+ * @file
+ * @brief Services and logical state owned by a single WebSocket session.
+ */
 module;
 
 #include <drogon/WebSocketConnection.h>

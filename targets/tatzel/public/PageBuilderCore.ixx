@@ -1,4 +1,7 @@
-/** @file @brief Borrowed framework context shared by scoped logical builders. */
+/**
+ * @file
+ * @brief Borrowed framework context shared by scoped logical builders.
+ */
 module;
 
 export module UI.PageBuilderCore;

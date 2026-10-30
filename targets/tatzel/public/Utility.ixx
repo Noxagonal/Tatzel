@@ -1,4 +1,7 @@
-/** @file @brief Internal file, JSON, and identity helpers. */
+/**
+ * @file
+ * @brief Internal file, JSON, and identity helpers.
+ */
 module;
 
 #include <json/json.h>

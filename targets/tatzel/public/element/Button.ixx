@@ -1,4 +1,7 @@
-/** @file @brief Application-facing button state and click callback. */
+/**
+ * @file
+ * @brief Application-facing button state and click callback.
+ */
 module;
 
 #include <functional>

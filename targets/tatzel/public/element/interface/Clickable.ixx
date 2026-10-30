@@ -1,4 +1,7 @@
-/** @file @brief Logical click event interface. */
+/**
+ * @file
+ * @brief Logical click event interface.
+ */
 module;
 
 export module UI.Element.Interface.Clickable;

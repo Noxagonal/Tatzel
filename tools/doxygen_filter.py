@@ -15,7 +15,7 @@ def filter_source(source: str) -> str:
     """
     result = []
     for line in source.splitlines(keepends=True):
-        if re.match(r"^\s*(?:export\s+)?(?:module|import)\b.*;", line):
+        if re.match(r"^\s*(?:export\s+)?(?:module|import)\b.*;", line) or re.match(r"^\s*WS_PATH_(?:LIST_BEGIN|LIST_END|ADD)\b", line):
             result.append("\n" if line.endswith("\n") else "")
         elif re.match(r"^\s*export\s*$", line):
             result.append("\n" if line.endswith("\n") else "")

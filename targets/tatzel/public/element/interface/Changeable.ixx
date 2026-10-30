@@ -1,4 +1,7 @@
-/** @file @brief Logical change event interface. */
+/**
+ * @file
+ * @brief Logical change event interface.
+ */
 module;
 
 #include <string_view>

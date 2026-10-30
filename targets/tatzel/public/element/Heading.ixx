@@ -1,4 +1,7 @@
-/** @file @brief Application-facing heading state. */
+/**
+ * @file
+ * @brief Application-facing heading state.
+ */
 module;
 
 #include <string>

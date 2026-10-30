@@ -36,3 +36,22 @@ jobs:
           name: tatzel-documentation
           path: build/docs/html
           if-no-files-found: error
+
+  cpp:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install module build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
+          python3 -m pip install 'cmake>=4.0,<5'
+      - name: Build application and core behavior checks
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure

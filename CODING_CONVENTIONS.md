@@ -80,16 +80,16 @@ implementation helpers at their definitions.
 
 Every function contract must include:
 
-- @brief: the operation's purpose and observable behavior.
-- @param for every declared parameter, using its exact name. Explain ownership,
+- `@brief`: the operation's purpose and observable behavior.
+- `@param` for every declared parameter, using its exact name. Explain ownership,
   nullability, units, and lifetime where relevant.
-- @tparam for every template parameter.
-- @pre: required state and caller obligations. Write None. when no special
+- `@tparam` for every template parameter.
+- `@pre`: required state and caller obligations. Write None. when no special
   preconditions exist.
-- @post: the state guaranteed after normal completion. State whether work is
+- `@post`: the state guaranteed after normal completion. State whether work is
   queued rather than already visible in the browser.
-- @return or @returns for non-void results, including ownership and failure values.
-- @throws for exceptions that callers are expected to handle.
+- `@return` or `@returns` for non-void results, including ownership and failure values.
+- `@throws` for exceptions that callers are expected to handle.
 
 Name parameters in deleted and defaulted declarations so their contracts can
 reference them. For a deleted operation, state that it is unavailable; its

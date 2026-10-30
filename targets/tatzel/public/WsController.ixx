@@ -1,4 +1,7 @@
-/** @file @brief WebSocket transport and DOM-part-to-logical-event routing. */
+/**
+ * @file
+ * @brief WebSocket transport and DOM-part-to-logical-event routing.
+ */
 module;
 
 #include <drogon/WebSocketController.h>

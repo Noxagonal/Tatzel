@@ -1,4 +1,7 @@
-/** @file @brief Application lifetime and logical page registration. */
+/**
+ * @file
+ * @brief Application lifetime and logical page registration.
+ */
 module;
 
 #include <deque>

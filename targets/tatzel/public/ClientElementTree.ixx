@@ -1,4 +1,7 @@
-/** @file @brief Ownership and lookup of one client's logical control tree. */
+/**
+ * @file
+ * @brief Ownership and lookup of one client's logical control tree.
+ */
 module;
 
 #include <algorithm>

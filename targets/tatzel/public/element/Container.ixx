@@ -1,4 +1,7 @@
-/** @file @brief Logical grouping of child controls. */
+/**
+ * @file
+ * @brief Logical grouping of child controls.
+ */
 module;
 
 #include <string_view>

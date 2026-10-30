@@ -11,7 +11,7 @@ hand-maintained API reference. It also keeps the first publication independent
 of an application framework or a JavaScript documentation toolchain.
 
 The root CODING_CONVENTIONS.md is included in the site. Follow its requirements
-for @brief, all parameters, template parameters, preconditions, postconditions,
+for `@brief`, all parameters, template parameters, preconditions, postconditions,
 return values, and expected exceptions.
 
 ## Build locally
@@ -29,7 +29,7 @@ Open http://localhost:8081/. Generated HTML is written to build/docs/html and
 is ignored by Git. The build does not compile the application or fetch Drogon.
 
 Doxygen warnings fail the documentation build. The lightweight contract check
-also checks required @pre/@post tags, parameter names, and local documentation
+also checks required `@pre`/`@post` tags, parameter names, and local documentation
 links. It supplements Doxygen; it is not a C++ parser.
 
 Doxygen sees .ixx files through a small input filter that removes module/import

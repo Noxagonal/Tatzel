@@ -1,4 +1,7 @@
-/** @file @brief Logical control identity, ownership, and internal adapter state. */
+/**
+ * @file
+ * @brief Logical control identity, ownership, and internal adapter state.
+ */
 module;
 
 #include <algorithm>

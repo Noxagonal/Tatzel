@@ -1,4 +1,7 @@
-/** @file @brief Default HTML mapping for supported logical controls. */
+/**
+ * @file
+ * @brief Default HTML mapping for supported logical controls.
+ */
 module;
 
 export module UI.ElementAdapter.TatzelElementAdapter;

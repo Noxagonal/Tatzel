@@ -1,4 +1,7 @@
-/** @file @brief Scoped application API for creating logical controls. */
+/**
+ * @file
+ * @brief Scoped application API for creating logical controls.
+ */
 module;
 
 #include <cassert>

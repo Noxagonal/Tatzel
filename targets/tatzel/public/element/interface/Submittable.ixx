@@ -1,4 +1,7 @@
-/** @file @brief Logical submit event interface. */
+/**
+ * @file
+ * @brief Logical submit event interface.
+ */
 module;
 
 export module UI.Element.Interface.Submittable;

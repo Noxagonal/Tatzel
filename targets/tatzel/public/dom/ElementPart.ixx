@@ -1,4 +1,7 @@
-/** @file @brief Internal representation of one concrete browser DOM element. */
+/**
+ * @file
+ * @brief Internal representation of one concrete browser DOM element.
+ */
 module;
 
 #include <span>

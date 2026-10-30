@@ -1,4 +1,7 @@
-/** @file @brief Framework boundary between logical controls and concrete DOM parts. */
+/**
+ * @file
+ * @brief Framework boundary between logical controls and concrete DOM parts.
+ */
 module;
 
 #include <string>

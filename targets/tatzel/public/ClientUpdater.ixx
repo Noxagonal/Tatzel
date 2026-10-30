@@ -1,4 +1,7 @@
-/** @file @brief Internal sender for concrete browser DOM operations. */
+/**
+ * @file
+ * @brief Internal sender for concrete browser DOM operations.
+ */
 module;
 
 #include <drogon/WebSocketConnection.h>

@@ -1,4 +1,7 @@
-/** @file @brief Registered per-client logical page factory. */
+/**
+ * @file
+ * @brief Registered per-client logical page factory.
+ */
 module;
 
 #include <functional>
