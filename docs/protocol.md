@@ -10,6 +10,11 @@ the server resolves that part to its logical owner.
 
 ## Opening a page
 
+The pinned Drogon 1.9.13 server accepts an upgrade as the first request on a TCP
+connection. Non-browser clients should establish a fresh connection for the
+upgrade. The integration test closes its HTTP health probes before opening a
+WebSocket because Node can otherwise reuse the HTTP connection.
+
 The server acknowledges the new WebSocket transport:
 
 ```json
