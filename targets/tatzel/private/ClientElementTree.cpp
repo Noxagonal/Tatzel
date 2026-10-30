@@ -14,7 +14,7 @@ tatzel::ClientElementTree::ClientElementTree() :
 		nullptr,
 		std::span<const dom::ElementPart>{ {
 			dom::ElementPart{
-				"root|base",
+				"root|main",
 				"",
 				"main",
 				std::span<const std::string_view>{ { "container" } } }
