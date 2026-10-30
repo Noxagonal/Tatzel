@@ -39,6 +39,7 @@ jobs:
 
   cpp:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -49,9 +50,16 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-18 clang-tools-18 ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
-          python3 -m pip install 'cmake>=4.0,<5'
+          python3 -m pip install 'cmake==4.4.4'
       - name: Build application and core behavior checks
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure
+      - name: Regenerate a deleted browser build output
+        run: |
+          rm www/app/main.js
+          cmake --build build --target typescript_build
+          test -s www/app/main.js
+      - name: Check the running example over WebSocket
+        run: node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment

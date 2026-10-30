@@ -35,9 +35,9 @@ logical subtree deletion.
 - No built-in authentication or authorization layer.
 - No supported input, form, table, chart, or reusable component abstraction.
 - Runtime paths depend on the repository working directory.
-- No install/export package or published compatibility matrix.
-- Repository CI validates docs and browser code; a complete C++ module build
-  still requires a suitable local toolchain.
+- No install/export package; compatibility coverage is currently one CI toolchain.
+- CI covers Ubuntu 24.04 with Clang 18.1.3, plus docs and browser checks;
+  other compiler/platform combinations remain unverified.
 
 Current contracts are documented in the API reference. Future work should update
 this status page when it makes a complete application-facing path usable.

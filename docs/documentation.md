@@ -42,8 +42,10 @@ include command, so the guide and the example stay aligned.
 ## Continuous validation
 
 The repository workflow checks documentation contracts, generates the site,
-builds and tests browser code, and uploads the generated HTML as an artifact.
-It does not deploy the site or certify a complete C++26 module build.
+builds and tests browser code, compiles the C++ application and core checks,
+and uploads the generated HTML as an artifact. A server smoke check exercises
+real WebSocket page creation, callbacks, and logical text updates. The workflow
+does not deploy the site.
 
 Review the rendered artifact when changing navigation, examples, or API
 structure. Keep feature status honest while the framework is incomplete.

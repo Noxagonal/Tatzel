@@ -15,17 +15,18 @@ The project declares these build requirements:
 Drogon is fetched at v1.9.13. TypeScript is installed from package-lock.json.
 The Node package exists to build browser assets and is private.
 
-A specific C++26 compiler/version combination has not yet been certified by
-repository CI. Browser and documentation checks do not establish that a named
-module build works on every compiler. Select your installed module-capable
-compiler explicitly when configuring.
+The complete application and core checks pass in CI on Ubuntu 24.04 with
+Clang 18.1.3, CMake 4.4.4, Ninja, and libstdc++. Select the compiler explicitly when configuring;
+other platforms and compiler combinations still need verification. The build
+uses explicit includes rather than a shared precompiled header, avoiding the
+PCH/module definition conflicts found with this toolchain.
 
 ## Configure and build
 
-Run from the repository root. Replace clang++ with your selected compiler:
+Run from the repository root. Replace clang++-18 with your selected compiler:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-18
 cmake --build build --target TatzelDevelopment
 ```
 
@@ -88,6 +89,7 @@ Core C++ behavior checks can be built with the application toolchain:
 cmake -S . -B build -DTATZEL_BUILD_TESTS=ON
 cmake --build build --target TatzelCoreTests
 ctest --test-dir build --output-on-failure
+node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```
 
 There is no installable CMake package yet. The current executable and source
