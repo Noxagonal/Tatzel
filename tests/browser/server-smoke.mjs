@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { setTimeout as pause } from "node:timers/promises";
 import { test } from "node:test";
+import { request } from "node:http";
 
 /**
  * @brief Waits for an observable server state with a bounded timeout.
@@ -21,6 +22,35 @@ async function waitFor(predicate)
 		await pause(20);
 	}
 	throw new Error("Timed out waiting for server state");
+}
+
+/**
+ * @brief Checks the HTTP upgrade response independently of the WebSocket client.
+ * @returns The upgrade response status code.
+ * @pre The example server is listening on port 8080.
+ * @post The diagnostic request and any upgraded socket have been closed.
+ */
+async function checkUpgrade()
+{
+	return new Promise((resolve, reject) => {
+		const upgrade = request("http://127.0.0.1:8080/ws", { headers: {
+			Connection: "Upgrade", Upgrade: "websocket",
+			"Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": "dGhlIHNhbXBsZSBub25jZQ=="
+		} });
+		upgrade.on("response", response => {
+			console.log("WebSocket HTTP response:", response.statusCode, response.headers);
+			response.resume();
+			resolve(response.statusCode);
+		});
+		upgrade.on("upgrade", (response, socket) => {
+			console.log("WebSocket upgrade:", response.statusCode, response.headers);
+			socket.destroy();
+			resolve(response.statusCode);
+		});
+		upgrade.on("error", reject);
+		upgrade.setTimeout(3000, () => upgrade.destroy(new Error("Upgrade request timed out")));
+		upgrade.end();
+	});
 }
 
 /**
@@ -72,6 +102,7 @@ test("the running example maps logical updates and events across real WebSockets
 		assert.match(await script.text(), /registerBrowserEventHandlers/);
 
 		console.log("HTTP template and browser asset served");
+		assert.equal(await checkUpgrade(), 101);
 		first = await connectPage();
 		console.log("First logical page connected");
 		second = await connectPage();
