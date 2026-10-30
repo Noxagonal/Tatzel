@@ -9,11 +9,6 @@ include("${Tatzel_SOURCE_DIR}/cmake/TargetOps.cmake")
 add_library(Tatzel STATIC)
 set_default_target_files(Tatzel "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_precompile_headers(Tatzel
-	PRIVATE
-		"${CMAKE_CURRENT_SOURCE_DIR}/private/PCH.hpp"
-)
-
 target_link_libraries(Tatzel
 	PRIVATE
 		Drogon::Drogon

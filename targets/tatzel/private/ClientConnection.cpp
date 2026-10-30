@@ -1,6 +1,9 @@
 module;
 
-#include "PCH.hpp"
+#include <drogon/WebSocketConnection.h>
+#include <cassert>
+#include <memory>
+#include <utility>
 
 module UI.ClientConnection;
 

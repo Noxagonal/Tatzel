@@ -65,7 +65,7 @@ def check_contracts(path: Path) -> list[str]:
         pattern = r"^\s*(?:export\s+)?function\s+(\w+)\s*\("
     else:
         constructors = "|".join(re.escape(name) for name in classes) or r"(?!)"
-        pattern = (r"^\s*(?:(?:static|virtual|inline|explicit|constexpr)\s+)*"
+        pattern = (r"^\s*(?:export\s+)?(?:(?:static|virtual|inline|explicit|constexpr)\s+)*"
                    r"(?:(?:auto|void)\s+((?:operator\s*[^(\n]+)|[\w:]+)"
                    r"|(~?(?:" + constructors + r")))\s*\(")
     for match in re.finditer(pattern, source, re.M):
@@ -77,6 +77,7 @@ def check_contracts(path: Path) -> list[str]:
             errors.append(f"{label}: missing Doxygen contract")
             continue
         intervening = source[comment.end():match.start()]
+        template_declarations = intervening
         intervening = re.sub(r"^\s*(?:export\s*|template[^\n]*|requires[^\n]*)$", "", intervening, flags=re.M)
         if intervening.strip():
             errors.append(f"{label}: missing adjacent Doxygen contract")
@@ -86,7 +87,21 @@ def check_contracts(path: Path) -> list[str]:
             if not re.search(r"@" + tag + r"\b", contract):
                 errors.append(f"{label}: missing @{tag}")
         opening = source.find("(", match.start())
-        parameters = split_parameters(parameter_text(source, opening))
+        arguments = parameter_text(source, opening)
+        parameters = split_parameters(arguments)
+        closing = opening + len(arguments) + 1
+        signature_tail = re.split(r"[;{]", source[closing + 1:], maxsplit=1)[0]
+        returns_value = ("->" in signature_tail and not re.search(r"->\s*void\b", signature_tail))
+        if path.suffix == ".ts":
+            returns_value = not re.match(r"\s*:\s*void\b", signature_tail)
+        if returns_value and not re.search(r"@returns?\b", contract):
+            errors.append(f"{label}: missing @return")
+        template_names = []
+        for template in re.findall(r"template\s*<([^>]+)>", template_declarations):
+            template_names += [re.findall(r"\b\w+\b", item)[-1] for item in split_parameters(template)]
+        documented_templates = re.findall(r"@tparam\s+(\w+)", contract)
+        if sorted(template_names) != sorted(documented_templates):
+            errors.append(f"{label}: template parameters {template_names} differ from @tparam entries {documented_templates}")
         names = []
         for parameter in parameters:
             declaration = parameter.split("=", 1)[0]

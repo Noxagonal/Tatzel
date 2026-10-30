@@ -1,11 +1,16 @@
 module;
 
-#include "PCH.hpp"
+#include <string_view>
+#include <utility>
+#include <vector>
 #include <stdexcept>
 
 module UI.ElementAdapter.TatzelElementAdapter;
 
 import UI.DOM.ElementPart;
+import UI.ClientUpdater;
+import UI.Element.Heading;
+import UI.Element.Button;
 
 namespace {
 

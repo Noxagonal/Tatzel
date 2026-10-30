@@ -8,7 +8,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/FileOps.cmake")
 @param TARGET_NAME Existing CMake target to configure.
 @param BASE_FOLDER Directory containing public and private source folders.
 @pre TARGET_NAME exists and the source folders follow the documented layout.
-@post Files are attached with their corresponding visibility and module interfaces skip the PCH.
+@post Files are attached with their corresponding visibility .
 ]]
 function(set_default_target_files
 	TARGET_NAME
@@ -125,10 +125,5 @@ function(set_default_target_files
 		)
 	endif()
 
-	set_source_files_properties(
-		${_PUBLIC_MODULE_FILES}
-		PROPERTIES
-			SKIP_PRECOMPILE_HEADERS ON
-	)
 
 endfunction()
