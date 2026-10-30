@@ -59,6 +59,17 @@ jobs:
           cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure
+      - name: Preserve runnable example for integration diagnostics
+        run: |
+          mkdir -p build/smoke-bundle/lib
+          cp build/targets/development/TatzelDevelopment build/smoke-bundle/
+          ldd build/targets/development/TatzelDevelopment | awk '/=> \// {print $3}' | xargs -r cp -t build/smoke-bundle/lib/
+          cp -r data www build/smoke-bundle/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tatzel-example-linux
+          path: build/smoke-bundle
+          if-no-files-found: error
       - name: Regenerate a deleted browser build output
         run: |
           rm www/app/main.js
