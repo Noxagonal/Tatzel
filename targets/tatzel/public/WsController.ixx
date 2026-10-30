@@ -18,7 +18,7 @@ import UI.UI.Interface.Submittable;
 
 
 export
-class WsController : public drogon::WebSocketController<WsController>
+class WsController : public drogon::WebSocketController<WsController, false>
 {
 public:
 	static inline std::mutex mutex;

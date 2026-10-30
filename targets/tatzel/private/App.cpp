@@ -9,6 +9,7 @@ module UI.App;
 
 import UI.Utility;
 import UI.UI.LogicalElement;
+import UI.WSController;
 
 
 tatzel::App* global_app = nullptr;
@@ -70,6 +71,9 @@ auto tatzel::App::FindRegisteredPage( std::string_view route_path ) -> Page*
 
 auto tatzel::App::Run() -> void
 {
+	drogon::app().registerController(
+		std::make_shared<WsController>()
+	);
 	drogon::app()
 		.addListener("0.0.0.0", 8080)
 		.run();
