@@ -34,7 +34,14 @@ async function connectPage()
 	const socket = new WebSocket("ws://127.0.0.1:8080/ws");
 	const messages = [];
 	socket.addEventListener("message", event => messages.push(JSON.parse(event.data)));
-	await once(socket, "open");
+	await new Promise((resolve, reject) => {
+		const timeout = setTimeout(() => reject(new Error("WebSocket connection timed out")), 5000);
+		socket.addEventListener("open", () => { clearTimeout(timeout); resolve(); }, { once: true });
+		socket.addEventListener("error", event => {
+			clearTimeout(timeout);
+			reject(new Error("WebSocket connection failed: " + (event.message ?? "unknown error")));
+		}, { once: true });
+	});
 	socket.send(JSON.stringify({ op: "connect", data: { route_path: "/", query: "", hash: "" } }));
 	await waitFor(() => messages.some(message => message.op === "set_on_click"));
 	const parts = messages.filter(message => message.op === "create_element_part").flatMap(message => message.data);
@@ -54,7 +61,7 @@ test("the running example maps logical updates and events across real WebSockets
 		const deadline = Date.now() + 5000;
 		let response;
 		while (Date.now() < deadline) {
-			try { response = await fetch("http://127.0.0.1:8080/"); if (response.ok) break; }
+			try { response = await fetch("http://127.0.0.1:8080/", { signal: AbortSignal.timeout(1000) }); if (response.ok) break; }
 			catch {}
 			await pause(50);
 		}
@@ -64,8 +71,11 @@ test("the running example maps logical updates and events across real WebSockets
 		assert.equal(script.status, 200);
 		assert.match(await script.text(), /registerBrowserEventHandlers/);
 
+		console.log("HTTP template and browser asset served");
 		first = await connectPage();
+		console.log("First logical page connected");
 		second = await connectPage();
+		console.log("Second logical page connected");
 		assert.notEqual(first.heading, second.heading);
 
 		first.socket.send(JSON.stringify({ op: "on_click", data: { part_id: first.button } }));
@@ -73,6 +83,7 @@ test("the running example maps logical updates and events across real WebSockets
 			&& message.data.some(part => part.part_id === first.heading && part.text === "Clicked times: 1")));
 		assert.equal(second.messages.filter(message => message.op === "set_text").length, 0);
 
+		console.log("Logical click and text update completed");
 		first.socket.send("{");
 		await waitFor(() => first.messages.find(message => message.op === "error" && message.data.code === "invalid_json"));
 		first.socket.send(JSON.stringify({ op: "connect", data: { route_path: "/" } }));
@@ -86,8 +97,13 @@ test("the running example maps logical updates and events across real WebSockets
 		first?.socket.close();
 		second?.socket.close();
 		if (server.exitCode === null && server.signalCode === null) {
+			const exited = once(server, "exit");
 			server.kill("SIGTERM");
-			await once(server, "exit");
+			await Promise.race([exited, pause(1000, undefined, { ref: false })]);
+			if (server.exitCode === null && server.signalCode === null) {
+				server.kill("SIGKILL");
+				await exited;
+			}
 		}
 	}
 });
