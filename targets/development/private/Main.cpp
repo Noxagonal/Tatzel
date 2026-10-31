@@ -10,6 +10,7 @@ import UI;
 auto main() -> int
 {
 	auto app = tatzel::App{};
+
 	app.RegisterPage( "/", []( tatzel::PageBuilder<> ui ) {
 		auto count = std::make_shared<int>( 0 );
 		auto* heading = ui.Heading( "Clicked times: 0" );
@@ -19,6 +20,8 @@ auto main() -> int
 			} );
 		} );
 	} );
+
 	app.Run();
+
 	return 0;
 }
