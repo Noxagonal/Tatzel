@@ -31,6 +31,12 @@ such as Heading::SetText().
 
 ## Names and layout
 
+Use vertical space as a visual separator. Group related statements together and
+add blank lines between topics or distinct steps so the code is easy to scan.
+Use judgment about where and how much space helps; there is no fixed number of
+blank lines or rigid spacing rule. Favor readable grouping over fitting the code
+into as few lines as possible.
+
 - C++ classes, enums, concepts, and template type parameters use PascalCase.
 - C++ functions use PascalCase and trailing return types: auto GetText() -> std::string_view.
   Overrides of third-party interfaces keep the names required by that interface.
