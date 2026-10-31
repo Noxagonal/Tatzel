@@ -6,6 +6,8 @@ module;
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <stdexcept>
+#include <vector>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -27,6 +29,11 @@ export import UI.Element.Card;
 export import UI.Element.TextInput;
 export import UI.Element.Checkbox;
 export import UI.Element.Modal;
+export import UI.Element.Row;
+export import UI.Element.Column;
+export import UI.Element.Select;
+export import UI.Element.TextArea;
+export import UI.Element.Form;
 
 namespace tatzel {
 
@@ -214,6 +221,129 @@ public:
 		return modal;
 	}
 
+	/// @brief Creates a logical row and builds its children.
+	/// @tparam ChildBuilderFn Callable accepting a scoped builder and optionally the layout pointer.
+	/// @param child_builder_fn Callback that builds logical children.
+	/// @param options Semantic spacing, alignment, distribution, and wrapping.
+	/// @return Borrowed page-owned row.
+	/// @pre Called on the owning event loop; the callback accepts a scoped builder.
+	/// @post The layout owns callback-created children and browser creation is queued.
+	template<typename ChildBuilderFn>
+	auto Row(
+		ChildBuilderFn&& child_builder_fn,
+		ui::LayoutOptions options = {}
+	) -> ui::Row*
+	{
+		auto* layout = AddChild<ui::Row>( options );
+		BuildChildren( *layout, std::forward<ChildBuilderFn>( child_builder_fn ) );
+		return layout;
+	}
+
+	/// @brief Creates a logical column and builds its children.
+	/// @tparam ChildBuilderFn Callable accepting a scoped builder and optionally the layout pointer.
+	/// @param child_builder_fn Callback that builds logical children.
+	/// @param options Semantic spacing, alignment, distribution, and wrapping.
+	/// @return Borrowed page-owned column.
+	/// @pre Called on the owning event loop; the callback accepts a scoped builder.
+	/// @post The layout owns callback-created children and browser creation is queued.
+	template<typename ChildBuilderFn>
+	auto Column(
+		ChildBuilderFn&& child_builder_fn,
+		ui::LayoutOptions options = {}
+	) -> ui::Column*
+	{
+		auto* layout = AddChild<ui::Column>( options );
+		BuildChildren( *layout, std::forward<ChildBuilderFn>( child_builder_fn ) );
+		return layout;
+	}
+
+	/// @brief Creates a single-choice field using stable option IDs.
+	/// @param label Accessible field label.
+	/// @param options Owned choices transferred to the selector.
+	/// @param value Initial enabled choice ID, or empty for no selection.
+	/// @param on_change Optional callback receiving accepted selected IDs.
+	/// @return Borrowed page-owned selector.
+	/// @pre Called on the owning event loop; callback captures outlive their invocation.
+	/// @post The selector is created with its current choices and value.
+	/// @throws std::invalid_argument If IDs are empty/duplicated or value is unavailable.
+	auto Select(
+		std::string_view label,
+		std::vector<ui::SelectOption> options,
+		std::string_view value = {},
+		std::function<void( std::string_view )> on_change = {}
+	) -> ui::Select*
+	{
+		return AddChild<ui::Select>( label, std::move( options ), value, std::move( on_change ) );
+	}
+
+	/// @brief Creates a labeled multiline text field.
+	/// @param label Accessible field label.
+	/// @param value Initial multiline text, copied before returning.
+	/// @param on_change Optional committed-change callback.
+	/// @return Borrowed page-owned text area.
+	/// @pre Called on the owning event loop; callback captures outlive their invocation.
+	/// @post Multiline editing is available; Enter inserts a newline and Ctrl/Cmd+Enter submits.
+	auto TextArea(
+		std::string_view label,
+		std::string_view value = {},
+		std::function<void( std::string_view )> on_change = {}
+	) -> ui::TextArea*
+	{
+		return AddChild<ui::TextArea>( label, value, std::move( on_change ) );
+	}
+
+	/// @brief Creates a named logical form and builds its fields and layout.
+	/// @tparam ContentFn Callable accepting a scoped builder and optionally the form pointer.
+	/// @param label Optional accessible form name, copied before returning.
+	/// @param content_fn Callback building the form's logical subtree.
+	/// @param on_submit Optional callback invoked after successful validation.
+	/// @return Borrowed page-owned form.
+	/// @pre Called on the owning event loop; callback captures outlive their invocation.
+	/// @post The form owns its children and accepts coordinated browser submissions.
+	/// @throws std::invalid_argument If an ancestor is already a form.
+	template<typename ContentFn>
+	auto Form(
+		std::string_view label,
+		ContentFn&& content_fn,
+		std::function<void()> on_submit = {}
+	) -> ui::Form*
+	{
+		auto* form = AddChild<ui::Form>( label, std::move( on_submit ) );
+		BuildChildren( *form, std::forward<ContentFn>( content_fn ) );
+		return form;
+	}
+
+	/// @brief Creates an unnamed logical form.
+	/// @tparam ContentFn Callable accepting a scoped builder and optionally the form pointer.
+	/// @param content_fn Callback building the form's logical subtree.
+	/// @param on_submit Optional callback invoked after successful validation.
+	/// @return Borrowed page-owned form.
+	/// @pre Called on the owning event loop; content_fn accepts a scoped builder.
+	/// @post The form owns its children and accepts coordinated submissions.
+	/// @throws std::invalid_argument If an ancestor is already a form.
+	template<typename ContentFn> requires ( !std::is_convertible_v<ContentFn, std::string_view> )
+	auto Form(
+		ContentFn&& content_fn,
+		std::function<void()> on_submit = {}
+	) -> ui::Form*
+	{
+		return Form( {}, std::forward<ContentFn>( content_fn ), std::move( on_submit ) );
+	}
+
+	/// @brief Creates a button that submits its enclosing logical form.
+	/// @param text Visible button label, copied before returning.
+	/// @return Borrowed page-owned submit button.
+	/// @pre Called on the owning event loop within a logical form subtree.
+	/// @post Native activation requests the form snapshot and never invokes a click callback.
+	/// @throws std::invalid_argument If this scope has no form ancestor.
+	auto SubmitButton( std::string_view text ) -> ui::Button*
+	{
+		auto* ancestor = static_cast<ui::LogicalElement*>( parent );
+		while( ancestor && !dynamic_cast<ui::Form*>( ancestor ) ) ancestor = ancestor->GetParent();
+		if( !ancestor ) throw std::invalid_argument{ "SubmitButton requires a logical Form" };
+		return AddChild<ui::Button>( text, std::function<void()>{}, ui::ButtonRole::Submit );
+	}
+
 private:
 	/// @brief Allocates a logical control, maps its parts, and transfers ownership.
 	/// @tparam NewElementT Logical control type.
@@ -235,6 +365,7 @@ private:
 		core->GetElementAdapter()->CreatePartsFor( *element );
 		auto* result = parent->InsertChild( std::move( element ) );
 		core->GetClientUpdater()->CreateElementParts( result->GetParts() );
+		core->GetElementAdapter()->InitializePartsFor( *result );
 		return result;
 	}
 

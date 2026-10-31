@@ -46,6 +46,10 @@ class TestElement {
 	hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
 	/** @brief Removes a stored attribute. @param name Attribute name. @pre None. @post The attribute is absent. */
 	removeAttribute(name) { delete this.attributes[name]; }
+	/** @brief Checks native disabled state, including a disabled ancestor fieldset. @param selector Supported pseudo-class. @returns Whether disabled. @pre None. @post State is unchanged. */
+	matches(selector) { return selector === ":disabled" && (Boolean(this.disabled) || Boolean(this.parentElement?.matches(selector))); }
+	/** @brief Replaces native option nodes. @param children Replacement nodes. @pre None. @post Children are replaced. */
+	replaceChildren(...children) { this.children = children; }
 	/** @brief Finds this marked event source. @param selector Data-attribute selector. @returns This node if marked, otherwise null. @pre None. @post State is unchanged. */
 	closest(selector) {
 		const name = selector.slice(1, -1);
@@ -56,6 +60,14 @@ class TestElement {
 
 /** @brief Minimal form input for checkbox and text event checks. */
 class TestInput extends TestElement {}
+
+/** @brief Native-form double collecting its current controls. */
+class TestForm extends TestElement {
+	/** @brief Creates an empty form. @param id Browser part ID. @pre None. @post No controls are registered. */
+	constructor(id) { super(id); this.elements = []; }
+	/** @brief Dispatches the native submission event. @pre Handlers are registered. @post The form submit handler has run. */
+	requestSubmit() { handlers.get("submit")({ target: this, preventDefault() {} }); }
+}
 
 /** @brief Native-dialog double recording modal transitions. */
 class TestDialog extends TestElement {
@@ -89,6 +101,7 @@ globalThis.Element = TestElement;
 globalThis.HTMLInputElement = TestInput;
 globalThis.HTMLTextAreaElement = class extends TestElement {};
 globalThis.HTMLSelectElement = class extends TestElement {};
+globalThis.HTMLFormElement = TestForm;
 globalThis.HTMLDialogElement = TestDialog;
 globalThis.HTMLButtonElement = class extends TestElement {};
 globalThis.InputEvent = TestInputEvent;
@@ -244,4 +257,65 @@ test("changes preserve nested values and checkbox boolean types", () => {
 	input.value = "edited";
 	handlers.get("change")({ target: input });
 	assert.equal(runtime.socket.messages.at(-1).data.value, "edited");
+});
+
+test("select choices validate IDs and preserve plain text labels", () => {
+	const payload = { part_id: "select|editor", placeholder: "Choose", value: "b", options: [
+		{ value: "a", label: "Same", disabled: false },
+		{ value: "b", label: "<b>Same</b>", disabled: false },
+		{ value: "off", label: "Unavailable", disabled: true }
+	] };
+	const parse = part => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_select_options", data: [part] }) });
+	for (const malformed of [
+		{ ...payload, options: null },
+		{ ...payload, options: [{ value: "a", label: "A", disabled: "false" }] },
+		{ ...payload, options: [{ value: "a", label: "A", disabled: false }, { value: "a", label: "B", disabled: false }] },
+		{ ...payload, value: "off" },
+		{ ...payload, value: "missing" }
+	]) assert.throws(() => parse(malformed));
+
+	const select = new HTMLSelectElement("select|editor");
+	nodes.set(select.id, select);
+	dom.setSelectOptions(parse(payload).data);
+	assert.equal(select.value, "b");
+	assert.deepEqual(select.children.map(option => option.value), ["", "a", "b", "off"]);
+	assert.equal(select.children[2].textContent, "<b>Same</b>");
+	assert.equal(select.children[3].disabled, true);
+});
+
+test("form submission snapshots include latest values and omit disabled controls", () => {
+	const form = new TestForm("form|base");
+	form.setAttribute("data-ui-on-submit", "true");
+	const name = new TestInput("name|editor");
+	name.value = "Latest without an input event";
+	const notes = new HTMLTextAreaElement("notes|editor");
+	notes.value = "first\nsecond";
+	const checkbox = new TestInput("consent|editor");
+	checkbox.type = "checkbox";
+	checkbox.checked = true;
+	const ignored = new TestInput("disabled|editor");
+	ignored.disabled = true;
+	const foreign = new TestInput("foreign|editor");
+	for (const field of [name, notes, checkbox, ignored, foreign]) {
+		field.setAttribute("data-ui-form-field", "true");
+		field.form = field === foreign ? new TestForm("other") : form;
+		form.elements.push(field);
+	}
+
+	form.requestSubmit();
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_submit", data: { part_id: form.id, fields: [
+		{ part_id: name.id, value: name.value }, { part_id: notes.id, value: notes.value }, { part_id: checkbox.id, value: true }
+	] } });
+
+	name.setAttribute("data-ui-on-submit", "true");
+	handlers.get("keydown")({ target: name, key: "Enter", preventDefault() {} });
+	assert.equal(runtime.socket.messages.at(-1).data.part_id, form.id);
+
+	notes.setAttribute("data-ui-on-submit", "true");
+	const before = runtime.socket.messages.length;
+	handlers.get("keydown")({ target: notes, key: "Enter", preventDefault() { assert.fail("Enter must remain a newline"); } });
+	assert.equal(runtime.socket.messages.length, before);
+	handlers.get("keydown")({ target: notes, key: "Enter", ctrlKey: true, preventDefault() {} });
+	assert.equal(runtime.socket.messages.length, before + 1);
+	assert.equal(runtime.socket.messages.at(-1).data.part_id, form.id);
 });

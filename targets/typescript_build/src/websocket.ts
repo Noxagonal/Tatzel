@@ -28,6 +28,7 @@ const domFields: Record<string, readonly string[]> = {
 	set_text: ["part_id", "text"],
 	set_value: ["part_id", "value"],
 	set_modal_open: ["part_id", "open"],
+	set_select_options: ["part_id", "placeholder", "value"],
 	set_on_click: ["part_id"],
 	set_on_change: ["part_id"],
 	set_on_submit: ["part_id"]
@@ -66,6 +67,20 @@ export function parseServerMessage(event: MessageEvent): ReceiveServerMessage
 					|| !isRecord(part.attributes)
 					|| !Object.values(part.attributes).every(value => typeof value === "string")) {
 					throw new Error("Invalid DOM classes or attributes");
+				}
+			}
+			if (op === "set_select_options") {
+				if (!Array.isArray(part.options)) throw new Error("Invalid select options");
+				const ids = new Set<string>();
+				for (const option of part.options) {
+					if (!isRecord(option) || typeof option.value !== "string" || option.value === ""
+						|| ids.has(option.value) || typeof option.label !== "string" || typeof option.disabled !== "boolean") {
+						throw new Error("Invalid select option");
+					}
+					ids.add(option.value);
+				}
+				if (part.value !== "" && !part.options.some(option => option.value === part.value && !option.disabled)) {
+					throw new Error("Unavailable select value");
 				}
 			}
 		}

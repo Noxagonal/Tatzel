@@ -76,4 +76,6 @@ jobs:
           cmake --build build --target typescript_build
           test -s www/app/main.js
       - name: Check the running example over WebSocket
-        run: timeout 30s node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
+        run: |
+          timeout 30s node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
+          timeout 30s node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment

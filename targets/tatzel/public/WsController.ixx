@@ -12,6 +12,7 @@ module;
 #include <string>
 #include <string_view>
 #include <vector>
+#include <utility>
 
 export module UI.WSController;
 
@@ -24,6 +25,7 @@ import UI.Element.Interface.Changeable;
 import UI.Element.Interface.Submittable;
 import UI.Element.Interface.Inputable;
 import UI.Element.Interface.Dismissible;
+import UI.Element.Form;
 
 /// @brief Routes browser transport messages to the owning client's logical page.
 /// @details Connection registry entries have stable shared ownership. Each logical
@@ -166,6 +168,41 @@ private:
 		ws_connection->send( tatzel::JsonToString( json ) );
 	}
 
+	/// @brief Resolves a complete browser field snapshot before applying any submitted values.
+	/// @param connection Owning client page and identity registry.
+	/// @param form Logical form receiving the snapshot.
+	/// @param data Validated event envelope containing a fields array.
+	/// @return Whether every source, member, value type, and choice was accepted.
+	/// @pre Called on the owning event loop after the form's source marker is checked.
+	/// @post Invalid snapshots change no fields; valid snapshots update editable values without edit callbacks.
+	static auto ApplyFormSubmission(
+		tatzel::ClientConnection& connection,
+		tatzel::ui::Form& form,
+		const Json::Value& data
+	) -> bool
+	{
+		if( !data[ "fields" ].isArray() ) return false;
+
+		auto values = std::vector<tatzel::ui::FieldSubmission>{};
+		for( const auto& entry : data[ "fields" ] )
+		{
+			if( !entry.isObject() || !entry[ "part_id" ].isString()
+				|| ( !entry[ "value" ].isString() && !entry[ "value" ].isBool() ) ) return false;
+
+			const auto part_id = entry[ "part_id" ].asString();
+			auto* field = connection.element_tree->FindElementByPartID<tatzel::ui::FormField>( part_id );
+			if( !field || !std::ranges::any_of( field->GetParts(), [ &part_id ]( const auto& part ) {
+				return part.GetPartID() == part_id && part.GetAttribute( "data-ui-form-field" ).has_value();
+			} ) ) return false;
+
+			auto value = entry[ "value" ].isBool()
+				? tatzel::ui::FieldValue{ entry[ "value" ].asBool() }
+				: tatzel::ui::FieldValue{ entry[ "value" ].asString() };
+			values.push_back( { field, std::move( value ) } );
+		}
+		return form.ApplySubmission( values );
+	}
+
 	/// @brief Handles a validated envelope using logical IDs only after resolving DOM parts.
 	/// @param connection Owning client session.
 	/// @param json Message with an op string and data object.
@@ -220,6 +257,13 @@ private:
 		auto* owner = connection.element_tree->FindElementByPartID<tatzel::ui::LogicalElement>( part_id );
 		if( !owner ) return;
 
+		auto* owning_form = dynamic_cast<tatzel::ui::Form*>( owner );
+		for( auto* ancestor = owner->GetParent(); ancestor && !owning_form; ancestor = ancestor->GetParent() )
+		{
+			owning_form = dynamic_cast<tatzel::ui::Form*>( ancestor );
+		}
+		if( owning_form && owning_form->IsDisabled() && operation != "on_dismiss" ) return;
+
 		const auto marker = "data-ui-on-" + operation.substr( 3 );
 		auto parts = owner->GetParts();
 		auto source = std::ranges::find_if( parts, [ &part_id ]( const auto& part ) { return part.GetPartID() == part_id; } );
@@ -244,10 +288,25 @@ private:
 			}
 			auto value = data[ "value" ].isBool()
 				? std::string{ data[ "value" ].asBool() ? "true" : "false" } : data[ "value" ].asString();
+			if( !control->AcceptsChangeValue( value ) )
+			{
+				SendError( transport, "invalid_message", "Change value is unavailable for this control" );
+				return;
+			}
 			control->InvokeOnChange( value );
 		}
 		else if( operation == "on_submit" )
 		{
+			if( owning_form && owning_form != owner )
+			{
+				SendError( transport, "invalid_message", "Submit the enclosing form with its complete field snapshot" );
+				return;
+			}
+			if( auto* form = dynamic_cast<tatzel::ui::Form*>( owner ); form && !ApplyFormSubmission( connection, *form, data ) )
+			{
+				SendError( transport, "invalid_message", "Form snapshot has missing, duplicate, foreign, or invalid field values" );
+				return;
+			}
 			auto* control = dynamic_cast<tatzel::ui::interface::Submittable*>( owner );
 			if( control ) control->InvokeOnSubmit();
 		}

@@ -7,12 +7,12 @@ module;
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 export module UI.Element.TextInput;
 
-export import UI.Element.LogicalElement;
+export import UI.Element.FormField;
 export import UI.Element.Interface.Inputable;
-export import UI.Element.Interface.Changeable;
 export import UI.Element.Interface.Submittable;
 
 namespace tatzel::ui {
@@ -22,8 +22,7 @@ namespace tatzel::ui {
 /// values to the browser. Explicit SetValue calls request browser updates.
 /// Mutations and callbacks run on the owning page's event loop. Callback value
 /// views remain valid for the callback invocation, including nested setters.
-export class TextInput : public LogicalElement, public interface::Inputable,
-	public interface::Changeable, public interface::Submittable
+export class TextInput : public FormField, public interface::Inputable, public interface::Submittable
 {
 public:
 	/// @brief Creates an editable single-line text control.
@@ -41,29 +40,10 @@ public:
 		std::string_view value,
 		std::function<void( std::string_view )> on_change
 	) :
-		LogicalElement{ id, parent },
-		label{ label },
+		FormField{ id, parent, label },
 		value{ value },
 		on_change{ std::move( on_change ) }
 	{}
-
-	/// @brief Reads the accessible label.
-	/// @return The accessible label, borrowed until mutation or destruction.
-	/// @pre None.
-	/// @post State is unchanged.
-	auto GetLabel() const noexcept -> std::string_view { return label; }
-
-	/// @brief Replaces the accessible label and notifies the adapter.
-	/// @param label New accessible label, copied before returning.
-	/// @pre Called on the owning event loop.
-	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetLabel( std::string_view label ) -> void
-	{
-		if( this->label == label ) return;
-
-		this->label = label;
-		NotifyChanged();
-	}
 
 	/// @brief Reads the editor value.
 	/// @return The editor value, borrowed until mutation or destruction.
@@ -81,7 +61,7 @@ public:
 
 		this->value = value;
 		++value_revision;
-		NotifyChanged();
+		NotifyValueChanged();
 	}
 
 	/// @brief Reads the placeholder.
@@ -102,29 +82,11 @@ public:
 		NotifyChanged();
 	}
 
-	/// @brief Reads the disabled state.
-	/// @return The disabled state.
-	/// @pre None.
-	/// @post State is unchanged.
-	auto IsDisabled() const noexcept -> bool { return disabled; }
-
-	/// @brief Replaces the disabled state and notifies the adapter.
-	/// @param disabled New disabled state.
-	/// @pre Called on the owning event loop.
-	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetDisabled( bool disabled ) -> void
-	{
-		if( this->disabled == disabled ) return;
-
-		this->disabled = disabled;
-		NotifyChanged();
-	}
-
 	/// @brief Reads the read-only state.
 	/// @return The read-only state.
 	/// @pre None.
 	/// @post State is unchanged.
-	auto IsReadOnly() const noexcept -> bool { return read_only; }
+	auto IsReadOnly() const noexcept -> bool override { return read_only; }
 
 	/// @brief Replaces the read-only state and notifies the adapter.
 	/// @param read_only New read-only state.
@@ -169,10 +131,10 @@ public:
 	/// @post Editable changed input is stored without a value echo; its callback has run.
 	auto InvokeOnInput( std::string_view value ) -> void override
 	{
-		if( disabled || read_only || this->value == value ) return;
+		if( IsDisabled() || read_only || this->value == value ) return;
 
 		this->value = value;
-		NotifyChanged();
+		NotifyValueChanged();
 
 		auto callback = on_input;
 		auto snapshot = this->value;
@@ -191,10 +153,10 @@ public:
 	/// @post Editable input is stored without a value echo; its callback has run.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
-		if( disabled || read_only ) return;
+		if( IsDisabled() || read_only ) return;
 
 		this->value = value;
-		NotifyChanged();
+		NotifyValueChanged();
 
 		auto callback = on_change;
 		auto snapshot = this->value;
@@ -206,18 +168,46 @@ public:
 	/// @post The submit callback has run if enabled and installed.
 	auto InvokeOnSubmit() -> void override
 	{
-		if( disabled ) return;
+		if( IsDisabled() ) return;
 
 		auto callback = on_submit;
 		auto snapshot = value;
 		if( callback ) callback( snapshot );
 	}
 
+	/// @brief Installs custom validation for this field's current value.
+	/// @param validator Returns an error message or an empty string; empty clears validation.
+	/// @pre Called on the owning event loop; the validator does not mutate field values or structure.
+	/// @post Future Validate calls use this validator after required-field checks.
+	auto SetValidator( std::function<std::string( std::string_view )> validator ) -> void
+	{
+		SetValidationHandler( [ this, validator = std::move( validator ) ] {
+			auto snapshot = value;
+			return validator ? validator( snapshot ) : std::string{};
+		} );
+	}
+
+	/// @brief Copies this field's value for coordinated form submission.
+	/// @return The owned current value.
+	/// @pre Called on the owning event loop.
+	/// @post State is unchanged.
+	auto GetFieldValue() const -> FieldValue override { return value; }
+
+	/// @brief Accepts a validated form value without invoking application edit callbacks.
+	/// @param value Correctly typed value from the form snapshot.
+	/// @pre Called on the owning event loop; CanAcceptFieldValue returns true.
+	/// @post Editable enabled state is stored, stale errors are removed, and no value echo is sent.
+	auto AcceptFieldValue( const FieldValue& value ) -> void override
+	{
+		if( IsDisabled() || IsReadOnly() ) return;
+
+		this->value = std::get<std::string>( value );
+		NotifyValueChanged();
+	}
+
 private:
-	std::string label;
 	std::string value;
 	std::string placeholder;
-	bool disabled = false;
 	bool read_only = false;
 	size_t value_revision = 0;
 	std::function<void( std::string_view )> on_change;

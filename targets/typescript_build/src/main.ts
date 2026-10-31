@@ -15,6 +15,7 @@ import {
 	setOnSubmit,
 	setText,
 	setValue,
+	setSelectOptions,
 } from "./dom-ops.js";
 
 
@@ -85,6 +86,10 @@ socket.addEventListener(
 
 		case "set_value":
 			setValue(message.data);
+			break;
+
+		case "set_select_options":
+			setSelectOptions(message.data);
 			break;
 
 		case "set_modal_open":

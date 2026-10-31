@@ -2,14 +2,15 @@ import { sendToServer } from "./websocket.js";
 import { getElementValue } from "./dom-ops.js";
 
 /**
- * @brief Sends a non-composing edit from a registered, editable text input.
+ * @brief Sends a non-composing edit from a registered, editable text field.
  * @param target Concrete event target.
  * @pre The browser document and WebSocket event handlers exist.
  * @post A current text edit is sent when target is a registered enabled editor.
  */
 function sendInput(target: EventTarget | null): void
 {
-	if (!(target instanceof HTMLInputElement) || target.disabled || target.readOnly) return;
+	if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+		|| target.matches(":disabled") || target.readOnly) return;
 	if (!target.hasAttribute("data-ui-on-input")) return;
 
 	sendToServer({ op: "on_input", data: { part_id: target.id, value: target.value } });
@@ -45,7 +46,7 @@ export function registerBrowserEventHandlers(): void
 		else if (dismissal) dismiss(dismissal);
 
 		const element = target.closest("[data-ui-on-click]");
-		if (!element || (element instanceof HTMLButtonElement && element.disabled)) return;
+		if (!element || (element instanceof HTMLButtonElement && element.matches(":disabled"))) return;
 
 		sendToServer({ op: "on_click", data: { part_id: element.id } });
 	});
@@ -62,7 +63,8 @@ export function registerBrowserEventHandlers(): void
 		if (!(target instanceof Element)) return;
 
 		const element = target.closest("[data-ui-on-change]");
-		if (!element || (element instanceof HTMLInputElement && (element.disabled || element.readOnly))) return;
+		if (!element || element.matches(":disabled")
+			|| ((element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) && element.readOnly)) return;
 
 		const value = getElementValue(element);
 		if (value === null) return;
@@ -73,10 +75,17 @@ export function registerBrowserEventHandlers(): void
 	document.addEventListener("keydown", event => {
 		if (event.key !== "Enter" || event.isComposing || event.keyCode === 229) return;
 		const target = event.target;
-		if (!(target instanceof HTMLInputElement) || target.disabled || !target.hasAttribute("data-ui-on-submit")) return;
+		if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+			|| target.matches(":disabled") || !target.hasAttribute("data-ui-on-submit")) return;
+		if (target instanceof HTMLTextAreaElement && !event.ctrlKey && !event.metaKey) return;
 
 		event.preventDefault();
-		// Ordered WebSocket messages ensure submit observes the latest editor value.
+		if (target.form?.hasAttribute("data-ui-on-submit")) {
+			target.form.requestSubmit();
+			return;
+		}
+
+		// Standalone editors retain their own submission callback.
 		sendInput(target);
 		sendToServer({ op: "on_submit", data: { part_id: target.id } });
 	});
@@ -84,12 +93,22 @@ export function registerBrowserEventHandlers(): void
 	document.addEventListener("submit", event => {
 		const target = event.target;
 		if (!(target instanceof Element)) return;
-
 		const element = target.closest("[data-ui-on-submit]");
 		if (!element) return;
 
 		event.preventDefault();
-		sendToServer({ op: "on_submit", data: { part_id: element.id } });
+		if (element instanceof HTMLFormElement) {
+			const fields: Array<{ part_id: string; value: string | boolean; }> = [];
+			for (const field of Array.from(element.elements)) {
+				if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)
+					|| field.form !== element || !field.hasAttribute("data-ui-form-field") || field.matches(":disabled")) continue;
+
+				const value = getElementValue(field);
+				if (value !== null) fields.push({ part_id: field.id, value });
+			}
+			sendToServer({ op: "on_submit", data: { part_id: element.id, fields } });
+		}
+		else sendToServer({ op: "on_submit", data: { part_id: element.id } });
 	});
 
 	// Dialog cancel and close events do not bubble, so delegate in the capture phase.

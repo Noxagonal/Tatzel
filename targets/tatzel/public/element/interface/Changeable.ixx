@@ -30,6 +30,13 @@ public:
 	/// @post State is unchanged.
 	virtual auto GetChangeValueType() const noexcept -> ChangeValueType = 0;
 
+	/// @brief Validates a normalized change value before transport dispatch.
+	/// @param value String text or a normalized boolean string.
+	/// @return Whether this value is permitted by the control's current choices.
+	/// @pre The transport has already checked the wire value type.
+	/// @post State is unchanged.
+	virtual auto AcceptsChangeValue( std::string_view value ) const -> bool { return true; }
+
 	/// @brief Dispatches a change event to the logical control.
 	/// @param value Changed value; checkbox booleans are normalized to true or false strings.
 	/// @pre Called on the owning event loop after a DOM part resolves to this control.

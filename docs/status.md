@@ -10,8 +10,11 @@ than earlier experiments.
 | Logical container | Nested logical builders and an optional parent pointer in child callbacks. |
 | Text and paragraph | Owned plain text, preserved line breaks, and synchronized SetText(). |
 | Card | Optional title, scoped content/actions builders, and synchronized title changes. |
-| Text input | Accessible label, value/placeholder setters, disabled/read-only states, input/change/Enter callbacks, and IME composition handling. |
-| Checkbox | Accessible label, boolean state, disabled state, explicit setters, and typed change callbacks. |
+| Text input / area | Shared value, label, placeholder, disabled/read-only, required/custom validation, and input/change callbacks. Single-line Enter submits; multiline Enter inserts a newline and Ctrl/Cmd+Enter submits. |
+| Checkbox | Accessible label, boolean state, disabled/required policies, custom validation, explicit setters, and typed change callbacks. |
+| Row / Column | Scoped child builders with semantic spacing, alignment, distribution, and wrapping setters. |
+| Select | Owned stable option IDs, replaceable choices, unavailable choices, no-selection prompt, validation, and typed selection callbacks. |
+| Form | Complete typed field snapshots, required/custom validation and field errors, submit buttons, callbacks, read-only/disabled policies, and nested-form rejection. |
 | Modal | Closed-by-default scoped content, native modal focus handling, Open/Close, and Escape/backdrop/close-button/native-close synchronization. |
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
@@ -38,7 +41,8 @@ also does not implement logical subtree deletion.
 - No logical subtree removal API, DOM diff engine, or automatic mutation batching.
 - No cross-thread logical UI scheduler.
 - No built-in authentication or authorization layer.
-- No general form, table, chart, or reusable component abstraction.
+- No table, chart, or reusable component abstraction.
+- Forms validate synchronously; asynchronous validators, file inputs, and multiple selection are not supported.
 - Runtime paths depend on the repository working directory.
 - No install/export package; compatibility coverage is currently one CI toolchain.
 - CI covers Ubuntu 24.04 with Clang 18.1.3, plus docs and browser checks;

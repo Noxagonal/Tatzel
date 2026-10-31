@@ -68,6 +68,14 @@ export type ReceiveData_SetModalOpen = {
 	open: boolean;
 }
 
+/** @brief Native-select options and selected state replaced as one operation. */
+export type ReceiveData_SetSelectOptions = {
+	part_id: string;
+	placeholder: string;
+	value: string;
+	options: Array<{ value: string; label: string; disabled: boolean; }>;
+};
+
 /** @brief ReceiveData SetOnClick wire-format type; DOM identifiers are part IDs. */
 export type ReceiveData_SetOnClick = {
 	part_id: string;
@@ -96,6 +104,7 @@ export type ReceiveServerMessage =
 	| { op: "set_text"; data: Array<ReceiveData_SetText>; }
 	| { op: "set_value"; data: Array<ReceiveData_SetValue>; }
 	| { op: "set_modal_open"; data: Array<ReceiveData_SetModalOpen>; }
+	| { op: "set_select_options"; data: Array<ReceiveData_SetSelectOptions>; }
 	| { op: "set_on_click"; data: Array<ReceiveData_SetOnClick>; }
 	| { op: "set_on_change"; data: Array<ReceiveData_SetOnChange>; }
 	| { op: "set_on_submit"; data: Array<ReceiveData_SetOnSubmit>; };
@@ -123,6 +132,7 @@ export type SendData_OnChange = {
 /** @brief SendData OnSubmit wire-format type; DOM identifiers are part IDs. */
 export type SendData_OnSubmit = {
 	part_id: string;
+	fields?: Array<{ part_id: string; value: string | boolean; }>;
 };
 
 /** @brief SendServerMessage wire-format type; DOM identifiers are part IDs. */

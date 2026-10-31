@@ -12,6 +12,7 @@ module;
 module UI.ClientUpdater;
 
 import UI.DOM.ElementPart;
+import UI.DOM.SelectOption;
 import UI.Utility;
 
 
@@ -334,4 +335,33 @@ auto tatzel::ClientUpdater::SendJSON(
 ) -> void
 {
 	ws_connection->send( tatzel::JsonToString( json ) );
+}
+
+
+auto tatzel::ClientUpdater::SetSelectOptions(
+	std::string_view part_id,
+	std::span<const dom::SelectOption> options,
+	std::string_view placeholder,
+	std::string_view value
+) -> void
+{
+	auto part = Json::Value{ Json::objectValue };
+	part[ "part_id" ] = std::string{ part_id };
+	part[ "placeholder" ] = std::string{ placeholder };
+	part[ "value" ] = std::string{ value };
+	part[ "options" ] = Json::Value{ Json::arrayValue };
+	for( const auto& option : options )
+	{
+		auto item = Json::Value{ Json::objectValue };
+		item[ "value" ] = option.value;
+		item[ "label" ] = option.label;
+		item[ "disabled" ] = option.disabled;
+		part[ "options" ].append( std::move( item ) );
+	}
+
+	auto json = Json::Value{ Json::objectValue };
+	json[ "op" ] = "set_select_options";
+	json[ "data" ] = Json::Value{ Json::arrayValue };
+	json[ "data" ].append( std::move( part ) );
+	SendJSON( json );
 }

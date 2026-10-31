@@ -57,6 +57,8 @@ Keep the working directory at the repository root:
 Open http://localhost:8080/. The example builds a per-client counter with a
 logical heading, nested container, and button, plus a profile card demonstrating
 text edits, checkbox changes, explicit reset values, and a modal preview.
+Open http://localhost:8080/forms for the row/column layout and validated form
+example, including choice updates and multiline editing.
 
 The runtime currently resolves these paths relative to the working directory:
 
@@ -66,6 +68,7 @@ The runtime currently resolves these paths relative to the working directory:
 | data/template.html | Initial browser document. |
 | www | Static document root. |
 | www/app/main.js | Generated browser entry module. |
+| www/framework/layout.css | Local layout rules that cooperate with Pico defaults. |
 
 The default listener binds 0.0.0.0:8080. The template uses Pico CSS from a CDN,
 so external stylesheet access is needed for its default presentation.
@@ -88,9 +91,10 @@ Core C++ behavior checks can be built with the application toolchain:
 
 ```sh
 cmake -S . -B build -DTATZEL_BUILD_TESTS=ON
-cmake --build build --target TatzelCoreTests
+cmake --build build
 ctest --test-dir build --output-on-failure
 node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```
 
 There is no installable CMake package yet. The current executable and source
