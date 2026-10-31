@@ -3,12 +3,10 @@
 
 import UI;
 
-/**
- * @brief Runs an interactive example using logical controls.
- * @return Zero after the server stops.
- * @pre Runtime configuration, template, and compiled browser assets are available.
- * @post The application server has stopped.
- */
+/// @brief Runs an interactive example using logical controls.
+/// @return Zero after the server stops.
+/// @pre Runtime configuration, template, and compiled browser assets are available.
+/// @post The application server has stopped.
 auto main() -> int
 {
 	auto app = tatzel::App{};

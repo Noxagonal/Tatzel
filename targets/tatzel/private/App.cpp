@@ -32,7 +32,10 @@ tatzel::App::~App()
 	global_app = nullptr;
 }
 
-auto tatzel::App::RegisterPage( std::string_view route_path, std::function<void( PageBuilder<> )>&& page_builder_fn ) -> void
+auto tatzel::App::RegisterPage(
+	std::string_view route_path,
+	std::function<void( PageBuilder<> )>&& page_builder_fn
+) -> void
 {
 	if( has_run ) throw std::logic_error{ "Register pages before starting the server" };
 	if( route_path.empty() || route_path.front() != '/' || !page_builder_fn || FindRegisteredPage( route_path ) )
@@ -40,8 +43,10 @@ auto tatzel::App::RegisterPage( std::string_view route_path, std::function<void(
 
 	drogon::app().registerHandler(
 		std::string{ route_path },
-		[]( const drogon::HttpRequestPtr& request,
-			std::function<void( const drogon::HttpResponsePtr& )>&& response_callback )
+		[](
+			const drogon::HttpRequestPtr& request,
+			std::function<void( const drogon::HttpResponsePtr& )>&& response_callback
+		)
 		{
 			// The logical page is built after the browser identifies its route over WebSocket.
 			auto response = drogon::HttpResponse::newHttpResponse();

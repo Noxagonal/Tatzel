@@ -1,16 +1,11 @@
-/**
- * @namespace tatzel
- * @brief Application API and server-side framework services.
- */
-/**
- * @namespace tatzel::ui
- * @brief Application-facing logical control types.
- */
-/**
- * @namespace tatzel::ui::interface
- * @brief Logical event capabilities implemented by controls.
- */
-/**
- * @namespace tatzel::dom
- * @brief Concrete browser DOM-part descriptions used by the framework.
- */
+/// @namespace tatzel
+/// @brief Application API and server-side framework services.
+
+/// @namespace tatzel::ui
+/// @brief Application-facing logical control types.
+
+/// @namespace tatzel::ui::interface
+/// @brief Logical event capabilities implemented by controls.
+
+/// @namespace tatzel::dom
+/// @brief Concrete browser DOM-part descriptions used by the framework.

@@ -41,13 +41,59 @@ such as Heading::SetText().
 - C++ interface files use .ixx and implementation files use .cpp, with matching PascalCase stems.
 - Public logical files live in public/element; DOM files live in public/dom.
 - Implementation files live under private, including adapter implementations.
-- Use tabs for indentation in C++ and TypeScript. Put C++ braces on their own lines.
+- Use tabs for indentation in C++ and TypeScript.
+- Put ordinary multi-line C++ function and control-flow braces on their own lines.
+  Empty bodies may remain `{}`, and trivial inline getters may stay on one line.
+  Callback lambdas can keep their opening brace on the signature line.
 - Keep functions short and prefer descriptive names to abbreviations or explanatory noise.
 - Include each standard header directly when its declarations are used; do not depend on the PCH.
 
 The module umbrella remains UI. Logical controls are exported as
 UI.Element.Heading, UI.Element.Button, and so on. UI.DOM is reserved for concrete
 DOM representations. Keep imports and exports consistent when moving a file.
+
+## C++ signatures, initializers, and spacing
+
+When a function, constructor, or lambda has multiple parameters, put each
+parameter on its own line. Put the opening parenthesis immediately after the
+name, start parameters on the following line, and align the closing parenthesis
+with the declaration. Single-parameter signatures may remain inline. Apply the
+same one-parameter-per-line layout to multi-parameter template declarations.
+
+Put the constructor initializer list after `) :`. Initialize each base class or
+member on its own line, indented once beyond the constructor declaration. Keep
+the comma at the end of the preceding initializer. This also applies when there
+is only one initializer. Constructor arguments inside an initializer may remain
+inline.
+
+```cpp
+Container(
+	std::string_view id,
+	LogicalElement* parent
+) :
+	LogicalElement{ id, parent }
+{}
+```
+
+Use the existing padded-delimiter style consistently:
+
+- Put no space between a function name or control-flow keyword and `(`:
+  `func( value )`, `if( ready )`, and `for( const auto& item : items )`.
+- Put spaces inside nonempty parentheses, brace initializers, subscripts, and
+  lambda captures: `func( value )`, `Heading{ id, parent, text, style }`,
+  `parts[ index ]`, and `[ this, &element ]`.
+- Keep empty pairs compact: `func()`, `{}`, `[]`, and `PageBuilder<>`.
+- Keep template delimiters unpadded: `std::vector<dom::ElementPart>`.
+- Attach pointer/reference markers to their type: `LogicalElement* parent` and
+  `const Json::Value& json`.
+- Separate inline arguments and template arguments with a comma and a space.
+  Surround binary operators with spaces; keep unary operators with their
+  operand, as in `!ready`, `&element`, and `*child`.
+
+Function calls may keep several arguments inline when readable. The
+one-parameter-per-line rule applies to declarations and definitions, including
+lambda signatures, rather than forcing every call or brace initializer to span
+multiple lines.
 
 ## Ownership and mutation
 
@@ -97,17 +143,22 @@ reference them. For a deleted operation, state that it is unavailable; its
 preconditions do not imply it can be called.
 
 Class documentation describes its role, ownership, lifetime, and threading
-constraints. Document enum values and public data members. Small getters may use
-a compact one-line contract when it remains readable. Lambdas used as local
-callbacks do not need separate API blocks; explain non-obvious capture lifetimes.
+constraints. Document enum values and public data members.
+
+Use `///` Doxygen comment blocks in C++, including file, class, and function
+documentation. Put every Doxygen tag on its own `///` line, including contracts
+for small getters and deleted/defaulted members. Continuation text can occupy
+additional `///` lines; never combine tags on one line. Trailing enum/member
+comments may use `///<`. TypeScript keeps its existing JSDoc block comments.
+
+Lambdas used as local callbacks do not need separate API blocks; explain
+non-obvious capture lifetimes.
 
 ```cpp
-/**
- * @brief Replaces a heading's logical text and notifies its adapter.
- * @param text New heading text, copied before returning.
- * @pre Called on the owning page's event loop.
- * @post The logical text is owned and the bound adapter has queued its DOM update.
- */
+/// @brief Replaces a heading's logical text and notifies its adapter.
+/// @param text New heading text, copied before returning.
+/// @pre Called on the owning page's event loop.
+/// @post The logical text is owned and the bound adapter has queued its DOM update.
 auto SetText( std::string_view text ) -> void;
 ```
 

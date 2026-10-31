@@ -1,7 +1,5 @@
-/**
- * @file
- * @brief WebSocket transport and DOM-part-to-logical-event routing.
- */
+/// @file
+/// @brief WebSocket transport and DOM-part-to-logical-event routing.
 module;
 
 #include <drogon/WebSocketController.h>
@@ -25,22 +23,18 @@ import UI.Element.Interface.Clickable;
 import UI.Element.Interface.Changeable;
 import UI.Element.Interface.Submittable;
 
-/**
- * @brief Routes browser transport messages to the owning client's logical page.
- * @details Connection registry entries have stable shared ownership. Each logical
- * tree is used only on its WebSocket's event loop; the registry mutex protects
- * registry access rather than arbitrary cross-thread logical mutations.
- */
+/// @brief Routes browser transport messages to the owning client's logical page.
+/// @details Connection registry entries have stable shared ownership. Each logical
+/// tree is used only on its WebSocket's event loop; the registry mutex protects
+/// registry access rather than arbitrary cross-thread logical mutations.
 export class WsController : public drogon::WebSocketController<WsController, false>
 {
 public:
-	/**
-	 * @brief Creates session services and acknowledges the browser transport.
-	 * @param request HTTP upgrade request.
-	 * @param ws_connection Newly opened browser transport.
-	 * @pre Drogon supplies a nonnull connection on its owning event loop.
-	 * @post A session exists and a connected op/data acknowledgement is queued.
-	 */
+	/// @brief Creates session services and acknowledges the browser transport.
+	/// @param request HTTP upgrade request.
+	/// @param ws_connection Newly opened browser transport.
+	/// @pre Drogon supplies a nonnull connection on its owning event loop.
+	/// @post A session exists and a connected op/data acknowledgement is queued.
 	void handleNewConnection(
 		const drogon::HttpRequestPtr& request,
 		const drogon::WebSocketConnectionPtr& ws_connection
@@ -50,12 +44,10 @@ public:
 		ws_connection->send( R"({"op":"connected","data":{"message":"Connected"}})" );
 	}
 
-	/**
-	 * @brief Removes a closed browser session from the registry.
-	 * @param ws_connection Closed transport.
-	 * @pre Drogon has stopped delivering new events for this connection.
-	 * @post The registry no longer owns the session; retained in-flight handles remain valid.
-	 */
+	/// @brief Removes a closed browser session from the registry.
+	/// @param ws_connection Closed transport.
+	/// @pre Drogon has stopped delivering new events for this connection.
+	/// @post The registry no longer owns the session; retained in-flight handles remain valid.
 	void handleConnectionClosed( const drogon::WebSocketConnectionPtr& ws_connection ) override
 	{
 		std::lock_guard lock{ mutex };
@@ -64,14 +56,12 @@ public:
 		} );
 	}
 
-	/**
-	 * @brief Validates a browser message and dispatches it to logical page state.
-	 * @param ws_connection Transport that sent the message.
-	 * @param message UTF-8 browser payload.
-	 * @param type WebSocket frame type.
-	 * @pre Called by Drogon on the connection's owning event loop.
-	 * @post Valid messages are handled; malformed messages and callback failures get structured errors.
-	 */
+	/// @brief Validates a browser message and dispatches it to logical page state.
+	/// @param ws_connection Transport that sent the message.
+	/// @param message UTF-8 browser payload.
+	/// @param type WebSocket frame type.
+	/// @pre Called by Drogon on the connection's owning event loop.
+	/// @post Valid messages are handled; malformed messages and callback failures get structured errors.
 	void handleNewMessage(
 		const drogon::WebSocketConnectionPtr& ws_connection,
 		std::string&& message,
@@ -112,12 +102,10 @@ public:
 		}
 	}
 
-	/**
-	 * @brief Sends a protocol message to a snapshot of all current transports.
-	 * @param message Complete serialized server op/data message.
-	 * @pre The message is valid for every recipient; callers maintain logical state separately.
-	 * @post Each transport in the snapshot has been offered the message.
-	 */
+	/// @brief Sends a protocol message to a snapshot of all current transports.
+	/// @param message Complete serialized server op/data message.
+	/// @pre The message is valid for every recipient; callers maintain logical state separately.
+	/// @post Each transport in the snapshot has been offered the message.
 	static auto Broadcast( const std::string& message ) -> void
 	{
 		std::vector<std::shared_ptr<tatzel::ClientConnection>> recipients;
@@ -129,13 +117,11 @@ public:
 	}
 
 private:
-	/**
-	 * @brief Retains newly created services in the session registry.
-	 * @param ws_connection Browser transport to own.
-	 * @return Retained stable session handle.
-	 * @pre The transport has no existing session.
-	 * @post The registry owns the new session.
-	 */
+	/// @brief Retains newly created services in the session registry.
+	/// @param ws_connection Browser transport to own.
+	/// @return Retained stable session handle.
+	/// @pre The transport has no existing session.
+	/// @post The registry owns the new session.
 	static auto CreateClientConnection( const drogon::WebSocketConnectionPtr& ws_connection )
 		-> std::shared_ptr<tatzel::ClientConnection>
 	{
@@ -145,13 +131,11 @@ private:
 		return connection;
 	}
 
-	/**
-	 * @brief Looks up a session while retaining its lifetime beyond the registry lock.
-	 * @param ws_connection Browser transport to find.
-	 * @return Stable session handle, or nullptr.
-	 * @pre None.
-	 * @post Registry state is unchanged.
-	 */
+	/// @brief Looks up a session while retaining its lifetime beyond the registry lock.
+	/// @param ws_connection Browser transport to find.
+	/// @return Stable session handle, or nullptr.
+	/// @pre None.
+	/// @post Registry state is unchanged.
 	static auto FindClientConnection( const drogon::WebSocketConnectionPtr& ws_connection )
 		-> std::shared_ptr<tatzel::ClientConnection>
 	{
@@ -161,16 +145,17 @@ private:
 		return found == connections.end() ? nullptr : *found;
 	}
 
-	/**
-	 * @brief Sends a structured error using the same envelope as other server messages.
-	 * @param ws_connection Recipient transport.
-	 * @param code Machine-readable error code.
-	 * @param message Human-readable error description.
-	 * @pre ws_connection is nonnull.
-	 * @post An error op/data message is queued.
-	 */
-	static auto SendError( const drogon::WebSocketConnectionPtr& ws_connection,
-		std::string_view code, std::string_view message ) -> void
+	/// @brief Sends a structured error using the same envelope as other server messages.
+	/// @param ws_connection Recipient transport.
+	/// @param code Machine-readable error code.
+	/// @param message Human-readable error description.
+	/// @pre ws_connection is nonnull.
+	/// @post An error op/data message is queued.
+	static auto SendError(
+		const drogon::WebSocketConnectionPtr& ws_connection,
+		std::string_view code,
+		std::string_view message
+	) -> void
 	{
 		Json::Value json{ Json::objectValue };
 		json[ "op" ] = "error";
@@ -179,14 +164,15 @@ private:
 		ws_connection->send( tatzel::JsonToString( json ) );
 	}
 
-	/**
-	 * @brief Handles a validated envelope using logical IDs only after resolving DOM parts.
-	 * @param connection Owning client session.
-	 * @param json Message with an op string and data object.
-	 * @pre Called on the session's owning event loop.
-	 * @post A page is built once or an event reaches the logical owner of its DOM part.
-	 */
-	static auto DispatchMessage( tatzel::ClientConnection& connection, const Json::Value& json ) -> void
+	/// @brief Handles a validated envelope using logical IDs only after resolving DOM parts.
+	/// @param connection Owning client session.
+	/// @param json Message with an op string and data object.
+	/// @pre Called on the session's owning event loop.
+	/// @post A page is built once or an event reaches the logical owner of its DOM part.
+	static auto DispatchMessage(
+		tatzel::ClientConnection& connection,
+		const Json::Value& json
+	) -> void
 	{
 		const auto operation = json[ "op" ].asString();
 		const auto& data = json[ "data" ];

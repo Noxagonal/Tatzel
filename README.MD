@@ -21,7 +21,7 @@ runnable example. A logical update looks like this:
 
 ```cpp
 auto* heading = ui.Heading( "Waiting" );
-ui.Button( "Update", [heading] {
+ui.Button( "Update", [ heading ] {
 	heading->SetText( "Updated from C++" );
 } );
 ```

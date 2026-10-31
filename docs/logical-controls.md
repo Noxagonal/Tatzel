@@ -36,7 +36,10 @@ Container receives a callback with a builder scoped to the new logical container
 The callback may optionally receive a pointer to that parent control:
 
 ```cpp
-ui.Container( []( auto children, tatzel::ui::Container* container ) {
+ui.Container( [](
+	auto children,
+	tatzel::ui::Container* container
+) {
 	children.Heading( "Inside a logical container" );
 } );
 ```

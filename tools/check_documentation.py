@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CPP_DOCUMENTATION = r"(?m)^[ \t]*///(?!<)[^\n]*(?:\n[ \t]*///(?!<)[^\n]*)*"
 
 
 def split_parameters(text: str) -> list[str]:
@@ -59,8 +60,9 @@ def check_contracts(path: Path) -> list[str]:
     """
     source = path.read_text()
     errors = []
-    comments = list(re.finditer(r"/\*\*[\s\S]*?\*/", source))
-    classes = re.findall(r"\bclass\s+(\w+)", re.sub(r"/\*[\s\S]*?\*/", "", source))
+    documentation = CPP_DOCUMENTATION if path.suffix == ".ixx" else r"/\*\*[\s\S]*?\*/"
+    comments = list(re.finditer(documentation, source))
+    classes = re.findall(r"\bclass\s+(\w+)", re.sub(r"/\*[\s\S]*?\*/|//[^\n]*", "", source))
     if path.suffix == ".ts":
         pattern = r"^\s*(?:export\s+)?function\s+(\w+)\s*\("
     else:
@@ -78,7 +80,8 @@ def check_contracts(path: Path) -> list[str]:
             continue
         intervening = source[comment.end():match.start()]
         template_declarations = intervening
-        intervening = re.sub(r"^\s*(?:export\s*|template[^\n]*|requires[^\n]*)$", "", intervening, flags=re.M)
+        intervening = re.sub(r"\btemplate\s*<[^>]*>", "", intervening)
+        intervening = re.sub(r"^\s*(?:export\s*|requires[^\n]*)$", "", intervening, flags=re.M)
         if intervening.strip():
             errors.append(f"{label}: missing adjacent Doxygen contract")
             continue
@@ -89,6 +92,11 @@ def check_contracts(path: Path) -> list[str]:
         opening = source.find("(", match.start())
         arguments = parameter_text(source, opening)
         parameters = split_parameters(arguments)
+        if path.suffix == ".ixx" and len(parameters) > 1:
+            parameter_lines = [line.strip().removesuffix(",") for line in arguments.splitlines() if line.strip()]
+            if (parameter_lines != parameters or not arguments.lstrip(" \t").startswith("\n")
+                    or not re.search(r"\n[ \t]*$", arguments)):
+                errors.append(f"{label}: use one parameter per line in multi-parameter signatures")
         closing = opening + len(arguments) + 1
         signature_tail = re.split(r"[;{]", source[closing + 1:], maxsplit=1)[0]
         returns_value = ("->" in signature_tail and not re.search(r"->\s*void\b", signature_tail))
@@ -112,6 +120,23 @@ def check_contracts(path: Path) -> list[str]:
         documented = re.findall(r"@param(?:\[[^\]]+\])?\s+(\w+)", contract)
         if sorted(names) != sorted(documented):
             errors.append(f"{label}: parameters {names} differ from @param entries {documented}")
+    return errors
+
+
+def check_cpp_documentation_layout(path: Path) -> list[str]:
+    """@brief Enforce the C++ Doxygen comment marker and one-tag-per-line style.
+    @param path C++ source or Doxygen namespace documentation to inspect.
+    @return Human-readable documentation layout violations.
+    @pre path is readable and contains C++-style documentation.
+    @post Source files are unchanged.
+    """
+    errors = []
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        label = f"{path.relative_to(ROOT)}:{number}"
+        if re.match(r"\s*/\*\*", line):
+            errors.append(f"{label}: use /// Doxygen comment blocks in C++")
+        if re.match(r"\s*///", line) and len(re.findall(r"(?<!\w)@[A-Za-z]\w*", line)) > 1:
+            errors.append(f"{label}: put each Doxygen tag on its own /// line")
     return errors
 
 
@@ -141,9 +166,14 @@ def main() -> int:
     """
     sources = sorted((ROOT / "targets/tatzel/public").rglob("*.ixx"))
     sources += sorted((ROOT / "targets/typescript_build/src").rglob("*.ts"))
+    cpp_sources = sorted((ROOT / "targets").rglob("*.ixx"))
+    cpp_sources += sorted((ROOT / "targets").rglob("*.cpp"))
+    cpp_sources += sorted((ROOT / "tests/cpp").glob("*.cpp"))
+    cpp_sources += sorted((ROOT / "docs").glob("*.dox"))
     documents = [ROOT / "README.MD", ROOT / "CODING_CONVENTIONS.md"]
     documents += sorted((ROOT / "docs").glob("*.md"))
     errors = [error for path in sources for error in check_contracts(path)]
+    errors += [error for path in cpp_sources for error in check_cpp_documentation_layout(path)]
     errors += [error for path in documents for error in check_links(path)]
     if errors:
         print("\n".join(errors), file=sys.stderr)

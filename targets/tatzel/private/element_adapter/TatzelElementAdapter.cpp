@@ -14,14 +14,12 @@ import UI.Element.Button;
 
 namespace {
 
-/**
- * @brief Converts a logical heading level at the DOM adapter boundary.
- * @param style Semantic heading level.
- * @return HTML tag for the level.
- * @pre style is a defined HeadingStyle value.
- * @post No logical or browser state is changed.
- * @throws std::invalid_argument If style is not a defined value.
- */
+/// @brief Converts a logical heading level at the DOM adapter boundary.
+/// @param style Semantic heading level.
+/// @return HTML tag for the level.
+/// @pre style is a defined HeadingStyle value.
+/// @post No logical or browser state is changed.
+/// @throws std::invalid_argument If style is not a defined value.
 auto HeadingStyleToTag( tatzel::ui::HeadingStyle style ) -> std::string_view
 {
 	switch( style )

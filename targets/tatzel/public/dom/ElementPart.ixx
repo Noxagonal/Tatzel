@@ -1,7 +1,5 @@
-/**
- * @file
- * @brief Internal representation of one concrete browser DOM element.
- */
+/// @file
+/// @brief Internal representation of one concrete browser DOM element.
 module;
 
 #include <span>
@@ -14,29 +12,25 @@ export module UI.DOM.ElementPart;
 
 namespace tatzel::dom {
 
-/**
- * @brief Owns the initial DOM state for one part of a logical element.
- * @details Part IDs identify browser nodes; they are distinct from logical IDs.
- * All strings are owned. Returned views remain valid until the part is mutated
- * or destroyed. Applications normally work with logical controls instead.
- */
+/// @brief Owns the initial DOM state for one part of a logical element.
+/// @details Part IDs identify browser nodes; they are distinct from logical IDs.
+/// All strings are owned. Returned views remain valid until the part is mutated
+/// or destroyed. Applications normally work with logical controls instead.
 export class ElementPart
 {
 public:
 
-	/** @brief An owned HTML attribute name and value. */
+	/// @brief An owned HTML attribute name and value.
 	using Attribute = std::pair<std::string, std::string>;
 
-	/**
-	 * @brief Copies the initial state of a concrete DOM node.
-	 * @param part_id Unique browser node ID.
-	 * @param parent_id Browser ID of the parent; empty for the template root.
-	 * @param tag HTML tag chosen by the element adapter.
-	 * @param classes Initial CSS class names, copied before returning.
-	 * @param attributes Initial HTML attributes, copied before returning.
-	 * @pre part_id and tag are nonempty; part_id is unique within the client page.
-	 * @post The part owns all supplied strings and has empty text content.
-	 */
+	/// @brief Copies the initial state of a concrete DOM node.
+	/// @param part_id Unique browser node ID.
+	/// @param parent_id Browser ID of the parent; empty for the template root.
+	/// @param tag HTML tag chosen by the element adapter.
+	/// @param classes Initial CSS class names, copied before returning.
+	/// @param attributes Initial HTML attributes, copied before returning.
+	/// @pre part_id and tag are nonempty; part_id is unique within the client page.
+	/// @post The part owns all supplied strings and has empty text content.
 	ElementPart(
 		std::string_view part_id,
 		std::string_view parent_id,
@@ -44,50 +38,72 @@ public:
 		std::span<const std::string_view> classes = {},
 		std::span<const Attribute> attributes = {}
 	) :
-		part_id{ part_id }, parent_id{ parent_id }, tag{ tag },
+		part_id{ part_id },
+		parent_id{ parent_id },
+		tag{ tag },
 		classes{ classes.begin(), classes.end() },
 		attributes{ attributes.begin(), attributes.end() }
 	{}
 
-	/** @brief Reads the browser node ID. @return Borrowed part ID. @pre None. @post State is unchanged. */
+	/// @brief Reads the browser node ID.
+	/// @return Borrowed part ID.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetPartID() const noexcept -> std::string_view { return part_id; }
-	/** @brief Reads the browser parent ID. @return Borrowed parent ID. @pre None. @post State is unchanged. */
+
+	/// @brief Reads the browser parent ID.
+	/// @return Borrowed parent ID.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetParentID() const noexcept -> std::string_view { return parent_id; }
-	/** @brief Reads the HTML tag. @return Borrowed tag. @pre None. @post State is unchanged. */
+
+	/// @brief Reads the HTML tag.
+	/// @return Borrowed tag.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetTag() const noexcept -> std::string_view { return tag; }
-	/** @brief Reads initial CSS classes. @return Borrowed class list. @pre None. @post State is unchanged. */
+
+	/// @brief Reads initial CSS classes.
+	/// @return Borrowed class list.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetClasses() const noexcept -> std::span<const std::string> { return classes; }
-	/** @brief Reads initial HTML attributes. @return Borrowed attribute list. @pre None. @post State is unchanged. */
+
+	/// @brief Reads initial HTML attributes.
+	/// @return Borrowed attribute list.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetAttributes() const noexcept -> std::span<const Attribute> { return attributes; }
-	/** @brief Reads initial text content. @return Borrowed text. @pre None. @post State is unchanged. */
+
+	/// @brief Reads initial text content.
+	/// @return Borrowed text.
+	/// @pre None.
+	/// @post State is unchanged.
 	auto GetTextContent() const noexcept -> std::string_view { return text_content; }
 
-	/**
-	 * @brief Copies a CSS class into this part's state.
-	 * @param class_name Class to append.
-	 * @pre class_name is a nonempty CSS class token.
-	 * @post The class list contains the new value; no browser message is sent.
-	 */
+	/// @brief Copies a CSS class into this part's state.
+	/// @param class_name Class to append.
+	/// @pre class_name is a nonempty CSS class token.
+	/// @post The class list contains the new value; no browser message is sent.
 	auto AddClass( std::string_view class_name ) -> void { classes.emplace_back( class_name ); }
 
-	/**
-	 * @brief Copies an HTML attribute into this part's state.
-	 * @param attribute Attribute name.
-	 * @param value Attribute value.
-	 * @pre attribute is a nonempty HTML attribute name.
-	 * @post Both strings are owned by the part; no browser message is sent.
-	 */
-	auto AddAttribute( std::string_view attribute, std::string_view value ) -> void
+	/// @brief Copies an HTML attribute into this part's state.
+	/// @param attribute Attribute name.
+	/// @param value Attribute value.
+	/// @pre attribute is a nonempty HTML attribute name.
+	/// @post Both strings are owned by the part; no browser message is sent.
+	auto AddAttribute(
+		std::string_view attribute,
+		std::string_view value
+	) -> void
 	{
 		attributes.emplace_back( std::string{ attribute }, std::string{ value } );
 	}
 
-	/**
-	 * @brief Replaces the stored DOM text.
-	 * @param text New text content.
-	 * @pre None.
-	 * @post The part owns a copy of text; no browser message is sent.
-	 */
+	/// @brief Replaces the stored DOM text.
+	/// @param text New text content.
+	/// @pre None.
+	/// @post The part owns a copy of text; no browser message is sent.
 	auto SetTextContent( std::string_view text ) -> void { text_content = text; }
 
 private:

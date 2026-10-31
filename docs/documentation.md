@@ -29,8 +29,9 @@ Open http://localhost:8081/. Generated HTML is written to build/docs/html and
 is ignored by Git. The build does not compile the application or fetch Drogon.
 
 Doxygen warnings fail the documentation build. The lightweight contract check
-also checks required `@pre`/`@post` tags, parameter names, and local documentation
-links. It supplements Doxygen; it is not a C++ parser.
+also checks required `@pre`/`@post` tags, parameter names, C++ `///` comment
+layout, one tag per line, multi-parameter API signature layout, and local
+documentation links. It supplements Doxygen; it is not a C++ parser.
 
 Doxygen sees .ixx files through a small input filter that removes module/import
 syntax while preserving line numbers. The original module source remains the

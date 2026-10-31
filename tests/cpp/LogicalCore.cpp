@@ -8,12 +8,10 @@ import UI.Element.Heading;
 import UI.Element.Button;
 import UI.ClientElementTree;
 
-/**
- * @brief Checks owned DOM strings and the distinction between logical and part identity.
- * @return Zero when all core assertions pass.
- * @pre The Tatzel module interfaces and library have been built.
- * @post Temporary trees and controls have been destroyed.
- */
+/// @brief Checks owned DOM strings and the distinction between logical and part identity.
+/// @return Zero when all core assertions pass.
+/// @pre The Tatzel module interfaces and library have been built.
+/// @post Temporary trees and controls have been destroyed.
 auto main() -> int
 {
 	auto part = tatzel::dom::ElementPart{ "logical|base", "root|main", "h1" };
