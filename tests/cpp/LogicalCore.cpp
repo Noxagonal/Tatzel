@@ -1,6 +1,8 @@
 #include <cassert>
 #include <memory>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 import UI.DOM.ElementPart;
@@ -20,6 +22,10 @@ auto main() -> int
 		part.AddAttribute( "title", temporary );
 	}
 	assert( part.GetAttributes().front().second == std::string( 1024, 'v' ) );
+	part.AddAttribute( "title", "Replacement" );
+	assert( part.GetAttributes().size() == 1 && part.GetAttribute( "title" ) == "Replacement" );
+	part.RemoveAttribute( "title" );
+	assert( !part.GetAttribute( "title" ) );
 
 	auto tree = tatzel::ClientElementTree{};
 	auto heading = std::make_unique<tatzel::ui::Heading>(

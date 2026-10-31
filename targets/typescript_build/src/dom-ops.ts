@@ -173,12 +173,14 @@ export function setValue(
 		}
 
 		if (element instanceof HTMLInputElement) {
-		if (element.type === "checkbox") {
-			element.checked = stringToBoolean(part.value);
+			if (element.type === "checkbox") {
+				element.checked = stringToBoolean(part.value);
+				return;
+			}
+
+			// Avoid resetting the caret when an explicit server update already matches.
+			if (element.value !== part.value) element.value = part.value;
 			return;
-		}
-		element.value = part.value;
-		return;
 		}
 
 		if (element instanceof HTMLTextAreaElement) {
@@ -218,6 +220,8 @@ export function setModalOpen(
 			console.warn("SetModalOpen failed, element is not a dialog:", part.part_id);
 			return;
 		}
+
+		element.dataset.uiModalOpen = String(part.open);
 
 		if (part.open) {
 			if (!element.open) {

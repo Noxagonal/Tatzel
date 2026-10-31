@@ -130,4 +130,6 @@ export type SendServerMessage =
 	| { op: "connect"; data: SendData_Connect; }
 	| { op: "on_click"; data: SendData_OnClick; }
 	| { op: "on_change"; data: SendData_OnChange; }
-	| { op: "on_submit"; data: SendData_OnSubmit; };
+	| { op: "on_submit"; data: SendData_OnSubmit; }
+	| { op: "on_input"; data: { part_id: string; value: string; }; }
+	| { op: "on_dismiss"; data: { part_id: string; }; };

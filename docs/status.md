@@ -8,6 +8,11 @@ than earlier experiments.
 | Logical heading | Creation, semantic heading levels, GetText(), and synchronized SetText(). |
 | Logical button | Creation, label setters, replaceable click callback, and part-to-logical event routing. |
 | Logical container | Nested logical builders and an optional parent pointer in child callbacks. |
+| Text and paragraph | Owned plain text, preserved line breaks, and synchronized SetText(). |
+| Card | Optional title, scoped content/actions builders, and synchronized title changes. |
+| Text input | Accessible label, value/placeholder setters, disabled/read-only states, input/change/Enter callbacks, and IME composition handling. |
+| Checkbox | Accessible label, boolean state, disabled state, explicit setters, and typed change callbacks. |
+| Modal | Closed-by-default scoped content, native modal focus handling, Open/Close, and Escape/backdrop/close-button/native-close synchronization. |
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
 | DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
@@ -16,24 +21,24 @@ than earlier experiments.
 
 ## Planned controls
 
-The Label, Paragraph, Span, Link, Image, HorizontalRule, Card, Header, Footer,
-and Modal modules are reserved and currently export no logical class or builder.
+The Label, Span, Link, Image, HorizontalRule, Header, and Footer modules are
+reserved and currently export no logical class or builder.
 Add each logical type, adapter mapping, builder method, documentation, and
 behavior check together.
 
-The browser already understands some lower-level operations for dialogs, form
-values, and classes. These handlers do not imply that corresponding logical
-controls are available. ClientUpdater's raw DOM removal also does not implement
-logical subtree deletion.
+The browser also understands lower-level class operations; these do not imply
+an additional application-facing styling API. ClientUpdater's raw DOM removal
+also does not implement logical subtree deletion.
 
 ## Remaining limitations
 
+- Explicit server value replacements can supersede newer browser edits; there is no conflict-resolution protocol.
 - No automatic reconnect, page-state restoration, or client-side navigation.
 - No rollback of a partially built logical page after a factory throws; reload to retry.
 - No logical subtree removal API, DOM diff engine, or automatic mutation batching.
 - No cross-thread logical UI scheduler.
 - No built-in authentication or authorization layer.
-- No supported input, form, table, chart, or reusable component abstraction.
+- No general form, table, chart, or reusable component abstraction.
 - Runtime paths depend on the repository working directory.
 - No install/export package; compatibility coverage is currently one CI toolchain.
 - CI covers Ubuntu 24.04 with Clang 18.1.3, plus docs and browser checks;

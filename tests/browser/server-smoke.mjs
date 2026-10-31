@@ -73,11 +73,23 @@ async function connectPage()
 		}, { once: true });
 	});
 	socket.send(JSON.stringify({ op: "connect", data: { route_path: "/", query: "", hash: "" } }));
-	await waitFor(() => messages.some(message => message.op === "set_on_click"));
+	await waitFor(() => {
+		const preview = messages.filter(message => message.op === "create_element_part")
+			.flatMap(message => message.data).find(part => part.text_content === "Preview" && part.tag === "button");
+		return preview && messages.some(message => message.op === "set_on_click"
+			&& message.data.some(part => part.part_id === preview.part_id));
+	});
 	const parts = messages.filter(message => message.op === "create_element_part").flatMap(message => message.data);
 	return { socket, messages,
 		heading: parts.find(part => part.tag === "h1").part_id,
-		button: parts.find(part => part.tag === "button").part_id };
+		button: parts.find(part => part.text_content === "Click me").part_id,
+		parts,
+		input: parts.find(part => part.tag === "input" && part.attributes.type === "text").part_id,
+		checkbox: parts.find(part => part.tag === "input" && part.attributes.type === "checkbox").part_id,
+		modal: parts.find(part => part.tag === "dialog").part_id,
+		preview: parts.find(part => part.tag === "button" && part.text_content === "Preview").part_id,
+		reset: parts.find(part => part.tag === "button" && part.text_content === "Reset").part_id,
+		status: parts.find(part => part.tag === "span" && part.text_content === "Ready").part_id };
 }
 
 test("the running example maps logical updates and events across real WebSockets", { timeout: 30000 }, async () => {
@@ -117,6 +129,59 @@ test("the running example maps logical updates and events across real WebSockets
 		assert.equal(second.messages.filter(message => message.op === "set_text").length, 0);
 
 		console.log("Logical click and text update completed");
+		const part = id => first.parts.find(part => part.part_id === id);
+		const inputBase = part(part(first.input).parent_id);
+		const content = part(inputBase.parent_id);
+		const footer = part(part(first.preview).parent_id);
+		assert.equal(footer.tag, "footer");
+		assert.equal(content.parent_id, footer.parent_id);
+		assert.notEqual(content.part_id, footer.part_id);
+		assert.equal(first.parts.find(part => part.tag === "label" && part.attributes.for === first.input)?.parent_id, inputBase.part_id);
+		const available = new Set(["root|main"]);
+		for (const created of first.parts) {
+			assert.ok(available.has(created.parent_id), "parent must precede child: " + created.part_id);
+			available.add(created.part_id);
+		}
+
+		const send = (op, part_id, extra = {}) => first.socket.send(JSON.stringify({ op, data: { part_id, ...extra } }));
+		const status = text => waitFor(() => first.messages.find(message => message.op === "set_text"
+			&& message.data.some(part => part.part_id === first.status && part.text === text)));
+		send("on_input", first.input, { value: "Ada" });
+		await status("Editing: Ada");
+		assert.equal(first.messages.filter(message => message.op === "set_value").length, 0, "browser edits must not echo values");
+		send("on_change", first.input, { value: "Ada" });
+		await status("Committed: Ada");
+		send("on_submit", first.input);
+		await status("Submitted: Ada");
+		await waitFor(() => first.messages.find(message => message.op === "set_text"
+			&& message.data.some(part => part.text === "Profile: Ada")));
+
+		send("on_change", first.checkbox, { value: true });
+		await status("Notifications enabled");
+		send("on_click", first.reset);
+		await waitFor(() => first.messages.some(message => message.op === "set_value"
+			&& message.data.some(part => part.part_id === first.checkbox && part.value === "false")));
+		assert.ok(first.messages.some(message => message.op === "set_value"
+			&& message.data.some(part => part.part_id === first.input && part.value === "")));
+
+		send("on_click", first.preview);
+		await waitFor(() => first.messages.some(message => message.op === "set_modal_open" && message.data[0].open));
+		send("on_dismiss", first.modal);
+		await status("Preview closed");
+		assert.ok(first.messages.some(message => message.op === "set_modal_open" && !message.data[0].open));
+
+		// Labels belong to the same logical input but are not registered edit sources.
+		const label = first.parts.find(part => part.tag === "label" && part.attributes.for === first.input);
+		send("on_input", label.part_id, { value: "forged label edit" });
+		send("on_submit", first.input);
+		await status("Submitted: ");
+		assert.ok(!first.messages.some(message => message.op === "set_text"
+			&& message.data.some(part => part.text.includes("forged label edit"))));
+		send("on_change", first.checkbox, { value: "true" });
+		await waitFor(() => first.messages.some(message => message.op === "error" && message.data.code === "invalid_message"));
+		assert.equal(second.messages.filter(message => ["set_text", "set_value", "set_modal_open"].includes(message.op)).length, 0);
+		console.log("Compound placement, editor events, explicit values, modal state, and per-client isolation completed");
+
 		first.socket.send("{");
 		await waitFor(() => first.messages.find(message => message.op === "error" && message.data.code === "invalid_json"));
 		first.socket.send(JSON.stringify({ op: "connect", data: { route_path: "/" } }));

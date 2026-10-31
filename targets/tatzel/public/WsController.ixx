@@ -22,6 +22,8 @@ import UI.App;
 import UI.Element.Interface.Clickable;
 import UI.Element.Interface.Changeable;
 import UI.Element.Interface.Submittable;
+import UI.Element.Interface.Inputable;
+import UI.Element.Interface.Dismissible;
 
 /// @brief Routes browser transport messages to the owning client's logical page.
 /// @details Connection registry entries have stable shared ownership. Each logical
@@ -202,7 +204,8 @@ private:
 			return;
 		}
 
-		if( operation != "on_click" && operation != "on_change" && operation != "on_submit" )
+		if( operation != "on_click" && operation != "on_change" && operation != "on_submit"
+			&& operation != "on_input" && operation != "on_dismiss" )
 		{
 			SendError( transport, "unknown_operation", "Unknown browser operation" );
 			return;
@@ -214,27 +217,54 @@ private:
 		}
 
 		const auto part_id = data[ "part_id" ].asString();
+		auto* owner = connection.element_tree->FindElementByPartID<tatzel::ui::LogicalElement>( part_id );
+		if( !owner ) return;
+
+		const auto marker = "data-ui-on-" + operation.substr( 3 );
+		auto parts = owner->GetParts();
+		auto source = std::ranges::find_if( parts, [ &part_id ]( const auto& part ) { return part.GetPartID() == part_id; } );
+		// The adapter registers the exact parts that can emit each event.
+		if( !source->GetAttribute( marker ) ) return;
+
 		if( operation == "on_click" )
 		{
-			auto* control = connection.element_tree->FindElementByPartID<tatzel::ui::interface::Clickable>( part_id );
+			auto* control = dynamic_cast<tatzel::ui::interface::Clickable*>( owner );
 			if( control ) control->InvokeOnClick();
 		}
 		else if( operation == "on_change" )
 		{
-			if( !data[ "value" ].isString() && !data[ "value" ].isBool() )
+			auto* control = dynamic_cast<tatzel::ui::interface::Changeable*>( owner );
+			if( !control ) return;
+
+			const auto accepts_boolean = control->GetChangeValueType() == tatzel::ui::interface::ChangeValueType::Boolean;
+			if( accepts_boolean ? !data[ "value" ].isBool() : !data[ "value" ].isString() )
 			{
-				SendError( transport, "invalid_message", "on_change requires a string or boolean value" );
+				SendError( transport, "invalid_message", "Change value has the wrong type for its control" );
 				return;
 			}
-			auto* control = connection.element_tree->FindElementByPartID<tatzel::ui::interface::Changeable>( part_id );
 			auto value = data[ "value" ].isBool()
 				? std::string{ data[ "value" ].asBool() ? "true" : "false" } : data[ "value" ].asString();
-			if( control ) control->InvokeOnChange( value );
+			control->InvokeOnChange( value );
+		}
+		else if( operation == "on_submit" )
+		{
+			auto* control = dynamic_cast<tatzel::ui::interface::Submittable*>( owner );
+			if( control ) control->InvokeOnSubmit();
+		}
+		else if( operation == "on_input" )
+		{
+			if( !data[ "value" ].isString() )
+			{
+				SendError( transport, "invalid_message", "on_input requires a string value" );
+				return;
+			}
+			auto* control = dynamic_cast<tatzel::ui::interface::Inputable*>( owner );
+			if( control ) control->InvokeOnInput( data[ "value" ].asString() );
 		}
 		else
 		{
-			auto* control = connection.element_tree->FindElementByPartID<tatzel::ui::interface::Submittable>( part_id );
-			if( control ) control->InvokeOnSubmit();
+			auto* control = dynamic_cast<tatzel::ui::interface::Dismissible*>( owner );
+			if( control ) control->InvokeOnDismiss();
 		}
 	}
 
