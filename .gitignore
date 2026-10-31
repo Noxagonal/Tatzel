@@ -3,3 +3,5 @@ build
 uploads
 node_modules
 www/app
+__pycache__/
+*.pyc

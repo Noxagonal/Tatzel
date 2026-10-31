@@ -1,5 +1,5 @@
 
-import { ReceiveServerMessage } from "./protocol.js"
+import type { ReceiveServerMessage } from "./protocol.js"
 import { socket, parseServerMessage, sendToServer } from "./websocket.js";
 import { registerBrowserEventHandlers } from "./events.js";
 import {
@@ -43,11 +43,18 @@ socket.addEventListener(
 		message = parseServerMessage(event);
 	}
 	catch (error) {
-		console.error("Invalid JSON from server:", event.data, error);
+		console.error("Invalid server message:", event.data, error);
 		return;
 	}
 
 	switch (message.op) {
+		case "connected":
+			break;
+
+		case "error":
+			console.error("Tatzel server error:", message.data.code, message.data.message);
+			break;
+
 		case "create_element_part":
 			createElementPart(message.data);
 			break;

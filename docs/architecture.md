@@ -1,0 +1,76 @@
+# Architecture and ownership
+
+## Logical controls and concrete DOM parts
+
+An application creates logical controls such as a heading, button, or container.
+A logical control expresses purpose and state: heading level, label text, child
+controls, or a callback. It does not choose its HTML tag.
+
+An element adapter owns that mapping decision. The default adapter turns a
+logical heading into an HTML heading, a button into a button node, and a container
+into a div. Each logical control can own several DOM-part descriptions even
+though the currently supported controls each use one part.
+
+Tatzel stores these descriptions on the server. The browser owns the live DOM
+nodes. Changing a DOM-part description alone does not send a browser message;
+the adapter must also ask ClientUpdater to send the corresponding operation.
+
+The application-facing namespace is tatzel::ui and its module family is
+UI.Element.*. Concrete DOM descriptions use tatzel::dom and UI.DOM.*.
+
+## Request and update flow
+
+1. App registers an HTTP route and a logical page factory.
+2. An HTTP request receives data/template.html.
+3. The browser opens /ws and sends connect with its route_path.
+4. The server creates a client-owned logical tree and invokes the page factory once.
+5. Builders create logical controls; the adapter assigns DOM parts; ClientUpdater
+   queues DOM creation messages.
+6. The browser creates nodes and sends input events with their exact part_id.
+7. The server resolves each part ID to its logical owner, invokes the control's
+   callback, and sends any resulting DOM updates.
+
+Logical IDs identify controls. Part IDs identify browser nodes. The default
+adapter constructs IDs such as ui-uuid|base, but event routing searches the
+stored part records rather than parsing that spelling.
+
+## Explicit updates
+
+A logical setter changes owned semantic state and calls its bound change handler.
+The default adapter updates the corresponding DOM-part text and queues a
+set_text message. Browser visibility follows asynchronously.
+
+Application code uses Heading::SetText() or Button::SetText().
+There is no generic property wrapper and direct assignment to private control
+state is unavailable.
+
+## Ownership
+
+App is the single application owner and cannot be copied or moved. It owns the
+registered page factories. Registration finishes before Run() starts.
+
+A ClientConnection owns its DOM sender, adapter, logical tree, and builder
+context. Registry lookups return shared session handles so adding or removing
+another connection cannot invalidate an in-flight lookup.
+
+The logical root owns its logical children with unique_ptr. Controls remain at
+stable addresses. PageBuilder is a borrowed scope; copying it preserves the
+logical parent but does not retain the client page.
+
+DOM parts are assigned once and contain owned strings. Borrowed views into a
+control or part expire when that object is destroyed, and can be invalidated by
+mutating the underlying string or collection.
+
+## Threading and lifecycle
+
+Drogon invokes a connection's handlers on that connection's event loop. Logical
+control creation and mutation must remain on that loop. The connection registry
+mutex only protects registry access.
+
+Page callbacks should capture per-client state by ownership when necessary.
+Shared application state needs its own synchronization across connections.
+
+Closing a WebSocket removes its registry entry and releases the page services
+when retained handlers finish. Reconnect, state restoration, cross-thread UI
+scheduling, and rollback after a failing page factory are not implemented.
+Reload the browser to create a fresh page.

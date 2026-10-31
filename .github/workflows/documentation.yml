@@ -1,0 +1,79 @@
+name: Documentation and browser checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tatzel-validation-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Check documentation contracts and links
+        run: python3 tools/check_documentation.py
+      - name: Build and test browser code
+        run: |
+          npm ci
+          npm run build
+          npm test
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen
+      - name: Generate static documentation
+        run: python3 tools/build_documentation.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tatzel-documentation
+          path: build/docs/html
+          if-no-files-found: error
+
+  cpp:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install module build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-18 clang-tools-18 ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
+          python3 -m pip install 'cmake==4.4.4'
+      - name: Build application and core behavior checks
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure
+      - name: Preserve runnable example for integration diagnostics
+        run: |
+          mkdir -p build/smoke-bundle/lib
+          cp build/targets/development/TatzelDevelopment build/smoke-bundle/
+          ldd build/targets/development/TatzelDevelopment | awk '/=> \// {print $3}' | xargs -r cp -t build/smoke-bundle/lib/
+          cp -r data www build/smoke-bundle/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tatzel-example-linux
+          path: build/smoke-bundle
+          if-no-files-found: error
+      - name: Regenerate a deleted browser build output
+        run: |
+          rm www/app/main.js
+          cmake --build build --target typescript_build
+          test -s www/app/main.js
+      - name: Check the running example over WebSocket
+        run: timeout 30s node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment

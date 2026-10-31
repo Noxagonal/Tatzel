@@ -27,3 +27,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(drogon)
 
 add_subdirectory("targets")
+
+option(TATZEL_BUILD_TESTS "Build logical/DOM core behavior tests" OFF)
+if(TATZEL_BUILD_TESTS)
+	enable_testing()
+	add_subdirectory(tests/cpp)
+endif()

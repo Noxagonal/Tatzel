@@ -6,7 +6,7 @@ module;
 #include <json/value.h>
 #include <string_view>
 
-#include "PCH.hpp"
+#include <string>
 
 module UI.ClientUpdater;
 
@@ -113,7 +113,11 @@ auto tatzel::ClientUpdater::SetAttribute(
 	std::string_view attribute_value
 ) -> void
 {
-	auto MakeJson_Part = []( std::string_view part_id, std::string_view attribute, std::string_view attribute_value ) -> Json::Value
+	auto MakeJson_Part = [](
+		std::string_view part_id,
+		std::string_view attribute,
+		std::string_view attribute_value
+	) -> Json::Value
 	{
 		auto json_part = Json::Value{ Json::ValueType::objectValue };
 		json_part[ "part_id" ] = std::string{ part_id };
@@ -142,7 +146,10 @@ auto tatzel::ClientUpdater::RemoveAttribute(
 	std::string_view attribute
 ) -> void
 {
-	auto MakeJson_Part = []( std::string_view part_id, std::string_view attribute ) -> Json::Value
+	auto MakeJson_Part = [](
+		std::string_view part_id,
+		std::string_view attribute
+	) -> Json::Value
 	{
 		auto json_part = Json::Value{ Json::ValueType::objectValue };
 		json_part[ "part_id" ] = std::string{ part_id };
@@ -170,7 +177,10 @@ auto tatzel::ClientUpdater::SetText(
 	std::string_view text
 ) -> void
 {
-	auto MakeJson_Part = []( std::string_view part_id, std::string_view text ) -> Json::Value
+	auto MakeJson_Part = [](
+		std::string_view part_id,
+		std::string_view text
+	) -> Json::Value
 	{
 		auto json_part = Json::Value{ Json::ValueType::objectValue };
 		json_part[ "part_id" ] = std::string{ part_id };
@@ -198,7 +208,10 @@ auto tatzel::ClientUpdater::SetModalOpen(
 	bool open
 ) -> void
 {
-	auto MakeJson_Part = []( std::string_view part_id, bool open ) -> Json::Value
+	auto MakeJson_Part = [](
+		std::string_view part_id,
+		bool open
+	) -> Json::Value
 	{
 		auto json_part = Json::Value{ Json::ValueType::objectValue };
 		json_part[ "part_id" ] = std::string{ part_id };
