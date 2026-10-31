@@ -16,6 +16,7 @@ than earlier experiments.
 | Select | Owned stable option IDs, replaceable choices, unavailable choices, no-selection prompt, validation, and typed selection callbacks. |
 | Form | Complete typed field snapshots, required/custom validation and field errors, submit buttons, callbacks, read-only/disabled policies, and nested-form rejection. |
 | Modal | Closed-by-default scoped content, native modal focus handling, Open/Close, and Escape/backdrop/close-button/native-close synchronization. |
+| Element lifecycle | Remove, all/slot-specific ClearChildren, immediate handle invalidation, scoped deferred destruction, expired-builder rejection, and browser dialog/focus cleanup. |
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
 | DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
@@ -31,14 +32,15 @@ behavior check together.
 
 The browser also understands lower-level class operations; these do not imply
 an additional application-facing styling API. ClientUpdater's raw DOM removal
-also does not implement logical subtree deletion.
+remains a low-level DOM operation; application code uses logical Remove or ClearChildren.
 
 ## Remaining limitations
 
 - Explicit server value replacements can supersede newer browser edits; there is no conflict-resolution protocol.
 - No automatic reconnect, page-state restoration, or client-side navigation.
 - No rollback of a partially built logical page after a factory throws; reload to retry.
-- No logical subtree removal API, DOM diff engine, or automatic mutation batching.
+- No DOM diff engine or automatic mutation batching.
+- Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
 - No cross-thread logical UI scheduler.
 - No built-in authentication or authorization layer.
 - No table, chart, or reusable component abstraction.

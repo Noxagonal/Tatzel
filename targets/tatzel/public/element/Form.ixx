@@ -100,7 +100,7 @@ public:
 	auto GetFields() const -> std::vector<FormField*>
 	{
 		auto fields = std::vector<FormField*>{};
-		CollectFields( *this, fields );
+		if( !IsRemoved() ) CollectFields( *this, fields );
 		return fields;
 	}
 
@@ -112,7 +112,8 @@ public:
 	/// @note Framework integration API; form validation and submit callbacks run separately.
 	auto ApplySubmission( std::span<const FieldSubmission> submission ) -> bool
 	{
-		if( disabled ) return false;
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() || disabled ) return false;
 
 		auto fields = GetFields();
 		std::erase_if( fields, []( const auto* field ) { return field->IsDisabled(); } );
@@ -132,17 +133,20 @@ public:
 	}
 
 	/// @brief Validates all current field values, including read-only fields.
-	/// @return Whether every enabled field is valid; disabled forms succeed without running validators.
+	/// @return Whether every enabled field is valid; disabled forms succeed and removed forms cancel validation.
 	/// @pre Called on the owning event loop; validators do not mutate values or structure.
 	/// @post Every checked field displays its current error; all fields are checked even after a failure.
 	auto Validate() -> bool
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return false;
 		if( disabled ) return true;
 
 		auto valid = true;
 		for( auto* field : GetFields() )
 		{
-			if( !field->Validate() ) valid = false;
+			if( !field->IsRemoved() && !field->Validate() ) valid = false;
+			if( IsRemoved() ) return false;
 		}
 		return valid;
 	}
@@ -153,7 +157,7 @@ public:
 	/// @post No validators run and no state changes.
 	auto HasErrors() const -> bool
 	{
-		return !disabled && std::ranges::any_of( GetFields(), []( const auto* field ) {
+		return !IsRemoved() && !disabled && std::ranges::any_of( GetFields(), []( const auto* field ) {
 			return !field->IsDisabled() && !field->GetError().empty();
 		} );
 	}
@@ -161,13 +165,15 @@ public:
 	/// @brief Validates current logical values and invokes the appropriate form callback.
 	/// @return Whether enabled valid submission occurred.
 	/// @pre Called on the owning event loop; callbacks and validators obey page lifetime rules.
-	/// @post A valid form invokes on_submit; an invalid form invokes on_invalid if installed.
+	/// @post A surviving form invokes its valid/invalid callback if installed; removal cancels both callbacks.
 	/// @note Programmatic submission uses current server values, not browser edits still in flight.
 	auto Submit() -> bool
 	{
-		if( disabled ) return false;
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() || disabled ) return false;
 
 		const auto valid = Validate();
+		if( IsRemoved() ) return false;
 		auto callback = valid ? on_submit : on_invalid;
 		if( callback ) callback();
 		return valid;

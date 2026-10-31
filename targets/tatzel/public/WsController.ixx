@@ -93,7 +93,11 @@ public:
 			return;
 		}
 
-		try { DispatchMessage( *connection, json ); }
+		try
+		{
+			auto dispatch = connection->element_tree->root.BeginDispatch();
+			DispatchMessage( *connection, json );
+		}
 		catch( const std::exception& error )
 		{
 			LOG_ERROR << "Tatzel page handler failed: " << error.what();

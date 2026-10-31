@@ -87,6 +87,9 @@ public:
 	/// @throws std::invalid_argument If value is not a normalized boolean string.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( value != "true" && value != "false" )
 		{
 			throw std::invalid_argument{ "Checkbox changes require a boolean" };
@@ -95,6 +98,7 @@ public:
 
 		checked = value == "true";
 		NotifyValueChanged();
+		if( IsRemoved() ) return;
 
 		auto callback = on_change;
 		if( callback ) callback( checked );

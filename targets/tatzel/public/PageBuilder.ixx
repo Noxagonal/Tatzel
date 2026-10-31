@@ -39,7 +39,8 @@ namespace tatzel {
 
 /// @brief Lightweight borrowed handle for building a logical subtree.
 /// @tparam ElementT Type of the logical parent represented by this scope.
-/// @details Copying the handle preserves its scope. It may be captured by a page
+/// @details Copying the handle preserves its scope. Its checked parent reference
+/// rejects use after removal or page destruction. It may be captured by a page
 /// callback, provided the owning client page still exists when it is used.
 export template<ui::LogicalElementDerived ElementT = ui::LogicalElement>
 class PageBuilder
@@ -57,7 +58,7 @@ public:
 		ui::ChildSlot child_slot = ui::ChildSlot::Content
 	) :
 		core{ &core },
-		parent{ &parent },
+		parent{ parent.GetHandle() },
 		child_slot{ child_slot }
 	{}
 
@@ -67,13 +68,18 @@ public:
 	/// @return Borrowed builder with the new logical parent.
 	/// @pre new_parent belongs to this builder's live client page.
 	/// @post This builder's scope is unchanged.
+	/// @throws std::logic_error If this builder's parent has been removed or destroyed.
 	template<ui::LogicalElementDerived NewParentT>
-	auto Scope( NewParentT& new_parent ) const -> PageBuilder<NewParentT> { return { *core, new_parent }; }
+	auto Scope( NewParentT& new_parent ) const -> PageBuilder<NewParentT>
+	{
+		if( !parent.Get() ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
+		return { *core, new_parent };
+	}
 
 	/// @brief Creates a logical heading and its adapter-selected DOM representation.
 	/// @param text Initial logical text.
 	/// @param style Semantic heading level.
-	/// @return Borrowed heading pointer, valid for the client page lifetime.
+	/// @return Borrowed heading pointer, valid until removal or page destruction.
 	/// @pre The builder's page is alive and is accessed on its owning event loop.
 	/// @post The heading is owned by the logical parent and DOM creation is queued.
 	auto Heading(
@@ -87,7 +93,7 @@ public:
 	/// @brief Creates a logical button with a server-side click callback.
 	/// @param text Initial logical label.
 	/// @param on_click Callback invoked on the owning event loop.
-	/// @return Borrowed button pointer, valid for the client page lifetime.
+	/// @return Borrowed button pointer, valid until removal or page destruction.
 	/// @pre The page is alive; captured objects outlive callback invocations.
 	/// @post The button is owned by the parent and browser clicks can reach its callback.
 	auto Button(
@@ -96,6 +102,7 @@ public:
 	) -> ui::Button*
 	{
 		auto* button = AddChild<ui::Button>( text, std::move( on_click ) );
+		if( !button ) return nullptr;
 		core->GetClientUpdater()->SetOnClick( button->GetBasePart().GetPartID() );
 		return button;
 	}
@@ -103,15 +110,17 @@ public:
 	/// @brief Creates a logical container and builds its logical children.
 	/// @tparam ChildBuilderFn Callable accepting a scoped builder and optionally its parent pointer.
 	/// @param child_builder_fn Function that builds the container's logical children.
-	/// @return Borrowed container pointer, valid for the client page lifetime.
+	/// @return Borrowed container pointer, valid until removal or page destruction. Returns nullptr if initialization or the child callback removes it.
 	/// @pre The page is alive and the callback is invocable with a scoped builder.
-	/// @post The container and callback-created children belong to this page.
+	/// @post A surviving container owns its callback-created children; removal returns nullptr.
 	template<typename ChildBuilderFn>
 	auto Container( ChildBuilderFn&& child_builder_fn ) -> ui::Container*
 	{
 		auto* container = AddChild<ui::Container>();
+		if( !container ) return nullptr;
+		auto handle = container->GetHandle();
 		BuildChildren( *container, std::forward<ChildBuilderFn>( child_builder_fn ) );
-		return container;
+		return handle.Get();
 	}
 
 	/// @brief Creates inline plain text, preserving line breaks and escaping markup.
@@ -132,9 +141,9 @@ public:
 	/// @tparam ContentFn Callable accepting a scoped builder and optionally the card pointer.
 	/// @param title Optional card heading, copied before returning.
 	/// @param content_fn Builder for the card's logical content.
-	/// @return Borrowed page-owned card.
+	/// @return Borrowed page-owned card. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; content_fn has a supported builder signature.
-	/// @post The card owns the content created by content_fn.
+	/// @post A surviving card owns its content; removal during content construction returns nullptr.
 	template<typename ContentFn>
 	auto Card(
 		std::string_view title,
@@ -142,8 +151,10 @@ public:
 	) -> ui::Card*
 	{
 		auto* card = AddChild<ui::Card>( title, false );
+		if( !card ) return nullptr;
+		auto handle = card->GetHandle();
 		BuildChildren( *card, std::forward<ContentFn>( content_fn ) );
-		return card;
+		return handle.Get();
 	}
 
 	/// @brief Creates a card with separate content and action builders.
@@ -152,9 +163,9 @@ public:
 	/// @param title Optional card heading, copied before returning.
 	/// @param content_fn Builder for main logical content.
 	/// @param actions_fn Builder for controls in the card's actions area.
-	/// @return Borrowed page-owned card.
+	/// @return Borrowed page-owned card. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; both callbacks accept scoped builders.
-	/// @post Both sets of children have the same logical card parent and distinct insertion slots.
+	/// @post Surviving children have one logical card parent and distinct slots; removal returns nullptr.
 	template<
 		typename ContentFn,
 		typename ActionsFn
@@ -166,9 +177,12 @@ public:
 	) -> ui::Card*
 	{
 		auto* card = AddChild<ui::Card>( title, true );
+		if( !card ) return nullptr;
+		auto handle = card->GetHandle();
 		BuildChildren( *card, std::forward<ContentFn>( content_fn ) );
+		if( !handle.Get() ) return nullptr;
 		BuildChildren( *card, std::forward<ActionsFn>( actions_fn ), ui::ChildSlot::Actions );
-		return card;
+		return handle.Get();
 	}
 
 	/// @brief Creates a labeled single-line editor.
@@ -207,9 +221,9 @@ public:
 	/// @tparam ContentFn Callable accepting a scoped builder and optionally the modal pointer.
 	/// @param title Accessible dialog title, copied before returning.
 	/// @param content_fn Builder for the modal's logical content.
-	/// @return Borrowed page-owned modal; call Open to present it.
+	/// @return Borrowed page-owned modal; call Open to present it. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; content_fn has a supported builder signature.
-	/// @post The modal owns its content and is initially closed unless content_fn opens it.
+	/// @post A surviving modal owns its content and starts closed unless opened by content_fn; removal returns nullptr.
 	template<typename ContentFn>
 	auto Modal(
 		std::string_view title,
@@ -217,17 +231,19 @@ public:
 	) -> ui::Modal*
 	{
 		auto* modal = AddChild<ui::Modal>( title );
+		if( !modal ) return nullptr;
+		auto handle = modal->GetHandle();
 		BuildChildren( *modal, std::forward<ContentFn>( content_fn ) );
-		return modal;
+		return handle.Get();
 	}
 
 	/// @brief Creates a logical row and builds its children.
 	/// @tparam ChildBuilderFn Callable accepting a scoped builder and optionally the layout pointer.
 	/// @param child_builder_fn Callback that builds logical children.
 	/// @param options Semantic spacing, alignment, distribution, and wrapping.
-	/// @return Borrowed page-owned row.
+	/// @return Borrowed page-owned row. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; the callback accepts a scoped builder.
-	/// @post The layout owns callback-created children and browser creation is queued.
+	/// @post A surviving layout owns its children and creation is queued; removal returns nullptr.
 	template<typename ChildBuilderFn>
 	auto Row(
 		ChildBuilderFn&& child_builder_fn,
@@ -235,17 +251,19 @@ public:
 	) -> ui::Row*
 	{
 		auto* layout = AddChild<ui::Row>( options );
+		if( !layout ) return nullptr;
+		auto handle = layout->GetHandle();
 		BuildChildren( *layout, std::forward<ChildBuilderFn>( child_builder_fn ) );
-		return layout;
+		return handle.Get();
 	}
 
 	/// @brief Creates a logical column and builds its children.
 	/// @tparam ChildBuilderFn Callable accepting a scoped builder and optionally the layout pointer.
 	/// @param child_builder_fn Callback that builds logical children.
 	/// @param options Semantic spacing, alignment, distribution, and wrapping.
-	/// @return Borrowed page-owned column.
+	/// @return Borrowed page-owned column. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; the callback accepts a scoped builder.
-	/// @post The layout owns callback-created children and browser creation is queued.
+	/// @post A surviving layout owns its children and creation is queued; removal returns nullptr.
 	template<typename ChildBuilderFn>
 	auto Column(
 		ChildBuilderFn&& child_builder_fn,
@@ -253,8 +271,10 @@ public:
 	) -> ui::Column*
 	{
 		auto* layout = AddChild<ui::Column>( options );
+		if( !layout ) return nullptr;
+		auto handle = layout->GetHandle();
 		BuildChildren( *layout, std::forward<ChildBuilderFn>( child_builder_fn ) );
-		return layout;
+		return handle.Get();
 	}
 
 	/// @brief Creates a single-choice field using stable option IDs.
@@ -297,9 +317,9 @@ public:
 	/// @param label Optional accessible form name, copied before returning.
 	/// @param content_fn Callback building the form's logical subtree.
 	/// @param on_submit Optional callback invoked after successful validation.
-	/// @return Borrowed page-owned form.
+	/// @return Borrowed page-owned form. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; callback captures outlive their invocation.
-	/// @post The form owns its children and accepts coordinated browser submissions.
+	/// @post A surviving form owns its children and accepts browser submissions; removal returns nullptr.
 	/// @throws std::invalid_argument If an ancestor is already a form.
 	template<typename ContentFn>
 	auto Form(
@@ -309,17 +329,19 @@ public:
 	) -> ui::Form*
 	{
 		auto* form = AddChild<ui::Form>( label, std::move( on_submit ) );
+		if( !form ) return nullptr;
+		auto handle = form->GetHandle();
 		BuildChildren( *form, std::forward<ContentFn>( content_fn ) );
-		return form;
+		return handle.Get();
 	}
 
 	/// @brief Creates an unnamed logical form.
 	/// @tparam ContentFn Callable accepting a scoped builder and optionally the form pointer.
 	/// @param content_fn Callback building the form's logical subtree.
 	/// @param on_submit Optional callback invoked after successful validation.
-	/// @return Borrowed page-owned form.
+	/// @return Borrowed page-owned form. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; content_fn accepts a scoped builder.
-	/// @post The form owns its children and accepts coordinated submissions.
+	/// @post A surviving form owns its children and accepts submissions; removal returns nullptr.
 	/// @throws std::invalid_argument If an ancestor is already a form.
 	template<typename ContentFn> requires ( !std::is_convertible_v<ContentFn, std::string_view> )
 	auto Form(
@@ -336,9 +358,11 @@ public:
 	/// @pre Called on the owning event loop within a logical form subtree.
 	/// @post Native activation requests the form snapshot and never invokes a click callback.
 	/// @throws std::invalid_argument If this scope has no form ancestor.
+	/// @throws std::logic_error If this builder's parent has been removed or destroyed.
 	auto SubmitButton( std::string_view text ) -> ui::Button*
 	{
-		auto* ancestor = static_cast<ui::LogicalElement*>( parent );
+		auto* ancestor = static_cast<ui::LogicalElement*>( parent.Get() );
+		if( !ancestor ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
 		while( ancestor && !dynamic_cast<ui::Form*>( ancestor ) ) ancestor = ancestor->GetParent();
 		if( !ancestor ) throw std::invalid_argument{ "SubmitButton requires a logical Form" };
 		return AddChild<ui::Button>( text, std::function<void()>{}, ui::ButtonRole::Submit );
@@ -349,24 +373,28 @@ private:
 	/// @tparam NewElementT Logical control type.
 	/// @tparam ArgsT Constructor argument types after identity and logical parent.
 	/// @param args Constructor arguments forwarded to the logical control.
-	/// @return Borrowed pointer to the owned logical control.
+	/// @return Borrowed pointer to the owned logical control, or nullptr if initialization removes it.
 	/// @pre The builder's page is alive and the adapter supports NewElementT.
-	/// @post The parent owns the control at a stable address and DOM creation is queued.
+	/// @post The parent owns an active control at a stable address and DOM creation is queued, unless initialization removes it.
+	/// @throws std::logic_error If the builder parent has been removed or destroyed.
 	template<
 		ui::LogicalElementDerived NewElementT,
 		typename ...ArgsT
 	>
 	auto AddChild( ArgsT&& ...args ) -> NewElementT*
 	{
-		assert( parent && core );
+		auto* logical_parent = parent.Get();
+		if( !logical_parent ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
+		auto dispatch = logical_parent->BeginDispatch();
 		auto element = std::make_unique<NewElementT>(
-			std::string{ "ui-" } + GenerateUUID(), parent, std::forward<ArgsT>( args )... );
+			std::string{ "ui-" } + GenerateUUID(), logical_parent, std::forward<ArgsT>( args )... );
 		element->SetParentSlot( child_slot );
 		core->GetElementAdapter()->CreatePartsFor( *element );
-		auto* result = parent->InsertChild( std::move( element ) );
+		auto* result = logical_parent->InsertChild( std::move( element ) );
+		auto handle = result->GetHandle();
 		core->GetClientUpdater()->CreateElementParts( result->GetParts() );
 		core->GetElementAdapter()->InitializePartsFor( *result );
-		return result;
+		return handle.Get();
 	}
 
 	/// @brief Invokes a child builder within a newly created logical scope.
@@ -376,7 +404,7 @@ private:
 	/// @param child_builder_fn Callable taking the scoped builder and optionally the parent pointer.
 	/// @param slot Semantic insertion slot within child_parent.
 	/// @pre The callable accepts one of the documented builder signatures.
-	/// @post The callable has run once in the child scope.
+	/// @post An active parent's callable has run once; removals remain retained until the enclosing dispatch ends.
 	template<
 		ui::LogicalElementDerived ParentT,
 		typename ChildBuilderFn
@@ -387,6 +415,8 @@ private:
 		ui::ChildSlot slot = ui::ChildSlot::Content
 	) -> void
 	{
+		auto dispatch = child_parent.BeginDispatch();
+		if( child_parent.IsRemoved() ) return;
 		auto scoped_builder = PageBuilder<ParentT>{ *core, child_parent, slot };
 		using ScopedBuilderT = decltype( scoped_builder );
 		if constexpr( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&, ParentT*> )
@@ -400,7 +430,7 @@ private:
 	}
 
 	PageBuilderCore* core;
-	ElementT* parent;
+	ui::ElementHandle<ElementT> parent;
 	ui::ChildSlot child_slot;
 };
 

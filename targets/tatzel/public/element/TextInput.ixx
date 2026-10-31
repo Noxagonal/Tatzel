@@ -131,10 +131,14 @@ public:
 	/// @post Editable changed input is stored without a value echo; its callback has run.
 	auto InvokeOnInput( std::string_view value ) -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( IsDisabled() || read_only || this->value == value ) return;
 
 		this->value = value;
 		NotifyValueChanged();
+		if( IsRemoved() ) return;
 
 		auto callback = on_input;
 		auto snapshot = this->value;
@@ -153,10 +157,14 @@ public:
 	/// @post Editable input is stored without a value echo; its callback has run.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( IsDisabled() || read_only ) return;
 
 		this->value = value;
 		NotifyValueChanged();
+		if( IsRemoved() ) return;
 
 		auto callback = on_change;
 		auto snapshot = this->value;
@@ -168,6 +176,9 @@ public:
 	/// @post The submit callback has run if enabled and installed.
 	auto InvokeOnSubmit() -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( IsDisabled() ) return;
 
 		auto callback = on_submit;

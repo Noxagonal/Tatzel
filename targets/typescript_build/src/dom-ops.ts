@@ -57,15 +57,45 @@ export function createElementPart(
  * @brief Removes concrete DOM nodes.
  * @param parts Validated DOM operation payloads using browser part IDs.
  * @pre None.
- * @post Existing target nodes and their DOM descendants are removed.
+ * @post Open dialogs close silently, target subtrees are removed, and lost focus has a surviving target.
  */
 export function removeElementPart(
 	parts: Array<ReceiveData_RemoveElementPart>
 ): void
 {
-	parts.forEach(part => {
-		document.getElementById(part.part_id)?.remove();
-	});
+	const roots = parts.map(part => document.getElementById(part.part_id))
+		.filter((element): element is HTMLElement => element !== null);
+	const isRemoved = (element: Element) => roots.some(root => root.contains(element));
+	const active = document.activeElement;
+	const losesFocus = active instanceof Element && isRemoved(active);
+	let fallback: Element | null = losesFocus ? active : null;
+	while (fallback && isRemoved(fallback)) fallback = fallback.parentElement;
+
+	const dialogs = new Set<HTMLDialogElement>();
+	for (const root of roots) {
+		if (root instanceof HTMLDialogElement && root.open) dialogs.add(root);
+		for (const dialog of root.querySelectorAll<HTMLDialogElement>("dialog[open]")) dialogs.add(dialog);
+	}
+	for (const dialog of [...dialogs].reverse()) {
+		// Disposal is a framework operation; its native close event must not request an application callback.
+		dialog.dataset.uiModalOpen = "false";
+		dialog.close();
+	}
+	for (const root of roots) root.remove();
+
+	if (losesFocus && fallback instanceof HTMLElement && fallback.isConnected
+		&& (document.activeElement === document.body || !document.activeElement?.isConnected)) {
+		const target = fallback;
+		const needsTabIndex = !target.hasAttribute("tabindex");
+		if (needsTabIndex) {
+			target.setAttribute("tabindex", "-1");
+			target.addEventListener("blur", () => {
+				if (target.getAttribute("tabindex") === "-1") target.removeAttribute("tabindex");
+			}, { once: true });
+		}
+		target.focus({ preventScroll: true });
+		if (needsTabIndex && document.activeElement !== target) target.removeAttribute("tabindex");
+	}
 }
 
 

@@ -144,11 +144,14 @@ public:
 	virtual auto AcceptFieldValue( const FieldValue& value ) -> void = 0;
 
 	/// @brief Runs required and custom validation for the current logical value.
-	/// @return Whether validation succeeded; disabled fields succeed and clear their errors.
+	/// @return Whether validation succeeded; removed fields are ignored and disabled fields clear their errors.
 	/// @pre Called on the owning event loop; validators do not mutate fields or structure.
 	/// @post The field error and accessible error presentation reflect the result.
 	auto Validate() -> bool
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return true;
+
 		if( disabled )
 		{
 			SetError( {} );
@@ -162,9 +165,11 @@ public:
 		else
 		{
 			auto validator = validation_handler;
-			SetError( validator ? validator() : std::string{} );
+			auto result = validator ? validator() : std::string{};
+			if( IsRemoved() ) return true;
+			SetError( result );
 		}
-		return error.empty();
+		return IsRemoved() || error.empty();
 	}
 
 protected:

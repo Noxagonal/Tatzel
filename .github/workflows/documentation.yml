@@ -52,11 +52,11 @@ jobs:
       - name: Install module build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tools-18 ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
+          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
           python3 -m pip install 'cmake==4.4.4'
       - name: Build application and core behavior checks
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON -DTATZEL_BUILD_SANITIZER_TESTS=ON
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure
       - name: Preserve runnable example for integration diagnostics
@@ -79,3 +79,4 @@ jobs:
         run: |
           timeout 30s node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
+          timeout 30s node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment

@@ -164,11 +164,15 @@ public:
 	/// @throws std::invalid_argument If the ID is unavailable.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( !AcceptsChangeValue( value ) ) throw std::invalid_argument{ "Select value is not an enabled option" };
 		if( IsDisabled() ) return;
 
 		this->value = value;
 		NotifyValueChanged();
+		if( IsRemoved() ) return;
 		auto callback = on_change;
 		auto snapshot = this->value;
 		if( callback ) callback( snapshot );
