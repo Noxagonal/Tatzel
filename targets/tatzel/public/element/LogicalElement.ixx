@@ -20,6 +20,13 @@ import UI.DOM.ElementPart;
 
 namespace tatzel::ui {
 
+/// @brief Semantic placement of a child within a compound logical control.
+export enum class ChildSlot
+{
+	Content, ///< Main content area; available on every child-bearing control.
+	Actions, ///< Optional action area provided by a card.
+};
+
 /// @brief Base of application-facing logical controls.
 /// @details A logical control owns its logical children and can have several
 /// concrete DOM parts. The adapter manages those parts. Identity and addresses
@@ -103,6 +110,23 @@ public:
 	/// @pre None.
 	/// @post State is unchanged.
 	auto GetParent() const noexcept -> LogicalElement* { return parent; }
+
+	/// @brief Reads the semantic slot used within the logical parent.
+	/// @return The child's insertion slot.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetParentSlot() const noexcept -> ChildSlot { return parent_slot; }
+
+	/// @brief Assigns semantic placement before the adapter maps this child.
+	/// @param slot Parent slot selected by the scoped builder.
+	/// @pre No DOM parts have been assigned; the logical parent supports slot.
+	/// @post The adapter can resolve placement without exposing DOM IDs to application code.
+	/// @note Framework integration API; placement is fixed after mapping.
+	auto SetParentSlot( ChildSlot slot ) -> void
+	{
+		assert( part_list.empty() );
+		parent_slot = slot;
+	}
 
 	/// @brief Assigns the adapter-managed DOM representation once.
 	/// @param parts DOM parts to own.
@@ -191,6 +215,7 @@ protected:
 private:
 	std::string id;
 	LogicalElement* parent = nullptr;
+	ChildSlot parent_slot = ChildSlot::Content;
 	std::vector<dom::ElementPart> part_list;
 	std::vector<std::unique_ptr<LogicalElement>> child_list;
 	size_t base_part_index = 0;

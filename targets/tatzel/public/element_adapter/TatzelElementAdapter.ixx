@@ -39,6 +39,42 @@ public:
 	/// @post The button owns one button part and logical label changes send DOM updates.
 	auto CreatePartsFor( ui::Button& element ) const -> void override;
 
+	/// @brief Maps a logical Text and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Text& element ) const -> void override;
+
+	/// @brief Maps a logical Paragraph and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Paragraph& element ) const -> void override;
+
+	/// @brief Maps a logical Card and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Card& element ) const -> void override;
+
+	/// @brief Maps a logical TextInput and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::TextInput& element ) const -> void override;
+
+	/// @brief Maps a logical Checkbox and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Checkbox& element ) const -> void override;
+
+	/// @brief Maps a logical Modal and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Modal& element ) const -> void override;
+
 private:
 	ClientUpdater* client_updater;
 };

@@ -67,14 +67,14 @@ Every row below uses a data array of the listed payload objects.
 | remove_element_part | part_id | Raw DOM removal; no logical deletion API. |
 | set_attribute | part_id, attribute, attribute_value | ClientUpdater method. |
 | remove_attribute | part_id, attribute | ClientUpdater method. |
-| set_text | part_id, text | Used by logical heading/button setters. |
-| set_modal_open | part_id, open | Raw dialog operation; logical Modal remains planned. |
+| set_text | part_id, text | Used by logical text, label, and title setters. |
+| set_modal_open | part_id, open | Used by the logical Modal adapter. |
 | set_on_click | part_id | Marks a concrete node for delegated click handling. |
-| set_on_change | part_id | Framework plumbing; no built-in input control. |
-| set_on_submit | part_id | Framework plumbing; no built-in form control. |
+| set_on_change | part_id | Also supplied as an initial attribute by input/checkbox adapters. |
+| set_on_submit | part_id | Also supplied as an initial attribute for TextInput Enter handling. |
 | add_class | part_id, class_name | Browser handler only. |
 | remove_class | part_id, class_name | Browser handler only. |
-| set_value | part_id, value | Browser handler only; value is a string. |
+| set_value | part_id, value | ClientUpdater method; value is a string, including true/false for checkboxes. |
 
 All identifier and text fields are strings. open is boolean. classes is an
 array of strings. A DOM command is queued on the transport; it does not guarantee
@@ -84,18 +84,24 @@ the browser has applied it when the C++ method returns.
 
 ```json
 {"op":"on_click","data":{"part_id":"ui-button|base"}}
-{"op":"on_change","data":{"part_id":"ui-input|base","value":"edited"}}
-{"op":"on_submit","data":{"part_id":"ui-form|base"}}
+{"op":"on_input","data":{"part_id":"ui-input|editor","value":"editing"}}
+{"op":"on_change","data":{"part_id":"ui-input|editor","value":"edited"}}
+{"op":"on_submit","data":{"part_id":"ui-input|editor"}}
+{"op":"on_dismiss","data":{"part_id":"ui-modal|base"}}
 ```
 
-The current button path supports on_click. Change and submit routing are
-available to framework controls implementing the corresponding logical
-interfaces. Checkbox changes send a boolean value; the server normalizes it to
-the string true or false for Changeable::InvokeOnChange().
+Buttons support on_click. TextInput accepts on_input and on_change with string
+values, and on_submit after the browser sends its latest input value. Checkbox
+on_change values must be boolean; the transport normalizes them to true/false
+strings for the framework interface. Modal accepts on_dismiss from its dialog
+or close-button part. Browser edits are accepted before callbacks without
+echoing set_value operations; explicit server setters send value replacements.
 
 Events require an initialized logical page. Unknown parts or controls lacking
-the requested event interface are ignored. Part IDs are looked up in stored
-DOM-part records, never treated as logical IDs or parsed by delimiter.
+the requested event interface are ignored. Existing parts must also carry the
+adapter-selected data-ui-on-click, data-ui-on-input, data-ui-on-change,
+data-ui-on-submit, or data-ui-on-dismiss marker for that operation. Part IDs are
+looked up in stored DOM-part records, never treated as logical IDs or parsed by delimiter.
 
 ## Errors and validation
 

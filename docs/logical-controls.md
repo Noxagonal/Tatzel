@@ -53,6 +53,75 @@ Button callbacks run on the owning WebSocket event loop. A browser click sends
 a concrete DOM part ID. Framework routing resolves that part to its logical
 button before calling application code.
 
-Change and submit interfaces exist for framework development, but there are
-currently no built-in logical input or form builders. See the
-[feature status](status.md) before using planned controls.
+TextInput exposes SetOnInput for changed browser edits, SetOnChange for committed
+changes, and SetOnSubmit for Enter. The browser sends its latest value before
+submitting. IME composition is deferred until completion; duplicate final edit
+values do not invoke the input callback twice. Checkbox change callbacks receive
+bool. Accepted edits update logical state before callbacks and do not echo value
+replacements back to the browser.
+
+Only exact adapter-registered source parts can emit an event. An input's label
+belongs to the same logical control but cannot send input or change events.
+Disabled controls ignore browser changes; read-only text inputs ignore edits
+while retaining submission behavior.
+
+## Text and paragraphs
+
+Text and Paragraph own plain text and expose GetText and SetText. The default
+adapter preserves whitespace and line breaks. Strings containing markup remain
+literal text; these controls do not render HTML. Text is inline and Paragraph
+has paragraph semantics.
+
+## Cards and content areas
+
+Card accepts a title, a content builder, and optionally an actions builder:
+
+```cpp
+ui.Card( "Account", []( auto content ) {
+	content.Paragraph( "Account details" );
+}, []( auto actions ) {
+	actions.Button( "Save", [] {} );
+} );
+```
+
+Both scopes belong to the same logical card. The adapter chooses separate DOM
+insertion areas, including when a nested container is created in the actions
+scope. Each callback may optionally receive a ui::Card pointer as its second
+argument. SetTitle updates only the heading; an empty title hides its area
+without replacing children. Omitting the actions callback hides the footer.
+Copying an actions builder preserves its insertion slot for later additions.
+Scope(card) creates a fresh content scope.
+
+## Text input and checkbox state
+
+TextInput takes a label, an optional initial value, and an optional committed
+change callback. SetPlaceholder, SetDisabled, and SetReadOnly update presentation
+without resetting the value. SetValue explicitly replaces text in the browser.
+Checkbox takes a label, an initial bool, and an optional bool change callback;
+SetChecked explicitly replaces its browser state.
+
+Input callback text views remain valid throughout that invocation, including
+when the callback changes the control's value or replaces its own callback.
+These views must not be retained after the callback returns. Programmatic value
+changes do not invoke input/change callbacks.
+
+Explicit server replacements may supersede an edit already in flight. There is
+no revision-based conflict resolution between independently initiated server
+updates and newer browser edits.
+
+## Modal dialogs
+
+Modal takes an accessible title and a scoped content builder, optionally
+receiving the ui::Modal pointer. It starts closed. Build its desired content,
+then call Open; Close closes it, and SetTitle updates its heading. The default
+adapter uses a native modal dialog with an accessible title and close button.
+The browser manages focus containment and restores focus when the dialog closes.
+
+Escape, backdrop clicks, and the close button request dismissal through the
+server. Closing via native browser dialog behavior also synchronizes logical
+state. Repeated close requests are harmless. SetOnClose runs once per logical
+open-to-closed transition, after state and browser updates are queued; its
+callback may reopen the modal. TextInput Enter submissions are handled by the
+logical editor and do not implicitly close a dialog.
+
+The [feature status](status.md) lists controls that remain planned.

@@ -7,6 +7,7 @@ module;
 #include <string_view>
 
 #include <string>
+#include <utility>
 
 module UI.ClientUpdater;
 
@@ -199,6 +200,22 @@ auto tatzel::ClientUpdater::SetText(
 	json[ "op" ] = "set_text";
 	json[ "data" ] = MakeJson_Data();
 
+	SendJSON( json );
+}
+
+
+auto tatzel::ClientUpdater::SetValue(
+	std::string_view part_id,
+	std::string_view value
+) -> void
+{
+	auto json = Json::Value{ Json::objectValue };
+	json[ "op" ] = "set_value";
+	auto part = Json::Value{ Json::objectValue };
+	part[ "part_id" ] = std::string{ part_id };
+	part[ "value" ] = std::string{ value };
+	json[ "data" ] = Json::Value{ Json::arrayValue };
+	json[ "data" ].append( std::move( part ) );
 	SendJSON( json );
 }
 

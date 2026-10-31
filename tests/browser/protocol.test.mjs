@@ -36,19 +36,40 @@ class TestElement {
 		this.className = "";
 	}
 	/** @brief Appends a test node. @param child Concrete child node. @pre None. @post The child is registered by its part ID. */
-	appendChild(child) { this.children.push(child); nodes.set(child.id, child); }
+	appendChild(child) { this.children.push(child); child.parentElement = this; nodes.set(child.id, child); }
 	/** @brief Records an attribute. @param name Attribute name. @param value Attribute value. @pre None. @post The attribute is stored. */
-	setAttribute(name, value) { this.attributes[name] = value; }
+	setAttribute(name, value) {
+		this.attributes[name] = value;
+		if (name.startsWith("data-")) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = value;
+	}
+	/** @brief Checks stored attribute presence. @param name Attribute name. @returns Whether the attribute exists. @pre None. @post State is unchanged. */
+	hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
+	/** @brief Removes a stored attribute. @param name Attribute name. @pre None. @post The attribute is absent. */
+	removeAttribute(name) { delete this.attributes[name]; }
 	/** @brief Finds this marked event source. @param selector Data-attribute selector. @returns This node if marked, otherwise null. @pre None. @post State is unchanged. */
 	closest(selector) {
-		const marker = selector.includes("on-click") ? "uiOnClick"
-			: selector.includes("on-change") ? "uiOnChange" : "uiOnSubmit";
-		return this.dataset[marker] ? this : null;
+		const name = selector.slice(1, -1);
+		const marker = name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+		return this.hasAttribute(name) || this.dataset[marker] ? this : this.parentElement?.closest(selector) ?? null;
 	}
 }
 
 /** @brief Minimal form input for checkbox and text event checks. */
 class TestInput extends TestElement {}
+
+/** @brief Native-dialog double recording modal transitions. */
+class TestDialog extends TestElement {
+	/** @brief Opens the dialog. @pre The dialog is closed. @post Its open flag is set. */
+	showModal() { this.open = true; this.opens = (this.opens ?? 0) + 1; }
+	/** @brief Closes the dialog. @pre The dialog is open. @post Its open flag is cleared. */
+	close() { this.open = false; this.closes = (this.closes ?? 0) + 1; }
+}
+
+/** @brief Input-event double providing the browser composition flag. */
+class TestInputEvent {
+	/** @brief Creates an edit event. @param target Editor source. @param isComposing Whether IME composition is active. @pre None. @post The event exposes its source and composition flag. */
+	constructor(target, isComposing) { this.target = target; this.isComposing = isComposing; }
+}
 
 /** @brief WebSocket double that captures actual browser messages. */
 class TestSocket extends EventTarget {
@@ -68,7 +89,9 @@ globalThis.Element = TestElement;
 globalThis.HTMLInputElement = TestInput;
 globalThis.HTMLTextAreaElement = class extends TestElement {};
 globalThis.HTMLSelectElement = class extends TestElement {};
-globalThis.HTMLDialogElement = class extends TestElement {};
+globalThis.HTMLDialogElement = TestDialog;
+globalThis.HTMLButtonElement = class extends TestElement {};
+globalThis.InputEvent = TestInputEvent;
 globalThis.WebSocket = TestSocket;
 globalThis.window = { location: { protocol: "https:", host: "example.test" } };
 globalThis.document = {
@@ -112,8 +135,91 @@ test("creation and text updates target concrete part IDs", () => {
 	dom.createElementPart(message.data);
 	assert.equal(root.children[0].id, "logical-heading|base");
 	assert.equal(root.children[0].attributes.onclick, undefined);
-	dom.setText([{ part_id: "logical-heading|base", text: "After" }]);
-	assert.equal(root.children[0].textContent, "After");
+	dom.setText([{ part_id: "logical-heading|base", text: "<script>literal</script>\nAfter" }]);
+	assert.equal(root.children[0].textContent, "<script>literal</script>\nAfter");
+});
+
+test("input preserves live text, defers composition, and sends the final value before submit", () => {
+	const input = new TestInput("text-input|editor");
+	input.type = "text";
+	input.value = "editing";
+	input.setAttribute("data-ui-on-input", "true");
+	input.setAttribute("data-ui-on-submit", "true");
+	nodes.set(input.id, input);
+	const before = runtime.socket.messages.length;
+
+	handlers.get("input")(new TestInputEvent(input, true));
+	assert.equal(runtime.socket.messages.length, before);
+	handlers.get("compositionend")({ target: input });
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_input", data: { part_id: input.id, value: "editing" } });
+
+	let prevented = false;
+	handlers.get("keydown")({ target: input, key: "Enter", isComposing: false,
+		preventDefault() { prevented = true; } });
+	assert.ok(prevented);
+	assert.deepEqual(runtime.socket.messages.slice(-2).map(message => message.op), ["on_input", "on_submit"]);
+
+	const submitted = runtime.socket.messages.length;
+	input.readOnly = true;
+	handlers.get("input")(new TestInputEvent(input, false));
+	assert.equal(runtime.socket.messages.length, submitted);
+	input.readOnly = false;
+	input.disabled = true;
+	handlers.get("keydown")({ target: input, key: "Enter" });
+	assert.equal(runtime.socket.messages.length, submitted);
+});
+
+test("matching server values preserve the editor caret and checkbox values remain booleans", () => {
+	const input = new TestInput("caret|editor");
+	input.type = "text";
+	let value = "unchanged";
+	let assignments = 0;
+	Object.defineProperty(input, "value", { get: () => value, set: next => { value = next; assignments++; } });
+	nodes.set(input.id, input);
+	dom.setValue([{ part_id: input.id, value: "unchanged" }]);
+	assert.equal(assignments, 0);
+	dom.setValue([{ part_id: input.id, value: "replacement" }]);
+	assert.equal(assignments, 1);
+
+	input.type = "checkbox";
+	dom.setValue([{ part_id: input.id, value: "false" }]);
+	assert.equal(input.checked, false);
+	dom.setValue([{ part_id: input.id, value: "true" }]);
+	assert.equal(input.checked, true);
+});
+
+test("modal dismissal leaves presentation to the server and suppresses close echoes", () => {
+	const dialog = new TestDialog("modal|base");
+	dialog.setAttribute("data-ui-modal", "true");
+	dialog.setAttribute("data-ui-on-dismiss", "true");
+	nodes.set(dialog.id, dialog);
+	dom.setModalOpen([{ part_id: dialog.id, open: true }]);
+	dom.setModalOpen([{ part_id: dialog.id, open: true }]);
+	assert.equal(dialog.opens, 1);
+
+	let prevented = false;
+	handlers.get("cancel")({ target: dialog, preventDefault() { prevented = true; } });
+	assert.ok(prevented);
+	assert.equal(dialog.open, true);
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_dismiss", data: { part_id: dialog.id } });
+
+	const content = new TestElement("modal|content");
+	dialog.appendChild(content);
+	const before = runtime.socket.messages.length;
+	handlers.get("click")({ target: content });
+	assert.equal(runtime.socket.messages.length, before);
+	handlers.get("click")({ target: dialog });
+	assert.equal(runtime.socket.messages.length, before + 1);
+
+	dom.setModalOpen([{ part_id: dialog.id, open: false }]);
+	handlers.get("close")({ target: dialog });
+	assert.equal(runtime.socket.messages.length, before + 1);
+	assert.equal(dialog.closes, 1);
+
+	dom.setModalOpen([{ part_id: dialog.id, open: true }]);
+	dialog.close();
+	handlers.get("close")({ target: dialog });
+	assert.equal(runtime.socket.messages.length, before + 2);
 });
 
 test("delegated clicks send part identity inside data", () => {

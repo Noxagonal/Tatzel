@@ -55,7 +55,8 @@ Keep the working directory at the repository root:
 ```
 
 Open http://localhost:8080/. The example builds a per-client counter with a
-logical heading, nested container, and button.
+logical heading, nested container, and button, plus a profile card demonstrating
+text edits, checkbox changes, explicit reset values, and a modal preview.
 
 The runtime currently resolves these paths relative to the working directory:
 

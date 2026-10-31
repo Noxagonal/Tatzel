@@ -67,11 +67,21 @@ public:
 		std::string_view text
 	) -> void;
 
+	/// @brief Queues an explicit server value replacement for a form control.
+	/// @param part_id Editor DOM node ID.
+	/// @param value New text value, or true/false for a checkbox.
+	/// @pre The target is an existing supported form control.
+	/// @post A set_value message is queued; accepted browser edits do not call this method.
+	auto SetValue(
+		std::string_view part_id,
+		std::string_view value
+	) -> void;
+
 	/// @brief Queues a concrete HTML dialog state change.
 	/// @param part_id DOM ID of an HTML dialog.
 	/// @param open Whether the dialog should be open.
 	/// @pre The target is an existing HTML dialog.
-	/// @post A set_modal_open message is queued; no logical modal API is implied.
+	/// @post A set_modal_open message is queued for the logical modal's adapter.
 	auto SetModalOpen(
 		std::string_view part_id,
 		bool open

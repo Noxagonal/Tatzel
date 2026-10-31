@@ -8,8 +8,10 @@ controls, or a callback. It does not choose its HTML tag.
 
 An element adapter owns that mapping decision. The default adapter turns a
 logical heading into an HTML heading, a button into a button node, and a container
-into a div. Each logical control can own several DOM-part descriptions even
-though the currently supported controls each use one part.
+into a div. Compound controls own several DOM-part descriptions: a text input
+owns a wrapper, label, and editor; a card owns heading, content, and action
+parts. Card children retain one logical parent while semantic Content and
+Actions slots select their adapter-owned insertion areas.
 
 Tatzel stores these descriptions on the server. The browser owns the live DOM
 nodes. Changing a DOM-part description alone does not send a browser message;
@@ -40,9 +42,16 @@ A logical setter changes owned semantic state and calls its bound change handler
 The default adapter updates the corresponding DOM-part text and queues a
 set_text message. Browser visibility follows asynchronously.
 
-Application code uses Heading::SetText() or Button::SetText().
+Application code uses methods such as Heading::SetText(), TextInput::SetValue(),
+Checkbox::SetChecked(), and Modal::Open().
 There is no generic property wrapper and direct assignment to private control
 state is unavailable.
+
+Accepted browser edits update logical state before application callbacks. They
+do not echo value replacements. Adapters track explicit server-value revisions
+so label, placeholder, or disabled-state updates cannot reset active typing.
+A programmatic SetValue or SetChecked change explicitly replaces the browser
+value; matching text values are left untouched to preserve the caret.
 
 ## Ownership
 

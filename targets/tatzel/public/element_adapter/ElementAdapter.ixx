@@ -11,6 +11,12 @@ export import UI.Element.LogicalElement;
 export import UI.Element.Heading;
 export import UI.Element.Button;
 export import UI.Element.Container;
+export import UI.Element.Text;
+export import UI.Element.Paragraph;
+export import UI.Element.Card;
+export import UI.Element.TextInput;
+export import UI.Element.Checkbox;
+export import UI.Element.Modal;
 
 namespace tatzel {
 
@@ -40,6 +46,42 @@ public:
 	/// @pre The button has a mapped logical parent and no assigned parts.
 	/// @post The button owns its concrete parts and its setter updates the browser.
 	virtual auto CreatePartsFor( ui::Button& element ) const -> void = 0;
+
+	/// @brief Maps a logical Text and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Text& element ) const -> void = 0;
+
+	/// @brief Maps a logical Paragraph and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Paragraph& element ) const -> void = 0;
+
+	/// @brief Maps a logical Card and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Card& element ) const -> void = 0;
+
+	/// @brief Maps a logical TextInput and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::TextInput& element ) const -> void = 0;
+
+	/// @brief Maps a logical Checkbox and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Checkbox& element ) const -> void = 0;
+
+	/// @brief Maps a logical Modal and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Modal& element ) const -> void = 0;
 
 	/// @brief Constructs a browser part ID from a logical ID and a local part name.
 	/// @param element Logical owner of the browser part.

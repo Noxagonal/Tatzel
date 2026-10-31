@@ -3,6 +3,8 @@
 module;
 
 #include <span>
+#include <algorithm>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -75,6 +77,18 @@ public:
 	/// @post State is unchanged.
 	auto GetAttributes() const noexcept -> std::span<const Attribute> { return attributes; }
 
+	/// @brief Reads one stored HTML attribute.
+	/// @param attribute Attribute name to find.
+	/// @return Borrowed value, or no value if absent; mutation invalidates the view.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetAttribute( std::string_view attribute ) const -> std::optional<std::string_view>
+	{
+		auto found = std::ranges::find_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
+		if( found == attributes.end() ) return std::nullopt;
+		return found->second;
+	}
+
 	/// @brief Reads initial text content.
 	/// @return Borrowed text.
 	/// @pre None.
@@ -87,7 +101,7 @@ public:
 	/// @post The class list contains the new value; no browser message is sent.
 	auto AddClass( std::string_view class_name ) -> void { classes.emplace_back( class_name ); }
 
-	/// @brief Copies an HTML attribute into this part's state.
+	/// @brief Copies or replaces an HTML attribute in this part's state.
 	/// @param attribute Attribute name.
 	/// @param value Attribute value.
 	/// @pre attribute is a nonempty HTML attribute name.
@@ -97,7 +111,18 @@ public:
 		std::string_view value
 	) -> void
 	{
-		attributes.emplace_back( std::string{ attribute }, std::string{ value } );
+		auto found = std::ranges::find_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
+		if( found == attributes.end() ) attributes.emplace_back( std::string{ attribute }, std::string{ value } );
+		else found->second = value;
+	}
+
+	/// @brief Removes an attribute from stored DOM state.
+	/// @param attribute Attribute name to remove.
+	/// @pre None.
+	/// @post The attribute is absent; no browser message is sent.
+	auto RemoveAttribute( std::string_view attribute ) -> void
+	{
+		std::erase_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
 	}
 
 	/// @brief Replaces the stored DOM text.
