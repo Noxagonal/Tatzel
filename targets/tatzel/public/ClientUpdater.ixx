@@ -10,6 +10,7 @@ module;
 export module UI.ClientUpdater;
 
 import UI.DOM.ElementPart;
+import UI.DOM.SelectOption;
 
 namespace tatzel {
 
@@ -104,6 +105,20 @@ public:
 	/// @pre The target exists and its logical owner accepts submit events.
 	/// @post A set_on_submit message is queued.
 	auto SetOnSubmit( std::string_view part_id ) -> void;
+
+	/// @brief Queues native select choices and selection as one ordered update.
+	/// @param part_id Target select editor DOM ID.
+	/// @param options Owned-payload choices, copied during serialization.
+	/// @param placeholder Plain text for the empty-value choice.
+	/// @param value Selected option value, or empty for no selection.
+	/// @pre The select editor has been created and value is available among its choices.
+	/// @post One set_select_options message queues option replacement and selected state.
+	auto SetSelectOptions(
+		std::string_view part_id,
+		std::span<const dom::SelectOption> options,
+		std::string_view placeholder,
+		std::string_view value
+	) -> void;
 
 private:
 	/// @brief Serializes and queues a JSON message on the bound transport.

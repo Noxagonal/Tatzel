@@ -5,10 +5,14 @@ module;
 #include <vector>
 #include <stdexcept>
 #include <optional>
+#include <array>
+#include <cstddef>
+#include <string>
 
 module UI.ElementAdapter.TatzelElementAdapter;
 
 import UI.DOM.ElementPart;
+import UI.DOM.SelectOption;
 import UI.ClientUpdater;
 import UI.Element.Heading;
 import UI.Element.Button;
@@ -112,6 +116,169 @@ auto MapText(
 	} );
 }
 
+
+/// @brief Initializes shared field labels, error parts, and editor attributes.
+/// @param field Logical field whose parts are being mapped.
+/// @param label Text-bearing label part.
+/// @param editor Native form-control part.
+/// @param error Dedicated error-message part.
+/// @pre The parts have not yet been sent to the browser.
+/// @post Parts store initial accessible field state without sending operations.
+auto InitializeFieldState(
+	tatzel::ui::FormField& field,
+	tatzel::dom::ElementPart& label,
+	tatzel::dom::ElementPart& editor,
+	tatzel::dom::ElementPart& error
+) -> void
+{
+	label.SetTextContent( field.GetLabel() );
+	editor.AddAttribute( "data-ui-form-field", "true" );
+	editor.AddAttribute( "data-ui-on-change", "true" );
+	editor.AddAttribute( "aria-describedby", error.GetPartID() );
+	if( field.IsDisabled() ) editor.AddAttribute( "disabled", "" );
+	if( field.IsRequired() ) editor.AddAttribute( "required", "" );
+	if( !field.GetError().empty() ) editor.AddAttribute( "aria-invalid", "true" );
+
+	error.AddAttribute( "aria-live", "polite" );
+	error.AddAttribute( "style", "color: var(--pico-del-color, #b42318)" );
+	error.SetTextContent( field.GetError() );
+	if( field.GetError().empty() ) error.AddAttribute( "hidden", "" );
+}
+
+/// @brief Synchronizes shared field state without replacing native editor values.
+/// @param field Mapped logical field.
+/// @param updater Sender for the same page.
+/// @pre Label, editor, and error parts have been created.
+/// @post Changed label/error text and accessibility flags are queued.
+auto SyncFieldState(
+	tatzel::ui::FormField& field,
+	tatzel::ClientUpdater& updater
+) -> void
+{
+	auto& editor = *field.FindPart( "editor" );
+	auto& error = *field.FindPart( "error" );
+	SyncText( *field.FindPart( "label" ), field.GetLabel(), updater );
+	SyncText( error, field.GetError(), updater );
+	SyncAttribute( editor, "disabled", BooleanAttribute( field.IsDisabled() ), updater );
+	SyncAttribute( editor, "required", BooleanAttribute( field.IsRequired() ), updater );
+	SyncAttribute( editor, "aria-invalid", field.GetError().empty()
+		? std::nullopt : std::optional<std::string_view>{ "true" }, updater );
+	SyncAttribute( error, "hidden", BooleanAttribute( field.GetError().empty() ), updater );
+}
+
+/// @brief Maps shared single-line and multiline text-field behavior.
+/// @param element Logical editor whose value API is shared with TextInput.
+/// @param updater Sender that outlives the field.
+/// @pre The parent is mapped and the editor has no parts.
+/// @post The native editor and error parts are stored and explicit setters synchronize.
+auto MapTextEditor(
+	tatzel::ui::TextInput& element,
+	tatzel::ClientUpdater& updater
+) -> void
+{
+	auto* area = dynamic_cast<tatzel::ui::TextArea*>( &element );
+	auto base_id = tatzel::ElementAdapter::MakePartID( element, "base" );
+	auto editor_id = tatzel::ElementAdapter::MakePartID( element, "editor" );
+	auto parts = std::vector<tatzel::dom::ElementPart>{
+		{ base_id, ParentPartFor( element ).GetPartID(), "div" },
+		{ tatzel::ElementAdapter::MakePartID( element, "label" ), base_id, "label" },
+		{ editor_id, base_id, area ? "textarea" : "input" },
+		{ tatzel::ElementAdapter::MakePartID( element, "error" ), base_id, "small" }
+	};
+	parts[ 1 ].AddAttribute( "for", editor_id );
+	InitializeFieldState( element, parts[ 1 ], parts[ 2 ], parts[ 3 ] );
+	auto& editor = parts[ 2 ];
+	if( area )
+	{
+		editor.SetTextContent( element.GetValue() );
+		editor.AddAttribute( "rows", std::to_string( area->GetRows() ) );
+	}
+	else
+	{
+		editor.AddAttribute( "type", "text" );
+		editor.AddAttribute( "value", element.GetValue() );
+	}
+	editor.AddAttribute( "placeholder", element.GetPlaceholder() );
+	editor.AddAttribute( "data-ui-on-input", "true" );
+	editor.AddAttribute( "data-ui-on-submit", "true" );
+	if( element.IsReadOnly() ) editor.AddAttribute( "readonly", "" );
+	element.SetParts( std::move( parts ), 0, 0 );
+
+	element.SetChangeHandler( [ &element, &updater, area, revision = element.GetValueRevision() ]() mutable {
+		SyncFieldState( element, updater );
+		auto& editor = *element.FindPart( "editor" );
+		SyncAttribute( editor, "placeholder", element.GetPlaceholder(), updater );
+		SyncAttribute( editor, "readonly", BooleanAttribute( element.IsReadOnly() ), updater );
+		if( area )
+		{
+			SyncAttribute( editor, "rows", std::to_string( area->GetRows() ), updater );
+			editor.SetTextContent( element.GetValue() );
+		}
+		else editor.AddAttribute( "value", element.GetValue() );
+
+		if( revision != element.GetValueRevision() )
+		{
+			revision = element.GetValueRevision();
+			updater.SetValue( editor.GetPartID(), element.GetValue() );
+		}
+	} );
+}
+
+/// @brief Converts semantic layout settings into adapter-owned CSS.
+/// @param layout Logical row or column.
+/// @return Owned CSS declaring the linear arrangement.
+/// @pre All enum settings are defined values.
+/// @post No state is changed.
+auto LayoutToStyle( const tatzel::ui::Layout& layout ) -> std::string
+{
+	const auto gaps = std::array{ "0", "0.5rem", "1rem", "1.5rem" };
+	const auto alignments = std::array{ "flex-start", "center", "flex-end", "stretch" };
+	const auto justifications = std::array{ "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly" };
+
+	return std::string{ "display:flex;min-width:0;flex-direction:" }
+		+ ( layout.GetDirection() == tatzel::ui::LayoutDirection::Row ? "row" : "column" )
+		+ ";gap:" + gaps.at( static_cast<size_t>( layout.GetGap() ) )
+		+ ";align-items:" + alignments.at( static_cast<size_t>( layout.GetAlignment() ) )
+		+ ";justify-content:" + justifications.at( static_cast<size_t>( layout.GetJustification() ) )
+		+ ";flex-wrap:" + ( layout.GetWrap() ? "wrap" : "nowrap" );
+}
+
+/// @brief Maps a logical linear layout and binds setting changes.
+/// @param layout Logical row or column.
+/// @param updater Sender that outlives the layout.
+/// @pre The parent is mapped; layout has no parts.
+/// @post One child-bearing part is stored and future layout changes queue styling updates.
+auto MapLayout(
+	tatzel::ui::Layout& layout,
+	tatzel::ClientUpdater& updater
+) -> void
+{
+	auto parts = std::vector<tatzel::dom::ElementPart>{
+		{ tatzel::ElementAdapter::MakePartID( layout, "base" ), ParentPartFor( layout ).GetPartID(), "div" }
+	};
+	parts.front().AddAttribute( "style", LayoutToStyle( layout ) );
+	parts.front().AddClass( layout.GetDirection() == tatzel::ui::LayoutDirection::Row ? "tatzel-row" : "tatzel-column" );
+	layout.SetParts( std::move( parts ), 0, 0 );
+	layout.SetChangeHandler( [ &layout, &updater ] {
+		SyncAttribute( layout.GetBasePart(), "style", LayoutToStyle( layout ), updater );
+	} );
+}
+
+/// @brief Queues a native selector's complete choices and selected state.
+/// @param select Logical selector with mapped editor parts.
+/// @param updater Sender for the same page.
+/// @pre Editor DOM creation has been queued.
+/// @post Native choices and current selection are queued as one operation.
+auto SendSelectOptions(
+	tatzel::ui::Select& select,
+	tatzel::ClientUpdater& updater
+) -> void
+{
+	auto options = std::vector<tatzel::dom::SelectOption>{};
+	for( const auto& option : select.GetOptions() ) options.push_back( { option.id, option.label, option.disabled } );
+	updater.SetSelectOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetPlaceholder(), select.GetValue() );
+}
+
 /// @brief Converts a logical heading level at the DOM adapter boundary.
 /// @param style Semantic heading level.
 /// @return HTML tag for the level.
@@ -161,8 +328,8 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Button& element ) const -
 	auto parts = std::vector<dom::ElementPart>{
 		dom::ElementPart{ MakePartID( element, "base" ), parent_part.GetPartID(), "button" }
 	};
-	parts.front().AddAttribute( "type", "button" );
-	parts.front().AddAttribute( "data-ui-on-click", "true" );
+	parts.front().AddAttribute( "type", element.GetRole() == ui::ButtonRole::Submit ? "submit" : "button" );
+	if( element.GetRole() == ui::ButtonRole::Action ) parts.front().AddAttribute( "data-ui-on-click", "true" );
 	parts.front().SetTextContent( element.GetText() );
 	element.SetParts( std::move( parts ), 0, 0 );
 	element.SetChangeHandler( [ this, &element ] {
@@ -205,64 +372,35 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Card& element ) const -> 
 
 auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::TextInput& element ) const -> void
 {
-	auto base_id = MakePartID( element, "base" );
-	auto editor_id = MakePartID( element, "editor" );
-	auto parts = std::vector<dom::ElementPart>{
-		{ base_id, ParentPartFor( element ).GetPartID(), "div" },
-		{ MakePartID( element, "label" ), base_id, "label" },
-		{ editor_id, base_id, "input" }
-	};
-	parts[ 1 ].AddAttribute( "for", editor_id );
-	parts[ 1 ].SetTextContent( element.GetLabel() );
-	auto& editor = parts[ 2 ];
-	editor.AddAttribute( "type", "text" );
-	editor.AddAttribute( "value", element.GetValue() );
-	editor.AddAttribute( "placeholder", element.GetPlaceholder() );
-	editor.AddAttribute( "data-ui-on-input", "true" );
-	editor.AddAttribute( "data-ui-on-change", "true" );
-	editor.AddAttribute( "data-ui-on-submit", "true" );
-	if( element.IsDisabled() ) editor.AddAttribute( "disabled", "" );
-	if( element.IsReadOnly() ) editor.AddAttribute( "readonly", "" );
-	element.SetParts( std::move( parts ), 0, 0 );
+	MapTextEditor( element, *client_updater );
+}
 
-	element.SetChangeHandler( [ this, &element, revision = element.GetValueRevision() ]() mutable {
-		SyncText( *element.FindPart( "label" ), element.GetLabel(), *client_updater );
-		auto& editor = *element.FindPart( "editor" );
-		SyncAttribute( editor, "placeholder", element.GetPlaceholder(), *client_updater );
-		SyncAttribute( editor, "disabled", BooleanAttribute( element.IsDisabled() ), *client_updater );
-		SyncAttribute( editor, "readonly", BooleanAttribute( element.IsReadOnly() ), *client_updater );
-
-		editor.AddAttribute( "value", element.GetValue() );
-		if( revision != element.GetValueRevision() )
-		{
-			revision = element.GetValueRevision();
-			client_updater->SetValue( editor.GetPartID(), element.GetValue() );
-		}
-	} );
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::TextArea& element ) const -> void
+{
+	MapTextEditor( element, *client_updater );
 }
 
 auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Checkbox& element ) const -> void
 {
 	auto base_id = MakePartID( element, "base" );
+	auto control_id = MakePartID( element, "control" );
 	auto editor_id = MakePartID( element, "editor" );
 	auto parts = std::vector<dom::ElementPart>{
-		{ base_id, ParentPartFor( element ).GetPartID(), "label" },
-		{ editor_id, base_id, "input" },
-		{ MakePartID( element, "label" ), base_id, "span" }
+		{ base_id, ParentPartFor( element ).GetPartID(), "div" },
+		{ control_id, base_id, "label" },
+		{ editor_id, control_id, "input" },
+		{ MakePartID( element, "label" ), control_id, "span" },
+		{ MakePartID( element, "error" ), base_id, "small" }
 	};
-	parts[ 0 ].AddAttribute( "for", editor_id );
-	parts[ 2 ].SetTextContent( element.GetLabel() );
-	auto& editor = parts[ 1 ];
-	editor.AddAttribute( "type", "checkbox" );
-	editor.AddAttribute( "data-ui-on-change", "true" );
-	if( element.IsChecked() ) editor.AddAttribute( "checked", "" );
-	if( element.IsDisabled() ) editor.AddAttribute( "disabled", "" );
+	parts[ 1 ].AddAttribute( "for", editor_id );
+	InitializeFieldState( element, parts[ 3 ], parts[ 2 ], parts[ 4 ] );
+	parts[ 2 ].AddAttribute( "type", "checkbox" );
+	if( element.IsChecked() ) parts[ 2 ].AddAttribute( "checked", "" );
 	element.SetParts( std::move( parts ), 0, 0 );
 
 	element.SetChangeHandler( [ this, &element, revision = element.GetValueRevision() ]() mutable {
-		SyncText( *element.FindPart( "label" ), element.GetLabel(), *client_updater );
+		SyncFieldState( element, *client_updater );
 		auto& editor = *element.FindPart( "editor" );
-		SyncAttribute( editor, "disabled", BooleanAttribute( element.IsDisabled() ), *client_updater );
 		if( element.IsChecked() ) editor.AddAttribute( "checked", "" );
 		else editor.RemoveAttribute( "checked" );
 
@@ -306,5 +444,72 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Modal& element ) const ->
 		open = element.IsOpen();
 		element.GetBasePart().AddAttribute( "data-ui-modal-open", open ? "true" : "false" );
 		client_updater->SetModalOpen( element.GetBasePart().GetPartID(), open );
+	} );
+}
+
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Row& element ) const -> void
+{
+	MapLayout( element, *client_updater );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Column& element ) const -> void
+{
+	MapLayout( element, *client_updater );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -> void
+{
+	auto base_id = MakePartID( element, "base" );
+	auto editor_id = MakePartID( element, "editor" );
+	auto parts = std::vector<dom::ElementPart>{
+		{ base_id, ParentPartFor( element ).GetPartID(), "div" },
+		{ MakePartID( element, "label" ), base_id, "label" },
+		{ editor_id, base_id, "select" },
+		{ MakePartID( element, "error" ), base_id, "small" }
+	};
+	parts[ 1 ].AddAttribute( "for", editor_id );
+	InitializeFieldState( element, parts[ 1 ], parts[ 2 ], parts[ 3 ] );
+	element.SetParts( std::move( parts ), 0, 0 );
+
+	element.SetChangeHandler( [ this, &element, value_revision = element.GetValueRevision(),
+		options_revision = element.GetOptionsRevision() ]() mutable {
+		SyncFieldState( element, *client_updater );
+		if( options_revision != element.GetOptionsRevision() )
+		{
+			options_revision = element.GetOptionsRevision();
+			value_revision = element.GetValueRevision();
+			SendSelectOptions( element, *client_updater );
+		}
+		else if( value_revision != element.GetValueRevision() )
+		{
+			value_revision = element.GetValueRevision();
+			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue() );
+		}
+	} );
+}
+
+auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& element ) const -> void
+{
+	if( auto* select = dynamic_cast<ui::Select*>( &element ) ) SendSelectOptions( *select, *client_updater );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Form& element ) const -> void
+{
+	auto base_id = MakePartID( element, "base" );
+	auto parts = std::vector<dom::ElementPart>{
+		{ base_id, ParentPartFor( element ).GetPartID(), "form" },
+		{ MakePartID( element, "content" ), base_id, "fieldset" }
+	};
+	parts[ 0 ].AddAttribute( "novalidate", "" );
+	parts[ 0 ].AddAttribute( "data-ui-on-submit", "true" );
+	if( !element.GetLabel().empty() ) parts[ 0 ].AddAttribute( "aria-label", element.GetLabel() );
+	parts[ 1 ].AddAttribute( "style", "margin:0;padding:0;border:0;min-width:0" );
+	if( element.IsDisabled() ) parts[ 1 ].AddAttribute( "disabled", "" );
+	element.SetParts( std::move( parts ), 0, 1 );
+	element.SetChangeHandler( [ this, &element ] {
+		SyncAttribute( element.GetBasePart(), "aria-label", element.GetLabel().empty()
+			? std::nullopt : std::optional<std::string_view>{ element.GetLabel() }, *client_updater );
+		SyncAttribute( *element.FindPart( "content" ), "disabled", BooleanAttribute( element.IsDisabled() ), *client_updater );
 	} );
 }

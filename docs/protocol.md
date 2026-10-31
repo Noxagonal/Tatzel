@@ -75,9 +75,12 @@ Every row below uses a data array of the listed payload objects.
 | add_class | part_id, class_name | Browser handler only. |
 | remove_class | part_id, class_name | Browser handler only. |
 | set_value | part_id, value | ClientUpdater method; value is a string, including true/false for checkboxes. |
+| set_select_options | part_id, placeholder, value, options | Replaces native option choices and selection while retaining the select editor. |
 
 All identifier and text fields are strings. open is boolean. classes is an
-array of strings. A DOM command is queued on the transport; it does not guarantee
+array of strings. Native select options contain value/label strings and a
+disabled boolean; values must be unique and nonempty. The empty selection is
+represented by a separate placeholder option. A DOM command is queued on the transport; it does not guarantee
 the browser has applied it when the C++ method returns.
 
 ## Browser events
@@ -90,8 +93,10 @@ the browser has applied it when the C++ method returns.
 {"op":"on_dismiss","data":{"part_id":"ui-modal|base"}}
 ```
 
-Buttons support on_click. TextInput accepts on_input and on_change with string
-values, and on_submit after the browser sends its latest input value. Checkbox
+Action buttons support on_click. TextInput and TextArea accept on_input and
+on_change with string values. Standalone editor submission sends the latest
+input first. Within a Form, keyboard submission targets the whole form. Select
+on_change values must name enabled option IDs or be empty. Checkbox
 on_change values must be boolean; the transport normalizes them to true/false
 strings for the framework interface. Modal accepts on_dismiss from its dialog
 or close-button part. Browser edits are accepted before callbacks without
@@ -102,6 +107,43 @@ the requested event interface are ignored. Existing parts must also carry the
 adapter-selected data-ui-on-click, data-ui-on-input, data-ui-on-change,
 data-ui-on-submit, or data-ui-on-dismiss marker for that operation. Part IDs are
 looked up in stored DOM-part records, never treated as logical IDs or parsed by delimiter.
+
+## Form submissions
+
+```json
+{
+  "op": "on_submit",
+  "data": {
+    "part_id": "ui-form|base",
+    "fields": [
+      {"part_id": "ui-name|editor", "value": "Current text"},
+      {"part_id": "ui-consent|editor", "value": true}
+    ]
+  }
+}
+```
+
+Every enabled descendant field must appear exactly once. Disabled fields are
+omitted. Source parts must carry the adapter's data-ui-form-field marker;
+labels and error parts cannot submit values. Unknown or foreign fields,
+duplicates, missing fields, incorrect types, and unavailable choices reject
+the entire snapshot with invalid_message before applying values. Read-only
+values are not overwritten from browser data.
+
+Within a logical form, on_submit must target the form itself with its complete
+snapshot. Direct standalone-style submissions to descendant editors are rejected.
+
+Once accepted, editable values are applied without input/change callbacks or
+set_value echoes. Required and custom validation then runs on all fields.
+Normal validation failure is represented by field error text and aria-invalid
+updates, rather than a transport error. Only valid forms invoke their submit
+callback. The default adapter uses novalidate so the logical validators handle
+all form submissions consistently.
+
+The adapter initializes Select choices after queuing the editor's DOM creation.
+The set_select_options operation builds native option children with plain text;
+those children do not have logical event-source IDs. Replacement options and
+the selected value are carried together.
 
 ## Errors and validation
 

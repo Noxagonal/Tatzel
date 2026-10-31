@@ -9,8 +9,8 @@ Applications work with logical controls. Tatzel maps them to concrete DOM parts,
 and a lightweight browser runtime displays them and returns input events.
 
 The current prototype supports headings, buttons, nested containers, plain text
-and paragraphs, cards with action areas, text inputs, checkboxes, and modal
-dialogs. Explicit setters and browser events synchronize per-client logical
+and paragraphs, cards with action areas, row/column layouts, text inputs and
+areas, selectors, checkboxes, validated forms, and modal dialogs. Explicit setters and browser events synchronize per-client logical
 state. Production lifecycle features remain unfinished.
 
 Start with the [documentation](docs/index.md), the

@@ -1,0 +1,11 @@
+/* Logical layout gaps control spacing between direct child controls. */
+.tatzel-row > *,
+.tatzel-column > * {
+	min-width: 0;
+	margin-block: 0;
+}
+
+/* Native form styling must not turn every row action into a full-width item. */
+.tatzel-row > button {
+	width: auto;
+}

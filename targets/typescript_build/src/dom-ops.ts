@@ -13,6 +13,7 @@ import type {
 	ReceiveData_SetOnClick,
 	ReceiveData_SetOnChange,
 	ReceiveData_SetOnSubmit,
+	ReceiveData_SetSelectOptions,
 } from "./protocol.js"
 
 
@@ -184,7 +185,7 @@ export function setValue(
 		}
 
 		if (element instanceof HTMLTextAreaElement) {
-			element.value = part.value;
+			if (element.value !== part.value) element.value = part.value;
 			return;
 		}
 
@@ -195,6 +196,34 @@ export function setValue(
 
 		console.warn("setValue called on unsupported element: ", element, " | While trying to assign value: ", part.value);
 	});
+}
+
+/**
+ * @brief Replaces a native selector's choices and current selection atomically.
+ * @param parts Validated option payloads using select editor part IDs.
+ * @pre Target select elements have already been created.
+ * @post Choices contain plain text and stable values; editor identity and focus are preserved.
+ */
+export function setSelectOptions(parts: Array<ReceiveData_SetSelectOptions>): void
+{
+	for (const part of parts) {
+		const element = document.getElementById(part.part_id);
+		if (!(element instanceof HTMLSelectElement)) {
+			console.warn("Select editor not found:", part.part_id);
+			continue;
+		}
+
+		const choices = [{ value: "", label: part.placeholder, disabled: false }, ...part.options];
+		const options = choices.map(choice => {
+			const option = document.createElement("option");
+			option.value = choice.value;
+			option.textContent = choice.label;
+			option.disabled = choice.disabled;
+			return option;
+		});
+		element.replaceChildren(...options);
+		element.value = part.value;
+	}
 }
 
 

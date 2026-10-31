@@ -75,6 +75,42 @@ public:
 	/// @post The control owns its DOM representation and is bound to the adapter.
 	auto CreatePartsFor( ui::Modal& element ) const -> void override;
 
+	/// @brief Maps a logical Row and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Row& element ) const -> void override;
+
+	/// @brief Maps a logical Column and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Column& element ) const -> void override;
+
+	/// @brief Maps a logical Select and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Select& element ) const -> void override;
+
+	/// @brief Maps a logical TextArea and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::TextArea& element ) const -> void override;
+
+	/// @brief Maps a logical Form and binds its supported state updates.
+	/// @param element Logical control to map.
+	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Form& element ) const -> void override;
+
+	/// @brief Queues control-specific initialization after browser parts are created.
+	/// @param element Newly mapped logical control.
+	/// @pre DOM creation for element's parts is already queued on the same page.
+	/// @post Any initial native-control state is queued in creation order.
+	auto InitializePartsFor( ui::LogicalElement& element ) const -> void override;
+
 private:
 	ClientUpdater* client_updater;
 };

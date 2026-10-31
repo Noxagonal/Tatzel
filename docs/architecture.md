@@ -14,7 +14,9 @@ parts. Card children retain one logical parent while semantic Content and
 Actions slots select their adapter-owned insertion areas.
 
 Tatzel stores these descriptions on the server. The browser owns the live DOM
-nodes. Changing a DOM-part description alone does not send a browser message;
+nodes. Native selector options are internal browser nodes built from the
+adapter's typed choice command; the select editor remains their logical event
+source. Changing a DOM-part description alone does not send a browser message;
 the adapter must also ask ClientUpdater to send the corresponding operation.
 
 The application-facing namespace is tatzel::ui and its module family is
@@ -41,6 +43,12 @@ stored part records rather than parsing that spelling.
 A logical setter changes owned semantic state and calls its bound change handler.
 The default adapter updates the corresponding DOM-part text and queues a
 set_text message. Browser visibility follows asynchronously.
+
+FormField centralizes label, disabled/required policy, error state, and typed
+validation for built-in fields. A Form coordinates descendant fields through
+logical ownership, including fields nested in layouts. A complete browser
+snapshot is checked before accepting values; validators run after all values
+are available. Application callbacks never receive a partially checked snapshot.
 
 Application code uses methods such as Heading::SetText(), TextInput::SetValue(),
 Checkbox::SetChecked(), and Modal::Open().

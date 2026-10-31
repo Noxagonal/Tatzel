@@ -8,18 +8,18 @@ module;
 #include <string>
 #include <string_view>
 #include <utility>
+#include <variant>
 
 export module UI.Element.Checkbox;
 
-export import UI.Element.LogicalElement;
-export import UI.Element.Interface.Changeable;
+export import UI.Element.FormField;
 
 namespace tatzel::ui {
 
 /// @brief Page-owned boolean control with an owned accessible label.
 /// @details Browser changes are accepted before callbacks without value echoes.
 /// All mutations run on the owning page's event loop.
-export class Checkbox : public LogicalElement, public interface::Changeable
+export class Checkbox : public FormField
 {
 public:
 	/// @brief Creates a labeled checkbox.
@@ -37,29 +37,10 @@ public:
 		bool checked,
 		std::function<void( bool )> on_change
 	) :
-		LogicalElement{ id, parent },
-		label{ label },
+		FormField{ id, parent, label },
 		checked{ checked },
 		on_change{ std::move( on_change ) }
 	{}
-
-	/// @brief Reads the accessible label.
-	/// @return The accessible label, borrowed until mutation or destruction.
-	/// @pre None.
-	/// @post State is unchanged.
-	auto GetLabel() const noexcept -> std::string_view { return label; }
-
-	/// @brief Replaces the accessible label and notifies the adapter.
-	/// @param label New accessible label, copied before returning.
-	/// @pre Called on the owning event loop.
-	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetLabel( std::string_view label ) -> void
-	{
-		if( this->label == label ) return;
-
-		this->label = label;
-		NotifyChanged();
-	}
 
 	/// @brief Reads the checked state.
 	/// @return The checked state.
@@ -77,25 +58,7 @@ public:
 
 		this->checked = checked;
 		++value_revision;
-		NotifyChanged();
-	}
-
-	/// @brief Reads the disabled state.
-	/// @return The disabled state.
-	/// @pre None.
-	/// @post State is unchanged.
-	auto IsDisabled() const noexcept -> bool { return disabled; }
-
-	/// @brief Replaces the disabled state and notifies the adapter.
-	/// @param disabled New disabled state.
-	/// @pre Called on the owning event loop.
-	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetDisabled( bool disabled ) -> void
-	{
-		if( this->disabled == disabled ) return;
-
-		this->disabled = disabled;
-		NotifyChanged();
+		NotifyValueChanged();
 	}
 
 	/// @brief Reads the explicit server-value revision for the adapter.
@@ -128,19 +91,47 @@ public:
 		{
 			throw std::invalid_argument{ "Checkbox changes require a boolean" };
 		}
-		if( disabled ) return;
+		if( IsDisabled() ) return;
 
 		checked = value == "true";
-		NotifyChanged();
+		NotifyValueChanged();
 
 		auto callback = on_change;
 		if( callback ) callback( checked );
 	}
 
+	/// @brief Installs custom validation for this field's current value.
+	/// @param validator Returns an error message or an empty string; empty clears validation.
+	/// @pre Called on the owning event loop; the validator does not mutate field values or structure.
+	/// @post Future Validate calls use this validator after required-field checks.
+	auto SetValidator( std::function<std::string( bool )> validator ) -> void
+	{
+		SetValidationHandler( [ this, validator = std::move( validator ) ] {
+			auto snapshot = checked;
+			return validator ? validator( snapshot ) : std::string{};
+		} );
+	}
+
+	/// @brief Copies this field's value for coordinated form submission.
+	/// @return The owned current value.
+	/// @pre Called on the owning event loop.
+	/// @post State is unchanged.
+	auto GetFieldValue() const -> FieldValue override { return checked; }
+
+	/// @brief Accepts a validated form value without invoking application edit callbacks.
+	/// @param value Correctly typed value from the form snapshot.
+	/// @pre Called on the owning event loop; CanAcceptFieldValue returns true.
+	/// @post Editable enabled state is stored, stale errors are removed, and no value echo is sent.
+	auto AcceptFieldValue( const FieldValue& value ) -> void override
+	{
+		if( IsDisabled() || IsReadOnly() ) return;
+
+		this->checked = std::get<bool>( value );
+		NotifyValueChanged();
+	}
+
 private:
-	std::string label;
 	bool checked;
-	bool disabled = false;
 	size_t value_revision = 0;
 	std::function<void( bool )> on_change;
 };
