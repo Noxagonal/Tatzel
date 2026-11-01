@@ -10,6 +10,7 @@ Start with the model, then build the example:
 2. [Build and run](building.md)
 3. [Working with logical controls](logical-controls.md)
 4. [Logging and exception traces](diagnostics.md)
+5. [Posting work to a logical page](dispatcher.md)
 
 For framework development:
 

@@ -85,6 +85,13 @@ Drogon invokes a connection's handlers on that connection's event loop. Logical
 control creation and mutation must remain on that loop. The connection registry
 mutex only protects registry access.
 
+PageBuilder::GetDispatcher returns a weak submission handle for the owning
+ClientConnection. Workers post owned completions through its bounded queue;
+callbacks execute on that connection's loop inside the existing logical removal
+and diagnostic scopes. Queue locks are released before application code or
+capture destructors run. See [posting work](dispatcher.md) for ordering,
+rejection, cancellation, and shutdown contracts.
+
 Page callbacks should capture per-client state by ownership when necessary.
 Shared application state needs its own synchronization across connections.
 
@@ -105,6 +112,8 @@ separately rendered parts may live under a logical ancestor's DOM parts.
 
 Closing a WebSocket invalidates all active handles before releasing controls.
 It removes its registry entry and releases the page services
-when retained handlers finish. Reconnect, state restoration, cross-thread UI
-scheduling, and rollback after a failing page factory are not implemented.
+when retained handlers finish. Dispatch queues close explicitly on disconnect,
+and one gate per loop prevents scheduling through a destroyed loop. Loop-exit
+hooks cancel pending work and release registry sessions on their owning loops.
+Reconnect, state restoration, and rollback after a failing page factory are not implemented.
 Reload the browser to create a fresh page.

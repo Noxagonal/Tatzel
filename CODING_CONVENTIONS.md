@@ -129,6 +129,11 @@ pointers must not be retained or reused after their removal scope has ended.
 Mutate a client's logical state on its owning WebSocket event loop. A registry
 mutex protects registry entries; it does not make logical controls thread-safe.
 Do not invoke application callbacks while holding the registry mutex.
+Transfer asynchronous results through PageBuilder::GetDispatcher and Post.
+Resolve same-page ElementHandle references only inside the posted UI callback.
+Capture owned data rather than references to worker-local storage. Dispatcher
+handles retain no page; Accepted submissions can still be cancelled on closure.
+Never invoke callbacks or destroy their captures while holding queue locks.
 
 Expose explicit state-changing methods. A setter updates logical state, then
 notifies the adapter. The adapter updates concrete part state and sends DOM

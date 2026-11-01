@@ -3,6 +3,7 @@
 module;
 
 #include <exception>
+#include <optional>
 #include <source_location>
 #include <string_view>
 
@@ -28,6 +29,7 @@ export struct ErrorContext
 	std::string_view operation; ///< Browser operation or framework lifecycle phase.
 	std::string_view element_id; ///< Logical owner captured before callback removal.
 	std::string_view part_id; ///< Exact browser event source, when available.
+	std::optional<std::source_location> submitted_at; ///< Original dispatch submission site, distinct from the execution stack.
 };
 
 /// @brief Changes the shared Tatzel/Drogon logger's runtime threshold.

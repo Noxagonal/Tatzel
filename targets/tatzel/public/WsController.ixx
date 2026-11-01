@@ -3,6 +3,7 @@
 module;
 
 #include <drogon/WebSocketController.h>
+#include <trantor/net/EventLoop.h>
 #include <json/json.h>
 #include <algorithm>
 #include <exception>
@@ -66,6 +67,8 @@ public:
 	{
 		try
 		{
+			auto connection = FindClientConnection( ws_connection );
+			if( connection ) connection->Close();
 			std::lock_guard lock{ mutex };
 			std::erase_if( connections, [ &ws_connection ]( const auto& connection ) {
 				return connection->ws_connection == ws_connection;
@@ -194,10 +197,49 @@ private:
 	static auto CreateClientConnection( const drogon::WebSocketConnectionPtr& ws_connection )
 		-> std::shared_ptr<tatzel::ClientConnection>
 	{
-		auto connection = std::make_shared<tatzel::ClientConnection>( ws_connection );
+		auto connection = tatzel::ClientConnection::Create( ws_connection );
+		RegisterLoopCleanup();
 		std::lock_guard lock{ mutex };
 		connections.push_back( connection );
 		return connection;
+	}
+
+	/// @brief Registers one registry-cleanup hook per owning event-loop lifetime.
+	/// @pre Called on the connection's event loop before retaining it in the registry.
+	/// @post Loop exit closes and releases its sessions outside the registry mutex.
+	static auto RegisterLoopCleanup() -> void
+	{
+		static thread_local bool registered = false;
+		if( registered ) return;
+		trantor::EventLoop::getEventLoopOfCurrentThread()->runOnQuit( [] {
+			ReleaseLoopConnections();
+			registered = false;
+		} );
+		registered = true;
+	}
+
+	/// @brief Releases this loop's sessions without invoking capture destructors under the registry lock.
+	/// @pre Called on the exiting loop after its dispatcher shutdown gate has closed.
+	/// @post This loop's registry entries and their pending callbacks have been released.
+	static auto ReleaseLoopConnections() noexcept -> void
+	{
+		try
+		{
+			for( ;; )
+			{
+				auto connection = std::shared_ptr<tatzel::ClientConnection>{};
+				{
+					auto lock = std::lock_guard{ mutex };
+					auto found = std::ranges::find_if( connections,
+						[]( const auto& item ) { return item->IsOnCurrentLoop(); } );
+					if( found == connections.end() ) return;
+					connection = std::move( *found );
+					connections.erase( found );
+				}
+				connection->Close();
+			}
+		}
+		catch( ... ) { tatzel::LogException( std::current_exception(), { {}, "session_shutdown" } ); }
 	}
 
 	/// @brief Looks up a session while retaining its lifetime beyond the registry lock.

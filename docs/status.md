@@ -22,6 +22,7 @@ than earlier experiments.
 | Modal | Closed-by-default scoped content, native modal focus handling, Open/Close, and Escape/backdrop/close-button/native-close synchronization. |
 | Element lifecycle | Remove, all/slot-specific ClearChildren, immediate handle invalidation, scoped deferred destruction, expired-builder rejection, and browser dialog/focus cleanup. |
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
+| UI dispatcher | Weak, thread-safe Post handles; move-only callbacks; bounded FIFO queues; fair batch draining; disconnect and event-loop shutdown cancellation; per-callback removal and diagnostic scopes. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
 | DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
 | Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
@@ -48,7 +49,7 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - Applications embedding the library supply their own outer startup catch; the development example demonstrates it.
 - No DOM diff engine or automatic mutation batching.
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
-- No cross-thread logical UI scheduler.
+- Dispatcher callbacks must remain short; background executors, task cancellation, stale-result policies, and asynchronous validation remain application responsibilities.
 - No built-in authentication or authorization layer.
 - No table, chart, or reusable component abstraction.
 - Forms validate synchronously; asynchronous validators, file inputs, and multiple selection are not supported.
