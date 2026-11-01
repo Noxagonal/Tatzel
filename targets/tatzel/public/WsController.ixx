@@ -4,11 +4,11 @@ module;
 
 #include <drogon/WebSocketController.h>
 #include <json/json.h>
-#include <trantor/utils/Logger.h>
 #include <algorithm>
 #include <exception>
 #include <memory>
 #include <mutex>
+#include <source_location>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,6 +26,8 @@ import UI.Element.Interface.Submittable;
 import UI.Element.Interface.Inputable;
 import UI.Element.Interface.Dismissible;
 import UI.Element.Form;
+import UI.Diagnostics;
+import UI.Logging;
 
 /// @brief Routes browser transport messages to the owning client's logical page.
 /// @details Connection registry entries have stable shared ownership. Each logical
@@ -38,26 +40,38 @@ public:
 	/// @param request HTTP upgrade request.
 	/// @param ws_connection Newly opened browser transport.
 	/// @pre Drogon supplies a nonnull connection on its owning event loop.
-	/// @post A session exists and a connected op/data acknowledgement is queued.
+	/// @post A session is acknowledged, or its failure is reported and its transport closed best effort.
 	void handleNewConnection(
 		const drogon::HttpRequestPtr& request,
 		const drogon::WebSocketConnectionPtr& ws_connection
 	) override
 	{
-		CreateClientConnection( ws_connection );
-		ws_connection->send( R"({"op":"connected","data":{"message":"Connected"}})" );
+		try
+		{
+			CreateClientConnection( ws_connection );
+			ws_connection->send( R"({"op":"connected","data":{"message":"Connected"}})" );
+		}
+		catch( ... )
+		{
+			tatzel::LogException( std::current_exception(), { {}, "connection_open" } );
+			CloseTransport( ws_connection );
+		}
 	}
 
 	/// @brief Removes a closed browser session from the registry.
 	/// @param ws_connection Closed transport.
 	/// @pre Drogon has stopped delivering new events for this connection.
-	/// @post The registry no longer owns the session; retained in-flight handles remain valid.
+	/// @post The registry releases the session, or an unexpected cleanup failure is reported.
 	void handleConnectionClosed( const drogon::WebSocketConnectionPtr& ws_connection ) override
 	{
-		std::lock_guard lock{ mutex };
-		std::erase_if( connections, [ &ws_connection ]( const auto& connection ) {
-			return connection->ws_connection == ws_connection;
-		} );
+		try
+		{
+			std::lock_guard lock{ mutex };
+			std::erase_if( connections, [ &ws_connection ]( const auto& connection ) {
+				return connection->ws_connection == ws_connection;
+			} );
+		}
+		catch( ... ) { tatzel::LogException( std::current_exception(), { {}, "connection_close" } ); }
 	}
 
 	/// @brief Validates a browser message and dispatches it to logical page state.
@@ -72,37 +86,51 @@ public:
 		const drogon::WebSocketMessageType& type
 	) override
 	{
-		if( type != drogon::WebSocketMessageType::Text ) return;
-		auto connection = FindClientConnection( ws_connection );
-		if( !connection )
+		auto route = std::string{};
+		auto operation = std::string{};
+		auto part_id = std::string{};
+		auto element_id = std::string{};
+		try
 		{
-			SendError( ws_connection, "session_expired", "Session expired; reload the page" );
-			return;
-		}
-
-		Json::Value json;
-		try { json = tatzel::ParseJson( message ); }
-		catch( const std::exception& )
-		{
-			SendError( ws_connection, "invalid_json", "Message must contain valid JSON" );
-			return;
-		}
-		if( !json.isObject() || !json[ "op" ].isString() || !json[ "data" ].isObject() )
-		{
-			SendError( ws_connection, "invalid_message", "Expected an op string and a data object" );
-			return;
-		}
-
-		try { DispatchMessage( *connection, json ); }
-		catch( const std::exception& error )
-		{
-			LOG_ERROR << "Tatzel page handler failed: " << error.what();
-			SendError( ws_connection, "handler_failed", "Page handler failed" );
+			operation = "receive_message";
+			if( type != drogon::WebSocketMessageType::Text ) return;
+			auto connection = FindClientConnection( ws_connection );
+			if( !connection )
+			{
+				SendError( ws_connection, "session_expired", "Session expired; reload the page" );
+				return;
+			}
+			if( connection->page ) route = connection->page->route_path;
+			operation = "parse_json";
+			Json::Value json;
+			try { json = tatzel::ParseJson( message ); }
+			catch( const tatzel::Exception& )
+			{
+				ReportFailure( ws_connection, std::current_exception(), { route, operation },
+					"invalid_json", "Message must contain valid JSON" );
+				return;
+			}
+			if( !json.isObject() || !json[ "op" ].isString() || !json[ "data" ].isObject() )
+			{
+				SendError( ws_connection, "invalid_message", "Expected an op string and a data object" );
+				return;
+			}
+			operation = json[ "op" ].asString();
+			if( connection->page ) route = connection->page->route_path;
+			else if( json[ "data" ][ "route_path" ].isString() ) route = json[ "data" ][ "route_path" ].asString();
+			if( json[ "data" ][ "part_id" ].isString() )
+			{
+				part_id = json[ "data" ][ "part_id" ].asString();
+				if( auto* owner = connection->element_tree->FindElementByPartID<tatzel::ui::LogicalElement>( part_id ) )
+					element_id = owner->GetID();
+			}
+			auto dispatch = connection->element_tree->root.BeginDispatch();
+			DispatchMessage( *connection, json );
 		}
 		catch( ... )
 		{
-			LOG_ERROR << "Tatzel page handler failed with an unknown exception";
-			SendError( ws_connection, "handler_failed", "Page handler failed" );
+			ReportFailure( ws_connection, std::current_exception(), { route, operation, element_id, part_id },
+				"handler_failed", "Page handler failed" );
 		}
 	}
 
@@ -121,6 +149,43 @@ public:
 	}
 
 private:
+	/// @brief Closes a failed transport without letting a secondary exception escape.
+	/// @param transport Affected browser transport.
+	/// @pre transport is nonnull and used on its owning event loop.
+	/// @post Closure is requested, or its failure is logged with available exception details.
+	static auto CloseTransport( const drogon::WebSocketConnectionPtr& transport ) noexcept -> void
+	{
+		try { transport->forceClose(); }
+		catch( ... ) { tatzel::LogException( std::current_exception(), { {}, "transport_close" } ); }
+	}
+
+	/// @brief Reports a failure and attempts a generic browser response under a second boundary.
+	/// @param transport Affected browser transport.
+	/// @param exception Original retained exception, including standard-library exceptions.
+	/// @param context Event metadata captured before the failure.
+	/// @param code Browser-visible error code.
+	/// @param message Generic browser-visible description.
+	/// @param location Report site, distinct from the original throw location.
+	/// @pre transport is nonnull; context views remain valid during this call.
+	/// @post The failure is logged; response failures are also logged and request transport closure.
+	static auto ReportFailure(
+		const drogon::WebSocketConnectionPtr& transport,
+		std::exception_ptr exception,
+		const tatzel::ErrorContext& context,
+		std::string_view code,
+		std::string_view message,
+		std::source_location location = std::source_location::current()
+	) noexcept -> void
+	{
+		tatzel::LogException( exception, context, location );
+		try { SendError( transport, code, message ); }
+		catch( ... )
+		{
+			tatzel::LogException( std::current_exception(), { context.route, "error_response", context.element_id, context.part_id } );
+			CloseTransport( transport );
+		}
+	}
+
 	/// @brief Retains newly created services in the session registry.
 	/// @param ws_connection Browser transport to own.
 	/// @return Retained stable session handle.
@@ -237,6 +302,7 @@ private:
 			}
 			connection.page = page;
 			auto builder = tatzel::PageBuilder{ *connection.page_builder_core, connection.element_tree->root };
+			auto scope = tatzel::CallbackScope{ "Page builder" };
 			page->page_builder_fn( builder );
 			return;
 		}

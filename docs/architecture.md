@@ -71,8 +71,9 @@ context. Registry lookups return shared session handles so adding or removing
 another connection cannot invalidate an in-flight lookup.
 
 The logical root owns its logical children with unique_ptr. Controls remain at
-stable addresses. PageBuilder is a borrowed scope; copying it preserves the
-logical parent but does not retain the client page.
+stable addresses until removal or page destruction. PageBuilder is a borrowed
+scope with a checked parent; copying it preserves the logical parent and
+semantic child slot but does not retain the client page.
 
 DOM parts are assigned once and contain owned strings. Borrowed views into a
 control or part expire when that object is destroyed, and can be invalidated by
@@ -87,7 +88,23 @@ mutex only protects registry access.
 Page callbacks should capture per-client state by ownership when necessary.
 Shared application state needs its own synchronization across connections.
 
-Closing a WebSocket removes its registry entry and releases the page services
+Logical removal detaches ownership and invalidates the subtree's weak handle
+tokens immediately. ClientElementTree owns a short retired-object queue. Nested
+ElementDispatchScope guards hold that queue until the outermost page dispatch,
+child-builder callback, application callback, or synchronization operation ends.
+The queue then drains synchronously, including on exceptions and removals caused
+by captured-resource destruction. Outside a surrounding scope, Remove finishes
+destruction before returning. Weak handles retain no control or page ownership.
+
+The tree computes rendered removal roots from the selected forest's stored
+part and parent IDs. A DOM part is a removal root when its parent lies outside
+that forest. This covers compound and separately rendered parts without parsing
+ID strings or requiring every control to have exactly one rendered root.
+Adapters must keep unrelated logical subtrees out of a control's rendered roots;
+separately rendered parts may live under a logical ancestor's DOM parts.
+
+Closing a WebSocket invalidates all active handles before releasing controls.
+It removes its registry entry and releases the page services
 when retained handlers finish. Reconnect, state restoration, cross-thread UI
 scheduling, and rollback after a failing page factory are not implemented.
 Reload the browser to create a fresh page.

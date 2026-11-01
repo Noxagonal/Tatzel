@@ -4,13 +4,14 @@ module;
 
 #include <cstddef>
 #include <functional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <variant>
 
 export module UI.Element.Checkbox;
+
+import UI.Diagnostics;
 
 export import UI.Element.FormField;
 
@@ -84,20 +85,28 @@ public:
 	/// @param value Exactly true or false, normalized by transport routing.
 	/// @pre Called on the owning event loop for this checkbox's editor part.
 	/// @post An enabled checkbox stores the accepted value before its callback runs.
-	/// @throws std::invalid_argument If value is not a normalized boolean string.
+	/// @throws tatzel::Exception If value is not a normalized boolean string.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() ) return;
+
 		if( value != "true" && value != "false" )
 		{
-			throw std::invalid_argument{ "Checkbox changes require a boolean" };
+			throw tatzel::Exception{ "Checkbox changes require a boolean" };
 		}
 		if( IsDisabled() ) return;
 
 		checked = value == "true";
 		NotifyValueChanged();
+		if( IsRemoved() ) return;
 
 		auto callback = on_change;
-		if( callback ) callback( checked );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Checkbox change" };
+			callback( checked );
+		}
 	}
 
 	/// @brief Installs custom validation for this field's current value.

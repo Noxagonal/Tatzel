@@ -9,6 +9,8 @@ module;
 
 export module UI.Element.Button;
 
+import UI.Diagnostics;
+
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Clickable;
 
@@ -71,8 +73,19 @@ public:
 
 	/// @brief Dispatches a browser click to application code.
 	/// @pre Called on the owning event loop after the part ID resolves to this button.
-	/// @post An action-role button invokes its installed callback; submit-role buttons ignore direct clicks here.
-	auto InvokeOnClick() -> void override { if( role == ButtonRole::Action && on_click ) { auto callback = on_click; callback(); } }
+	/// @post An active action-role button invokes its installed callback; removed and submit-role buttons ignore this dispatch.
+	auto InvokeOnClick() -> void override
+	{
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() || role != ButtonRole::Action ) return;
+
+		auto callback = on_click;
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Button click" };
+			callback();
+		}
+	}
 
 	/// @brief Reads the immutable activation role.
 	/// @return Action or form submission behavior.

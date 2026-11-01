@@ -9,6 +9,8 @@ module;
 
 export module UI.Element.Modal;
 
+import UI.Diagnostics;
+
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Dismissible;
 
@@ -61,10 +63,10 @@ public:
 
 	/// @brief Opens the logical modal and queues its browser presentation.
 	/// @pre Called on the owning event loop after the modal's content is built.
-	/// @post The modal is logically open; a bound adapter queues a modal-open update.
+	/// @post An active modal is logically open and queues its presentation; removed modals are unchanged.
 	auto Open() -> void
 	{
-		if( open ) return;
+		if( IsRemoved() || open ) return;
 
 		open = true;
 		NotifyChanged();
@@ -72,16 +74,22 @@ public:
 
 	/// @brief Closes the modal and invokes its close callback once per transition.
 	/// @pre Called on the owning event loop.
-	/// @post Closed state and browser update precede the callback; callback effects may reopen it.
+	/// @post An active open modal queues closed state before its callback; removed/closed modals are unchanged.
 	auto Close() -> void
 	{
-		if( !open ) return;
+		auto dispatch = BeginDispatch();
+		if( IsRemoved() || !open ) return;
 
 		open = false;
 		NotifyChanged();
+		if( IsRemoved() ) return;
 
 		auto callback = on_close;
-		if( callback ) callback();
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Modal close" };
+			callback();
+		}
 	}
 
 	/// @brief Replaces the close-transition callback.

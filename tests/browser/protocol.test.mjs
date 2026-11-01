@@ -44,12 +44,39 @@ class TestElement {
 	}
 	/** @brief Checks stored attribute presence. @param name Attribute name. @returns Whether the attribute exists. @pre None. @post State is unchanged. */
 	hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
+	/** @brief Reads an attribute. @param name Attribute name. @returns Value or null. @pre None. @post State is unchanged. */
+	getAttribute(name) { return this.attributes[name] ?? null; }
 	/** @brief Removes a stored attribute. @param name Attribute name. @pre None. @post The attribute is absent. */
 	removeAttribute(name) { delete this.attributes[name]; }
 	/** @brief Checks native disabled state, including a disabled ancestor fieldset. @param selector Supported pseudo-class. @returns Whether disabled. @pre None. @post State is unchanged. */
 	matches(selector) { return selector === ":disabled" && (Boolean(this.disabled) || Boolean(this.parentElement?.matches(selector))); }
 	/** @brief Replaces native option nodes. @param children Replacement nodes. @pre None. @post Children are replaced. */
 	replaceChildren(...children) { this.children = children; }
+	/** @brief Checks DOM ancestry. @param element Candidate descendant. @returns Whether this node contains it. @pre None. @post State is unchanged. */
+	contains(element) {
+		for (let node = element; node; node = node.parentElement) if (node === this) return true;
+		return false;
+	}
+	/** @brief Finds open dialog descendants. @param selector Dialog selector. @returns Matching descendant nodes. @pre None. @post State is unchanged. */
+	querySelectorAll(selector) {
+		return this.children.flatMap(child => [
+			...(child instanceof TestDialog && child.open ? [child] : []), ...child.querySelectorAll(selector)
+		]);
+	}
+	/** @brief Reports connection to the test document. @returns Whether registered. @pre None. @post State is unchanged. */
+	get isConnected() { return nodes.get(this.id) === this; }
+	/** @brief Focuses this surviving node. @pre The node is registered. @post It is the document's active element. */
+	focus() { document.activeElement?.onBlur?.(); document.activeElement = this; }
+	/** @brief Records a one-shot blur handler. @param type Event type. @param callback Handler. @pre Only blur is supported. @post The handler runs when focus leaves. */
+	addEventListener(type, callback) { if (type === "blur") this.onBlur = () => { delete this.onBlur; callback(); }; }
+	/** @brief Removes this subtree. @pre None. @post Descendants are disconnected and lost focus returns to body. */
+	remove() {
+		if (this.contains(document.activeElement)) document.activeElement = document.body;
+		for (const child of [...this.children]) child.remove();
+		nodes.delete(this.id);
+		if (this.parentElement) this.parentElement.children = this.parentElement.children.filter(child => child !== this);
+		this.parentElement = null;
+	}
 	/** @brief Finds this marked event source. @param selector Data-attribute selector. @returns This node if marked, otherwise null. @pre None. @post State is unchanged. */
 	closest(selector) {
 		const name = selector.slice(1, -1);
@@ -74,7 +101,7 @@ class TestDialog extends TestElement {
 	/** @brief Opens the dialog. @pre The dialog is closed. @post Its open flag is set. */
 	showModal() { this.open = true; this.opens = (this.opens ?? 0) + 1; }
 	/** @brief Closes the dialog. @pre The dialog is open. @post Its open flag is cleared. */
-	close() { this.open = false; this.closes = (this.closes ?? 0) + 1; }
+	close() { this.open = false; this.closes = (this.closes ?? 0) + 1; if (this.opener) document.activeElement = this.opener; }
 }
 
 /** @brief Input-event double providing the browser composition flag. */
@@ -98,6 +125,7 @@ class TestSocket extends EventTarget {
 }
 
 globalThis.Element = TestElement;
+globalThis.HTMLElement = TestElement;
 globalThis.HTMLInputElement = TestInput;
 globalThis.HTMLTextAreaElement = class extends TestElement {};
 globalThis.HTMLSelectElement = class extends TestElement {};
@@ -108,10 +136,13 @@ globalThis.InputEvent = TestInputEvent;
 globalThis.WebSocket = TestSocket;
 globalThis.window = { location: { protocol: "https:", host: "example.test" } };
 globalThis.document = {
+	body: new TestElement("body"),
 	getElementById: id => nodes.get(id) ?? null,
 	createElement: () => new TestElement(),
 	addEventListener: (event, callback) => handlers.set(event, callback)
 };
+nodes.set(document.body.id, document.body);
+document.activeElement = document.body;
 
 const runtime = await import(pathToFileURL(join(generated, "websocket.mjs")));
 const dom = await import(pathToFileURL(join(generated, "dom-ops.mjs")));
@@ -318,4 +349,44 @@ test("form submission snapshots include latest values and omit disabled controls
 	handlers.get("keydown")({ target: notes, key: "Enter", ctrlKey: true, preventDefault() {} });
 	assert.equal(runtime.socket.messages.length, before + 1);
 	assert.equal(runtime.socket.messages.at(-1).data.part_id, form.id);
+});
+
+test("removing a subtree closes open dialogs silently and keeps the surviving opener focused", () => {
+	const opener = new HTMLButtonElement("opener");
+	const group = new TestElement("removable-group");
+	const dialog = new TestDialog("removable-modal");
+	const input = new TestInput("focused-editor");
+	document.body.appendChild(opener);
+	document.body.appendChild(group);
+	group.appendChild(dialog);
+	dialog.appendChild(input);
+	dialog.setAttribute("data-ui-modal", "true");
+	dialog.dataset.uiModalOpen = "true";
+	dialog.opener = opener;
+	dialog.showModal();
+	document.activeElement = input;
+	const before = runtime.socket.messages.length;
+	dom.removeElementPart([{ part_id: group.id }]);
+	assert.equal(dialog.open, false);
+	assert.equal(dialog.closes, 1);
+	assert.equal(nodes.has(group.id), false);
+	assert.equal(nodes.has(input.id), false);
+	assert.equal(document.activeElement, opener);
+	handlers.get("close")({ target: dialog });
+	assert.equal(runtime.socket.messages.length, before);
+});
+
+test("removing the focused control preserves its parent and chooses surviving focus", () => {
+	const parent = new TestElement("surviving-parent");
+	const button = new HTMLButtonElement("removed-button");
+	document.body.appendChild(parent);
+	parent.appendChild(button);
+	document.activeElement = button;
+	dom.removeElementPart([{ part_id: button.id }, { part_id: "already-missing" }]);
+	assert.equal(nodes.has(parent.id), true);
+	assert.equal(parent.children.length, 0);
+	assert.equal(document.activeElement, parent);
+	assert.equal(parent.getAttribute("tabindex"), "-1");
+	document.body.focus();
+	assert.equal(parent.hasAttribute("tabindex"), false);
 });

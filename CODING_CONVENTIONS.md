@@ -104,16 +104,27 @@ multiple lines.
 ## Ownership and mutation
 
 Use unique_ptr for owned logical children and borrowed pointers or references
-for scoped access. Use shared_ptr only when lifetime must be retained across a
-boundary, such as a registry lookup or per-page state captured by callbacks.
+for scoped access. Borrowed pointers expire when a control is removed or its
+page is destroyed. Use ElementHandle<T> for callback references to controls that
+may be removed. Get() resolves only on the owning event loop and does not create
+a lifetime lease. Handles never keep controls or pages alive.
+Use shared_ptr only when lifetime must be retained across a boundary, such as a registry lookup or per-page state captured by callbacks.
 
 Logical controls have stable addresses. Do not copy or move controls after
 construction. Builder handles borrow their client page; capturing a builder or
-control pointer does not extend that page's lifetime.
+control pointer does not extend that page's lifetime. Builders retain a checked
+parent reference and reject use after parent removal or page destruction.
 
 Own stored strings. Accept string_view for transient input, then copy it into
 persistent state. A returned string_view or span is borrowed; document which
 mutations invalidate it.
+
+Remove and ClearChildren detach owned subtrees and invalidate handles
+immediately. Framework execution scopes defer destruction only until the
+outermost synchronous dispatch or callback finishes, including exception
+unwinding. Removal outside an enclosing scope destroys objects before returning.
+Disposal does not invoke application click/change/submit/close callbacks. Raw
+pointers must not be retained or reused after their removal scope has ended.
 
 Mutate a client's logical state on its owning WebSocket event loop. A registry
 mutex protects registry entries; it does not make logical controls thread-safe.
@@ -177,6 +188,18 @@ Do not claim guarantees the implementation does not provide.
 Validate browser messages before accessing their fields. Use the documented
 op/data envelope for success and error messages. Keep application exceptions
 inside a transport boundary and report useful diagnostics on the server.
+Use Log and LogException to share the existing Drogon logging backend. Construct
+tatzel::Exception at a throw expression when an original source location and
+stacktrace are needed. All explicit exceptions raised by Tatzel C++ code use
+tatzel::Exception, including argument validation, lifecycle guards, and utility
+failures. Standard-library and third-party exceptions retain their original
+types; report their available type and message at framework entry boundaries.
+An application catch that handles a failure locally calls LogException when it
+should also appear in server diagnostics. Capture event identity before invoking callbacks that
+may remove their own controls. Keep catch/report locations distinct from throw
+locations; ordinary exceptions do not carry an original stacktrace. Framework
+invocations of application code establish a CallbackScope so diagnostic output
+can stop at that boundary. See [diagnostics](docs/diagnostics.md).
 
 Test behavior at boundaries: logical-to-DOM mapping, event ownership, string
 lifetimes, and protocol payloads. Avoid tests that only restate an implementation.

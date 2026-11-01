@@ -16,7 +16,7 @@ namespace tatzel {
 /// @return Complete template bytes.
 /// @pre path identifies a nonempty readable regular file.
 /// @post The file is closed and its contents are owned by the caller.
-/// @throws std::runtime_error If the file cannot be read completely.
+/// @throws tatzel::Exception If the file cannot be read completely.
 export auto GetTemplateDocument( const std::filesystem::path& path ) -> std::string;
 
 /// @brief Parses a complete JSON document.
@@ -24,7 +24,7 @@ export auto GetTemplateDocument( const std::filesystem::path& path ) -> std::str
 /// @return Parsed JSON value.
 /// @pre text is a JSON document.
 /// @post The result owns its JSON values; input text is unchanged.
-/// @throws std::runtime_error If parsing fails.
+/// @throws tatzel::Exception If parsing fails.
 export auto ParseJson( std::string_view text ) -> Json::Value;
 
 /// @brief Serializes JSON as compact text.

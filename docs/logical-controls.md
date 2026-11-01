@@ -15,8 +15,10 @@ API usage.
 ## Control lifetime
 
 Builder methods return borrowed pointers to logical controls. The client page
-owns the objects, so callbacks on the same page may capture these pointers.
-Do not retain or invoke them after that page is destroyed.
+owns the objects. Pointers remain borrowed and expire when the control is
+removed or the page is destroyed. For references that survive dynamic changes,
+capture GetHandle() instead; resolve the checked handle at the point of use.
+Do not retain a resolved raw pointer across later callbacks.
 
 The example creates its counter inside the page factory and captures shared
 ownership in the button callback. Each connected client gets its own count.
@@ -46,6 +48,9 @@ ui.Container( [](
 
 A copied scoped builder keeps the same logical parent. It can be captured for
 later use by that page's callbacks, but it does not extend the page lifetime.
+Builders throw tatzel::Exception before using removed parents or expired page services.
+A compound builder returns nullptr if its child callback removes the new control;
+Card skips its actions builder if its content callback already removed the card.
 
 ## Events
 
@@ -219,6 +224,66 @@ borrowed descendants for framework integration, and HasErrors reports current
 enabled-field errors without running validators. Validation exceptions still
 reach the transport's handler_failed boundary. Async validation, file uploads,
 and multi-select fields are outside this initial form API.
+
+## Safe removal and checked handles
+
+Remove detaches a control and its entire logical subtree. It returns true when
+an owned active subtree is removed, and false for the permanent page root,
+unowned controls, or a repeated removal while the retired object is still alive.
+ClearChildren removes all direct child subtrees and returns their count while
+preserving the parent control, its own parts, state, and callbacks. Card can use
+ClearChildren(ChildSlot::Content) or ClearChildren(ChildSlot::Actions) to select
+an area. ClearChildren with no matching children is a no-op. The root may clear
+its children even though it cannot remove itself.
+
+```cpp
+auto title = ui.Text( "Ready" )->GetHandle();
+ui.Button( "Update if present", [ title ] {
+	if( auto* text = title.Get() )
+	{
+		text->SetText( "Updated" );
+	}
+} );
+```
+
+GetHandle preserves the control's concrete static type, including const
+qualification. Handles are copyable and non-owning; Get returns nullptr after
+removal or page teardown, including when the C++ object is still retired in the
+current execution scope. An expired handle cannot refer to a new object that
+later reuses the same address or ID. Weak-token bookkeeping may remain until
+the last handle is released; control objects and their owned resources do not.
+Resolution is confined to the owning event loop and provides no cross-thread
+lifetime guarantee.
+
+Removal first detaches logical ownership, so identity lookup and Form::GetFields
+immediately stop seeing the subtree. Individual late browser events are ignored.
+A stale form snapshot containing a removed field is rejected as invalid_message;
+a fresh native form snapshot omits removed controls automatically.
+
+The framework protects page factories, child builders, adapter synchronization,
+and built-in application callbacks with nested execution scopes. Removed C++
+objects remain owned only until the outermost scope ends, including exception
+unwinding. There is no timer or browser acknowledgement. Programmatic callback
+invocation uses the same protection. Without an enclosing execution scope, a
+successful Remove destroys the object before returning, so the old pointer must
+not be dereferenced afterward. Directly calling a removed object's callback
+interface during its remaining scope is a no-op. Retired setters do not emit DOM
+updates. Arbitrary application lambdas capturing raw pointers are not repaired
+by the framework; use checked handles for references to removable controls.
+
+Rendered roots are derived from stored DOM parent relationships across all
+selected parts, including multiple roots or parts rendered outside a main node.
+Removing a root covers native descendants such as Select options. Browser
+cleanup silently closes removed dialogs and preserves a surviving opener's
+focus. When ordinary focused content disappears, focus moves to a surviving
+ancestor. A temporary tabindex stays until that ancestor blurs, then is removed.
+Disposal does not invoke Modal's close callback; call Close explicitly when a
+close transition is wanted before removal.
+
+The /lifecycle example demonstrates dynamic rows, repeated add/clear, selective
+card clearing, expired builders, removed required fields, open-modal disposal,
+and removal followed by an application exception. Logical removal is not rolled
+back if the transport sender fails after detachment; lifetime cleanup still runs.
 
 ## Modal dialogs
 

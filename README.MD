@@ -11,7 +11,10 @@ and a lightweight browser runtime displays them and returns input events.
 The current prototype supports headings, buttons, nested containers, plain text
 and paragraphs, cards with action areas, row/column layouts, text inputs and
 areas, selectors, checkboxes, validated forms, and modal dialogs. Explicit setters and browser events synchronize per-client logical
-state. Production lifecycle features remain unfinished.
+state. Logical removal, child clearing, and checked references support dynamic
+interfaces. Production connection lifecycle features remain unfinished.
+The shared logger reports service lifecycle messages and application exceptions;
+[traced exceptions](docs/diagnostics.md) retain stacks bounded at callback invocations.
 
 Start with the [documentation](docs/index.md), the
 [build and run guide](docs/building.md), and the
