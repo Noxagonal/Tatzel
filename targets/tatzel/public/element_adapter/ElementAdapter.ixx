@@ -22,6 +22,11 @@ export import UI.Element.Column;
 export import UI.Element.Select;
 export import UI.Element.TextArea;
 export import UI.Element.Form;
+export import UI.Element.NumberInput;
+export import UI.Element.RadioGroup;
+export import UI.Element.Link;
+export import UI.Element.Image;
+
 
 namespace tatzel {
 
@@ -117,6 +122,30 @@ public:
 	/// @pre The parent and insertion slot are mapped; no parts have been assigned.
 	/// @post The control owns its DOM representation and is bound to the adapter.
 	virtual auto CreatePartsFor( ui::Form& element ) const -> void = 0;
+
+	/// @brief Maps a logical NumberInput and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::NumberInput& element ) const -> void = 0;
+
+	/// @brief Maps a logical RadioGroup and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::RadioGroup& element ) const -> void = 0;
+
+	/// @brief Maps a logical Link and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Link& element ) const -> void = 0;
+
+	/// @brief Maps a logical Image and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	virtual auto CreatePartsFor( ui::Image& element ) const -> void = 0;
 
 	/// @brief Queues control-specific initialization after browser parts are created.
 	/// @param element Newly mapped logical control.

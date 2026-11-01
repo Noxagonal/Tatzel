@@ -54,9 +54,14 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 			${_LOGICAL_MODULES}
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ClientElementTree.ixx"
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Diagnostics.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ResourceURL.ixx"
 	)
 	target_link_libraries(TatzelRemovalSanitizerTests PRIVATE TatzelStacktrace)
 	target_compile_options(TatzelRemovalSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
 	target_link_options(TatzelRemovalSanitizerTests PRIVATE -fsanitize=address,undefined)
 	add_test(NAME TatzelRemovalSanitizerTests COMMAND TatzelRemovalSanitizerTests)
 endif()
+
+add_executable(TatzelElementTests Elements.cpp)
+target_link_libraries(TatzelElementTests PRIVATE Tatzel)
+add_test(NAME TatzelElementTests COMMAND TatzelElementTests)

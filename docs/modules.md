@@ -9,9 +9,10 @@
 | UI.Element.* | targets/tatzel/public/element | Application-facing logical control types. |
 | UI.Element.ElementHandle, UI.Element.ElementLifecycle | targets/tatzel/public/element | Checked references and synchronous execution guards. |
 | UI.Element.Interface.* | targets/tatzel/public/element/interface | Logical event interfaces. |
-| UI.DOM.ElementPart, UI.DOM.SelectOption | targets/tatzel/public/dom | Concrete browser parts and native-select payloads. |
+| UI.DOM.ElementPart, UI.DOM.SelectOption | targets/tatzel/public/dom | Concrete browser parts and single-choice payloads. |
 | UI.ElementAdapter.* | targets/tatzel/public/element_adapter | Mapping and synchronization between the two models. |
 | UI.ClientElementTree | targets/tatzel/public | Logical ownership and logical/part identity lookup. |
+| UI.ResourceURL | targets/tatzel/public | Shared scheme checks for logical links and images. |
 | UI.ClientUpdater | targets/tatzel/public | Serialization of concrete DOM operations. |
 | UI.ClientConnection, UI.WSController | targets/tatzel/public | Session ownership and transport routing. |
 | Browser TypeScript | targets/typescript_build/src | Live DOM operations, event delegation, and message validation. |

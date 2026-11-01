@@ -79,5 +79,6 @@ jobs:
         run: |
           timeout 30s node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
+          timeout 30s node tests/browser/elements-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment

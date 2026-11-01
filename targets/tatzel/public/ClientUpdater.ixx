@@ -120,6 +120,18 @@ public:
 		std::string_view value
 	) -> void;
 
+	/// @brief Queues native radio choices and selected state atomically.
+	/// @param part_id Registered radio-group editor part ID.
+	/// @param options Choices copied during serialization.
+	/// @param value Enabled selected ID, or empty for no selection.
+	/// @pre The group and its options container have been created.
+	/// @post One set_radio_options operation is queued.
+	auto SetRadioOptions(
+		std::string_view part_id,
+		std::span<const dom::SelectOption> options,
+		std::string_view value
+	) -> void;
+
 private:
 	/// @brief Serializes and queues a JSON message on the bound transport.
 	/// @param json Complete op/data message.

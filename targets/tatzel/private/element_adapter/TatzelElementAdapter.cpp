@@ -1,6 +1,7 @@
 module;
 
 #include <string_view>
+#include <format>
 #include <utility>
 #include <vector>
 #include <optional>
@@ -162,6 +163,8 @@ auto SyncFieldState(
 	SyncText( error, field.GetError(), updater );
 	SyncAttribute( editor, "disabled", BooleanAttribute( field.IsDisabled() ), updater );
 	SyncAttribute( editor, "required", BooleanAttribute( field.IsRequired() ), updater );
+	if( dynamic_cast<tatzel::ui::RadioGroup*>( &field ) )
+		SyncAttribute( editor, "aria-required", field.IsRequired() ? "true" : "false", updater );
 	SyncAttribute( editor, "aria-invalid", field.GetError().empty()
 		? std::nullopt : std::optional<std::string_view>{ "true" }, updater );
 	SyncAttribute( error, "hidden", BooleanAttribute( field.GetError().empty() ), updater );
@@ -178,6 +181,7 @@ auto MapTextEditor(
 ) -> void
 {
 	auto* area = dynamic_cast<tatzel::ui::TextArea*>( &element );
+	auto* number = dynamic_cast<tatzel::ui::NumberInput*>( &element );
 	auto base_id = tatzel::ElementAdapter::MakePartID( element, "base" );
 	auto editor_id = tatzel::ElementAdapter::MakePartID( element, "editor" );
 	auto parts = std::vector<tatzel::dom::ElementPart>{
@@ -196,8 +200,14 @@ auto MapTextEditor(
 	}
 	else
 	{
-		editor.AddAttribute( "type", "text" );
-		editor.AddAttribute( "value", element.GetValue() );
+		editor.AddAttribute( "type", number ? "number" : "text" );
+		if( !number ) editor.AddAttribute( "value", element.GetValue() );
+		else
+		{
+			if( number->GetMinimum() ) editor.AddAttribute( "min", std::format( "{}", *number->GetMinimum() ) );
+			if( number->GetMaximum() ) editor.AddAttribute( "max", std::format( "{}", *number->GetMaximum() ) );
+			editor.AddAttribute( "step", number->GetStep() ? std::format( "{}", *number->GetStep() ) : "any" );
+		}
 	}
 	editor.AddAttribute( "placeholder", element.GetPlaceholder() );
 	editor.AddAttribute( "data-ui-on-input", "true" );
@@ -205,7 +215,7 @@ auto MapTextEditor(
 	if( element.IsReadOnly() ) editor.AddAttribute( "readonly", "" );
 	element.SetParts( std::move( parts ), 0, 0 );
 
-	element.SetChangeHandler( [ &element, &updater, area, revision = element.GetValueRevision() ]() mutable {
+	element.SetChangeHandler( [ &element, &updater, area, number, revision = element.GetValueRevision() ]() mutable {
 		SyncFieldState( element, updater );
 		auto& editor = *element.FindPart( "editor" );
 		SyncAttribute( editor, "placeholder", element.GetPlaceholder(), updater );
@@ -215,7 +225,15 @@ auto MapTextEditor(
 			SyncAttribute( editor, "rows", std::to_string( area->GetRows() ), updater );
 			editor.SetTextContent( element.GetValue() );
 		}
-		else editor.AddAttribute( "value", element.GetValue() );
+		else if( !number ) editor.AddAttribute( "value", element.GetValue() );
+		if( number )
+		{
+			const auto minimum = number->GetMinimum() ? std::format( "{}", *number->GetMinimum() ) : std::string{};
+			const auto maximum = number->GetMaximum() ? std::format( "{}", *number->GetMaximum() ) : std::string{};
+			SyncAttribute( editor, "min", number->GetMinimum() ? std::optional<std::string_view>{ minimum } : std::nullopt, updater );
+			SyncAttribute( editor, "max", number->GetMaximum() ? std::optional<std::string_view>{ maximum } : std::nullopt, updater );
+			SyncAttribute( editor, "step", number->GetStep() ? std::format( "{}", *number->GetStep() ) : "any", updater );
+		}
 
 		if( revision != element.GetValueRevision() )
 		{
@@ -265,19 +283,21 @@ auto MapLayout(
 	} );
 }
 
-/// @brief Queues a native selector's complete choices and selected state.
-/// @param select Logical selector with mapped editor parts.
+/// @brief Queues a native single-choice field's options and selected state.
+/// @param select Logical selector or radio group with mapped editor parts.
 /// @param updater Sender for the same page.
 /// @pre Editor DOM creation has been queued.
 /// @post Native choices and current selection are queued as one operation.
-auto SendSelectOptions(
+auto SendChoiceOptions(
 	tatzel::ui::Select& select,
 	tatzel::ClientUpdater& updater
 ) -> void
 {
 	auto options = std::vector<tatzel::dom::SelectOption>{};
 	for( const auto& option : select.GetOptions() ) options.push_back( { option.id, option.label, option.disabled } );
-	updater.SetSelectOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetPlaceholder(), select.GetValue() );
+	if( dynamic_cast<tatzel::ui::RadioGroup*>( &select ) )
+		updater.SetRadioOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetValue() );
+	else updater.SetSelectOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetPlaceholder(), select.GetValue() );
 }
 
 /// @brief Converts a logical heading level at the DOM adapter boundary.
@@ -480,7 +500,7 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 		{
 			options_revision = element.GetOptionsRevision();
 			value_revision = element.GetValueRevision();
-			SendSelectOptions( element, *client_updater );
+			SendChoiceOptions( element, *client_updater );
 		}
 		else if( value_revision != element.GetValueRevision() )
 		{
@@ -492,7 +512,9 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 
 auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& element ) const -> void
 {
-	if( auto* select = dynamic_cast<ui::Select*>( &element ) ) SendSelectOptions( *select, *client_updater );
+	if( auto* select = dynamic_cast<ui::Select*>( &element ) ) SendChoiceOptions( *select, *client_updater );
+	if( auto* number = dynamic_cast<ui::NumberInput*>( &element ) )
+		client_updater->SetValue( number->FindPart( "editor" )->GetPartID(), number->GetTextValue() );
 }
 
 auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Form& element ) const -> void
@@ -512,5 +534,96 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Form& element ) const -> 
 		SyncAttribute( element.GetBasePart(), "aria-label", element.GetLabel().empty()
 			? std::nullopt : std::optional<std::string_view>{ element.GetLabel() }, *client_updater );
 		SyncAttribute( *element.FindPart( "content" ), "disabled", BooleanAttribute( element.IsDisabled() ), *client_updater );
+	} );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::RadioGroup& element ) const -> void
+{
+	auto base_id = MakePartID( element, "base" );
+	auto editor_id = MakePartID( element, "editor" );
+	auto parts = std::vector<dom::ElementPart>{
+		{ base_id, ParentPartFor( element ).GetPartID(), "div" },
+		{ editor_id, base_id, "fieldset" },
+		{ MakePartID( element, "label" ), editor_id, "legend" },
+		{ MakePartID( element, "options" ), editor_id, "div" },
+		{ MakePartID( element, "error" ), base_id, "small" }
+	};
+	InitializeFieldState( element, parts[ 2 ], parts[ 1 ], parts[ 4 ] );
+	parts[ 1 ].AddAttribute( "data-ui-radio-group", "true" );
+	parts[ 1 ].AddAttribute( "role", "radiogroup" );
+	parts[ 1 ].AddAttribute( "aria-required", element.IsRequired() ? "true" : "false" );
+	parts[ 1 ].AddAttribute( "aria-labelledby", parts[ 2 ].GetPartID() );
+	parts[ 1 ].AddAttribute( "tabindex", "-1" );
+	parts[ 3 ].AddAttribute( "data-ui-radio-options", "true" );
+
+	element.SetParts( std::move( parts ), 0, 0 );
+
+	element.SetChangeHandler( [ this, &element, value_revision = element.GetValueRevision(),
+		options_revision = element.GetOptionsRevision() ]() mutable {
+		SyncFieldState( element, *client_updater );
+		if( options_revision != element.GetOptionsRevision() )
+		{
+			options_revision = element.GetOptionsRevision();
+			value_revision = element.GetValueRevision();
+			SendChoiceOptions( element, *client_updater );
+		}
+		else if( value_revision != element.GetValueRevision() )
+		{
+			value_revision = element.GetValueRevision();
+			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue() );
+		}
+	} );
+}
+
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::NumberInput& element ) const -> void
+{
+	MapTextEditor( element, *client_updater );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Link& element ) const -> void
+{
+	auto parts = std::vector<dom::ElementPart>{
+		{ MakePartID( element, "base" ), ParentPartFor( element ).GetPartID(), "a" }
+	};
+	parts[ 0 ].SetTextContent( element.GetText() );
+	parts[ 0 ].AddAttribute( "href", element.GetURL() );
+	if( element.GetTarget() == ui::LinkTarget::NewTab )
+	{
+		parts[ 0 ].AddAttribute( "target", "_blank" );
+		parts[ 0 ].AddAttribute( "rel", "noopener noreferrer" );
+	}
+	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		auto& part = element.GetBasePart();
+		SyncText( part, element.GetText(), *client_updater );
+		SyncAttribute( part, "href", element.GetURL(), *client_updater );
+		const auto new_tab = element.GetTarget() == ui::LinkTarget::NewTab;
+		SyncAttribute( part, "target", new_tab ? std::optional<std::string_view>{ "_blank" } : std::nullopt, *client_updater );
+		SyncAttribute( part, "rel", new_tab ? std::optional<std::string_view>{ "noopener noreferrer" } : std::nullopt, *client_updater );
+	} );
+}
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Image& element ) const -> void
+{
+	auto parts = std::vector<dom::ElementPart>{
+		{ MakePartID( element, "base" ), ParentPartFor( element ).GetPartID(), "img" }
+	};
+	auto& part = parts[ 0 ];
+	if( !element.GetSource().empty() ) part.AddAttribute( "src", element.GetSource() );
+	part.AddAttribute( "alt", element.GetAlternativeText() );
+	part.AddAttribute( "loading", element.IsLazyLoading() ? "lazy" : "eager" );
+	if( element.GetWidth() ) part.AddAttribute( "width", std::to_string( *element.GetWidth() ) );
+	if( element.GetHeight() ) part.AddAttribute( "height", std::to_string( *element.GetHeight() ) );
+	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		auto& part = element.GetBasePart();
+		SyncAttribute( part, "src", element.GetSource().empty() ? std::nullopt : std::optional<std::string_view>{ element.GetSource() }, *client_updater );
+		SyncAttribute( part, "alt", element.GetAlternativeText(), *client_updater );
+		SyncAttribute( part, "loading", element.IsLazyLoading() ? "lazy" : "eager", *client_updater );
+		const auto width = element.GetWidth() ? std::to_string( *element.GetWidth() ) : std::string{};
+		const auto height = element.GetHeight() ? std::to_string( *element.GetHeight() ) : std::string{};
+		SyncAttribute( part, "width", element.GetWidth() ? std::optional<std::string_view>{ width } : std::nullopt, *client_updater );
+		SyncAttribute( part, "height", element.GetHeight() ? std::optional<std::string_view>{ height } : std::nullopt, *client_updater );
 	} );
 }

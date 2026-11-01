@@ -130,6 +130,7 @@ globalThis.HTMLInputElement = TestInput;
 globalThis.HTMLTextAreaElement = class extends TestElement {};
 globalThis.HTMLSelectElement = class extends TestElement {};
 globalThis.HTMLFormElement = TestForm;
+globalThis.HTMLFieldSetElement = class extends TestElement {};
 globalThis.HTMLDialogElement = TestDialog;
 globalThis.HTMLButtonElement = class extends TestElement {};
 globalThis.InputEvent = TestInputEvent;
@@ -374,6 +375,75 @@ test("removing a subtree closes open dialogs silently and keeps the surviving op
 	assert.equal(document.activeElement, opener);
 	handlers.get("close")({ target: dialog });
 	assert.equal(runtime.socket.messages.length, before);
+});
+
+test("number edits preserve invalid drafts and explicit empty values clear native bad input", () => {
+	const input = new TestInput("number|editor");
+	input.type = "number";
+	input.value = "";
+	input.validity = { badInput: true };
+	input.setAttribute("data-ui-on-input", "true");
+	input.setAttribute("data-ui-on-change", "true");
+	nodes.set(input.id, input);
+	assert.equal(dom.getElementValue(input), "NaN");
+	handlers.get("input")({ target: input });
+	assert.equal(runtime.socket.messages.at(-1).data.value, "NaN");
+	handlers.get("change")({ target: input });
+	assert.equal(runtime.socket.messages.at(-1).data.value, "NaN");
+	let cleared = false;
+	Object.defineProperty(input, "value", { get: () => "", set: value => {
+		assert.equal(value, "");
+		cleared = true;
+		input.validity.badInput = false;
+	} });
+	dom.setValue([{ part_id: input.id, value: "" }]);
+	assert.ok(cleared);
+	assert.equal(dom.getElementValue(input), "");
+});
+
+test("radio payloads validate choices and forms collect exactly one value per group", () => {
+	const parse = payload => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_radio_options", data: [payload] }) });
+	const payload = { part_id: "radio|editor", value: "a", options: [
+		{ value: "a", label: "Same", disabled: false }, { value: "b", label: "Same", disabled: false }
+	] };
+	assert.equal(parse(payload).data[0].value, "a");
+	assert.throws(() => parse({ ...payload, value: "missing" }));
+	assert.throws(() => parse({ ...payload, options: [payload.options[0], payload.options[0]] }));
+	assert.throws(() => parse({ ...payload, options: [{ value: "a", label: "A", disabled: true }] }));
+	assert.throws(() => parse({ ...payload, options: [{ value: "a", label: "A", disabled: "false" }] }));
+
+	const form = new TestForm("radio-form");
+	form.setAttribute("data-ui-on-submit", "true");
+	const group = new HTMLFieldSetElement(payload.part_id);
+	group.setAttribute("data-ui-radio-group", "true");
+	group.setAttribute("data-ui-form-field", "true");
+	group.setAttribute("data-ui-on-change", "true");
+	group.form = form;
+	const radios = [new TestInput(), new TestInput()];
+	radios[0].value = "a";
+	radios[1].value = "b";
+	for (const radio of radios) { group.appendChild(radio); radio.form = form; }
+	group.querySelector = () => radios.find(radio => radio.checked) ?? null;
+	group.querySelectorAll = () => radios;
+	nodes.set(group.id, group);
+	form.elements = [group, ...radios];
+	dom.setValue([{ part_id: group.id, value: "b" }]);
+	assert.equal(radios[0].checked, false);
+	assert.equal(radios[1].checked, true);
+	handlers.get("change")({ target: radios[1] });
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_change", data: { part_id: group.id, value: "b" } });
+	form.requestSubmit();
+	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "b" }]);
+	dom.setValue([{ part_id: group.id, value: "" }]);
+	form.requestSubmit();
+	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "" }]);
+	radios[0].disabled = true;
+	const before = runtime.socket.messages.length;
+	handlers.get("change")({ target: radios[0] });
+	assert.equal(runtime.socket.messages.length, before);
+	group.disabled = true;
+	form.requestSubmit();
+	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, []);
 });
 
 test("removing the focused control preserves its parent and chooses surviving focus", () => {

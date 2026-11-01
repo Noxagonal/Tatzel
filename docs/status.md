@@ -11,6 +11,10 @@ than earlier experiments.
 | Text and paragraph | Owned plain text, preserved line breaks, and synchronized SetText(). |
 | Card | Optional title, scoped content/actions builders, and synchronized title changes. |
 | Text input / area | Shared value, label, placeholder, disabled/read-only, required/custom validation, and input/change callbacks. Single-line Enter submits; multiline Enter inserts a newline and Ctrl/Cmd+Enter submits. |
+| Number input | Optional finite numeric values, invalid draft detection, bounds/step validation, numeric edit callbacks, and inherited form/read-only/disabled support. |
+| Radio group | Native keyboard-accessible choices, stable IDs, disabled options, replaceable choices, and one field per form snapshot. |
+| Link | Owned plain text and URL, same-context/new-tab navigation, safe scheme validation, and opener isolation. |
+| Image | Owned resource/alternative text, optional intrinsic dimensions, lazy loading hint, and synchronized setters. |
 | Checkbox | Accessible label, boolean state, disabled/required policies, custom validation, explicit setters, and typed change callbacks. |
 | Row / Column | Scoped child builders with semantic spacing, alignment, distribution, and wrapping setters. |
 | Select | Owned stable option IDs, replaceable choices, unavailable choices, no-selection prompt, validation, and typed selection callbacks. |
@@ -26,7 +30,7 @@ than earlier experiments.
 
 ## Planned controls
 
-The Label, Span, Link, Image, HorizontalRule, Header, and Footer modules are
+The Label, Span, HorizontalRule, Header, and Footer modules are
 reserved and currently export no logical class or builder.
 Add each logical type, adapter mapping, builder method, documentation, and
 behavior check together.

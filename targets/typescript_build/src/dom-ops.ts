@@ -14,6 +14,7 @@ import type {
 	ReceiveData_SetOnChange,
 	ReceiveData_SetOnSubmit,
 	ReceiveData_SetSelectOptions,
+	ReceiveData_SetRadioOptions,
 } from "./protocol.js"
 
 
@@ -210,12 +211,19 @@ export function setValue(
 			}
 
 			// Avoid resetting the caret when an explicit server update already matches.
-			if (element.value !== part.value) element.value = part.value;
+			if (element.value !== part.value || (element.type === "number" && element.validity.badInput)) element.value = part.value;
 			return;
 		}
 
 		if (element instanceof HTMLTextAreaElement) {
 			if (element.value !== part.value) element.value = part.value;
+			return;
+		}
+
+		if (element instanceof HTMLFieldSetElement && element.hasAttribute("data-ui-radio-group")) {
+			for (const radio of element.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
+				radio.checked = radio.value === part.value;
+			}
 			return;
 		}
 
@@ -381,7 +389,14 @@ export function getElementValue(element: Element): null | string | boolean
 	if (element instanceof HTMLInputElement) {
 		if (element.type === "checkbox") return element.checked;
 
+		// Native number editors expose an empty value for incomplete numeric drafts.
+		// Preserve that distinction using a token that finite numeric parsing rejects.
+		if (element.type === "number" && element.validity.badInput) return "NaN";
 		return element.value;
+	}
+
+	if (element instanceof HTMLFieldSetElement && element.hasAttribute("data-ui-radio-group")) {
+		return element.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.value ?? "";
 	}
 
 	if (element instanceof HTMLTextAreaElement) {
@@ -394,4 +409,45 @@ export function getElementValue(element: Element): null | string | boolean
 
 	console.warn("getElementValue called on unsupported element: ", element);
 	return null;
+}
+
+/**
+ * @brief Replaces native radio choices inside an existing registered group.
+ * @param parts Validated group choice payloads.
+ * @pre Group fieldsets and their options containers have been created.
+ * @post Choices use plain labels and group-local names; a surviving focused choice regains focus.
+ */
+export function setRadioOptions(parts: Array<ReceiveData_SetRadioOptions>): void
+{
+	for (const part of parts) {
+		const group = document.getElementById(part.part_id);
+		if (!(group instanceof HTMLFieldSetElement) || !group.hasAttribute("data-ui-radio-group")) continue;
+		const container = group.querySelector<HTMLElement>("[data-ui-radio-options]");
+		if (!container) continue;
+
+		const active = document.activeElement;
+		const hadFocus = active instanceof HTMLInputElement && container.contains(active);
+		const focusedValue = hadFocus ? active.value : null;
+		const radios: HTMLInputElement[] = [];
+		const choices = part.options.map(choice => {
+			const label = document.createElement("label");
+			const radio = document.createElement("input");
+			radio.type = "radio";
+			radio.name = group.id;
+			radio.value = choice.value;
+			radio.disabled = choice.disabled;
+			radio.checked = choice.value === part.value;
+			const text = document.createElement("span");
+			text.textContent = choice.label;
+			label.append(radio, text);
+			radios.push(radio);
+			return label;
+		});
+		container.replaceChildren(...choices);
+		if (hadFocus) {
+			const next = radios.find(radio => radio.value === focusedValue && !radio.disabled)
+				?? radios.find(radio => !radio.disabled);
+			(next ?? group).focus({ preventScroll: true });
+		}
+	}
 }
