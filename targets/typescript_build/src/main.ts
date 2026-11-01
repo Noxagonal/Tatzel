@@ -20,7 +20,36 @@ import {
 } from "./dom-ops.js";
 
 
+/**
+ * @brief Displays browser-owned transport feedback when the template provides a status surface.
+ * @param message User-visible text, empty to hide the status.
+ * @param disconnected Whether controls must stop accepting input until reload.
+ * @pre The page document is loaded.
+ * @post The status is updated without depending on a live server connection.
+ */
+function showConnectionStatus(message: string, disconnected = false): void
+{
+	const status = document.getElementById("connection-status");
+	if (!status) return;
+	status.hidden = message === "";
+	status.replaceChildren(document.createTextNode(message));
+	if (disconnected) {
+		const root = document.getElementById("root|main");
+		if (root) root.inert = true;
+		const reload = document.createElement("button");
+		reload.textContent = "Reload workspace";
+		reload.addEventListener("click", () => window.location.reload());
+		status.append(reload);
+	}
+}
+
 registerBrowserEventHandlers();
+socket.addEventListener("close", () => showConnectionStatus("Connection lost. Reload to reconnect; saved changes are kept.", true));
+socket.addEventListener("error", () => showConnectionStatus("Unable to connect to the workspace. Reload to retry.", true));
+
+window.addEventListener("hashchange", () => {
+	sendToServer({ op: "on_navigate", data: { hash: window.location.hash } });
+});
 
 
 socket.addEventListener(
@@ -50,11 +79,19 @@ socket.addEventListener(
 	}
 
 	switch (message.op) {
+		case "set_location":
+			if (window.location.hash !== message.data.hash) {
+				window.history.pushState(null, "", window.location.pathname + window.location.search + message.data.hash);
+			}
+			break;
+
 		case "connected":
+			showConnectionStatus("");
 			break;
 
 		case "error":
 			console.error("Tatzel server error:", message.data.code, message.data.message);
+			showConnectionStatus(message.data.message);
 			break;
 
 		case "create_element_part":

@@ -512,6 +512,12 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 
 auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& element ) const -> void
 {
+	element.SetAppearanceHandler( [ this, &element ]( std::string_view appearance ) {
+		SyncAttribute( element.GetBasePart(), "data-ui-appearance", appearance.empty()
+			? std::nullopt : std::optional<std::string_view>{ appearance }, *client_updater );
+	} );
+	if( !element.GetAppearance().empty() )
+		SyncAttribute( element.GetBasePart(), "data-ui-appearance", element.GetAppearance(), *client_updater );
 	if( auto* select = dynamic_cast<ui::Select*>( &element ) ) SendChoiceOptions( *select, *client_updater );
 	if( auto* number = dynamic_cast<ui::NumberInput*>( &element ) )
 		client_updater->SetValue( number->FindPart( "editor" )->GetPartID(), number->GetTextValue() );

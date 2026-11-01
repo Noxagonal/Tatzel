@@ -117,3 +117,12 @@ and one gate per loop prevents scheduling through a destroyed loop. Loop-exit
 hooks cancel pending work and release registry sessions on their owning loops.
 Reconnect, state restoration, and rollback after a failing page factory are not implemented.
 Reload the browser to create a fresh page.
+
+## Application composition
+
+The [workspace sample](workspace.md) composes existing logical controls into a
+persistent application. Its database worker and domain model belong to the sample
+executable. PageBuilder hash-navigation callbacks replace central content while
+keeping the shell, page context, and dispatcher alive. Appearance names are owned
+logical metadata synchronized independently of value handlers; the default
+adapter places them on each control's base part as `data-ui-appearance`.

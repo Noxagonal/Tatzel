@@ -96,6 +96,7 @@ export type ReceiveData_SetOnSubmit = {
 
 /** @brief ReceiveServerMessage wire-format type; DOM identifiers are part IDs. */
 export type ReceiveServerMessage =
+	| { op: "set_location"; data: { hash: string; }; }
 	| { op: "connected"; data: ReceiveData_Connected; }
 	| { op: "error"; data: ReceiveData_Error; }
 	| { op: "create_element_part"; data: Array<ReceiveData_CreateElementPart>; }
@@ -141,6 +142,7 @@ export type SendData_OnSubmit = {
 
 /** @brief SendServerMessage wire-format type; DOM identifiers are part IDs. */
 export type SendServerMessage =
+	| { op: "on_navigate"; data: { hash: string; }; }
 	| { op: "connect"; data: SendData_Connect; }
 	| { op: "on_click"; data: SendData_OnClick; }
 	| { op: "on_change"; data: SendData_OnChange; }

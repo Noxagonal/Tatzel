@@ -23,10 +23,14 @@ namespace {
 	tatzel::App* global_app = nullptr;
 }
 
-tatzel::App::App()
+tatzel::App::App(
+	std::string_view configuration_path,
+	std::string_view template_path
+) :
+	template_path{ template_path }
 {
 	if( global_app ) throw tatzel::Exception{ "Global app already exists" };
-	drogon::app().loadConfigFile( "./data/drogon_config.json" );
+	drogon::app().loadConfigFile( std::string{ configuration_path } );
 	global_app = this;
 }
 
@@ -46,7 +50,7 @@ auto tatzel::App::RegisterPage(
 
 	drogon::app().registerHandler(
 		std::string{ route_path },
-		[ route = std::string{ route_path } ](
+		[ route = std::string{ route_path }, document_path = template_path ](
 			const drogon::HttpRequestPtr& request,
 			std::function<void( const drogon::HttpResponsePtr& )>&& response_callback
 		)
@@ -57,7 +61,7 @@ auto tatzel::App::RegisterPage(
 			{
 				response = drogon::HttpResponse::newHttpResponse();
 				response->setContentTypeCode( drogon::CT_TEXT_HTML );
-				response->setBody( GetTemplateDocument( "./data/template.html" ) );
+				response->setBody( GetTemplateDocument( document_path ) );
 			}
 			catch( ... )
 			{

@@ -2,7 +2,14 @@
 /// @brief Borrowed framework context shared by scoped logical builders.
 module;
 
+#include <functional>
+#include <string>
+#include <string_view>
+#include <utility>
+
 export module UI.PageBuilderCore;
+
+import UI.Diagnostics;
 
 import UI.ClientElementTree;
 import UI.ClientUpdater;
@@ -64,7 +71,40 @@ public:
 	/// @post The returned handle retains neither this context nor its services.
 	auto GetDispatcher() const noexcept -> Dispatcher { return dispatcher; }
 
+	/// @brief Replaces the page-local hash navigation callback.
+	/// @param handler Callback receiving owned current-location storage during invocation.
+	/// @pre Called on the owning loop; captures outlive their invocation.
+	/// @post Subsequent navigation invokes the replacement; current location is unchanged.
+	auto SetNavigationHandler( std::function<void( std::string_view )> handler ) -> void
+	{
+		navigation_handler = std::move( handler );
+	}
+
+	/// @brief Accepts browser navigation or requests a same-page history entry.
+	/// @param hash Empty or hash-prefixed location of at most 2048 bytes.
+	/// @param update_browser Whether to queue a browser history update.
+	/// @pre Called on the live page's owning loop.
+	/// @post The location is owned and the application callback has run; browser updates are queued.
+	/// @throws tatzel::Exception If hash is not a supported same-page location.
+	auto Navigate(
+		std::string_view hash,
+		bool update_browser = true
+	) -> void
+	{
+		if( hash.size() > 2048 || ( !hash.empty() && hash.front() != '#' ) )
+			throw Exception{ "Navigation requires a hash location of at most 2048 bytes" };
+		auto location = std::string{ hash };
+		if( update_browser ) client_updater->SetLocation( location );
+		auto handler = navigation_handler;
+		if( handler )
+		{
+			auto boundary = CallbackScope{ "Page navigation" };
+			handler( location );
+		}
+	}
+
 private:
+	std::function<void( std::string_view )> navigation_handler;
 	ClientElementTree* element_tree;
 	ClientUpdater* client_updater;
 	ElementAdapter* element_adapter;

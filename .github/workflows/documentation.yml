@@ -52,7 +52,7 @@ jobs:
       - name: Install module build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev libstdc++-13-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
+          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev libstdc++-13-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev libsqlite3-dev
           python3 -m pip install 'cmake==4.4.4'
       - name: Build application and core behavior checks
         run: |
@@ -83,3 +83,15 @@ jobs:
           timeout 30s node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/dispatcher-smoke.mjs ./build/targets/development/TatzelDevelopment
+
+          timeout 45s node tests/browser/workspace-smoke.mjs ./build/targets/workspace/TatzelWorkspace
+      - name: Install Chromium for the sample UI journey
+        run: npx playwright install --with-deps chromium
+      - name: Exercise the sample in a real browser
+        run: timeout 120s node tests/browser/workspace-ui.mjs ./build/targets/workspace/TatzelWorkspace
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tatzel-workspace-preview
+          path: build/workspace-preview
+          if-no-files-found: ignore

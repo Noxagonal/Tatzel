@@ -331,6 +331,12 @@ private:
 				SendError( transport, "already_connected", "A page has already been built for this session" );
 				return;
 			}
+			if( data.isMember( "hash" ) && ( !data[ "hash" ].isString() || data[ "hash" ].asString().size() > 2048
+				|| ( !data[ "hash" ].asString().empty() && data[ "hash" ].asString().front() != '#' ) ) )
+			{
+				SendError( transport, "invalid_message", "connect hash must be an empty or hash-prefixed location" );
+				return;
+			}
 			if( !data[ "route_path" ].isString() )
 			{
 				SendError( transport, "invalid_message", "connect requires route_path" );
@@ -346,6 +352,19 @@ private:
 			auto builder = tatzel::PageBuilder{ *connection.page_builder_core, connection.element_tree->root };
 			auto scope = tatzel::CallbackScope{ "Page builder" };
 			page->page_builder_fn( builder );
+			connection.page_builder_core->Navigate( data[ "hash" ].asString(), false );
+			return;
+		}
+
+		if( operation == "on_navigate" )
+		{
+			if( !connection.page || !data[ "hash" ].isString() || data[ "hash" ].asString().size() > 2048
+				|| ( !data[ "hash" ].asString().empty() && data[ "hash" ].asString().front() != '#' ) )
+			{
+				SendError( transport, "invalid_message", "Navigation requires a connected page and a hash location" );
+				return;
+			}
+			connection.page_builder_core->Navigate( data[ "hash" ].asString(), false );
 			return;
 		}
 

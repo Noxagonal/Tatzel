@@ -50,7 +50,11 @@ export function parseServerMessage(event: MessageEvent): ReceiveServerMessage
 	if (!isRecord(message) || typeof message.op !== "string") throw new Error("Expected an op/data envelope");
 
 	const { op, data } = message;
-	if (op === "connected" || op === "error") {
+	if (op === "set_location") {
+		if (!isRecord(data) || typeof data.hash !== "string" || data.hash.length > 2048
+			|| (data.hash !== "" && !data.hash.startsWith("#"))) throw new Error("Invalid navigation payload");
+	}
+	else if (op === "connected" || op === "error") {
 		if (!isRecord(data) || typeof data.message !== "string"
 			|| (op === "error" && typeof data.code !== "string")) throw new Error("Invalid status payload");
 	}

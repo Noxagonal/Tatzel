@@ -391,3 +391,12 @@ auto tatzel::ClientUpdater::SetRadioOptions(
 	json[ "data" ].append( std::move( part ) );
 	SendJSON( json );
 }
+
+
+auto tatzel::ClientUpdater::SetLocation( std::string_view hash ) -> void
+{
+	auto json = Json::Value{ Json::objectValue };
+	json[ "op" ] = "set_location";
+	json[ "data" ][ "hash" ] = std::string{ hash };
+	SendJSON( json );
+}

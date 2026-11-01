@@ -82,6 +82,29 @@ public:
 		return core->GetDispatcher();
 	}
 
+	/// @brief Registers a page-local callback for initial location and hash navigation.
+	/// @param handler Application callback; invoked after page construction and on navigation.
+	/// @pre Called on the owning loop while this scope is active.
+	/// @post The page owns the callback; previous navigation handlers are replaced.
+	/// @throws tatzel::Exception If this scope has expired.
+	auto SetNavigationHandler( std::function<void( std::string_view )> handler ) -> void
+	{
+		if( !parent.Get() ) throw Exception{ "Builder parent has been removed or destroyed" };
+		core->SetNavigationHandler( std::move( handler ) );
+	}
+
+	/// @brief Navigates within the registered page and queues a browser history entry.
+	/// @param hash Empty or hash-prefixed location, at most 2048 bytes.
+	/// @pre Called on the live owning loop; the navigation callback tolerates reentrancy.
+	/// @post The callback has run and the browser history update is queued.
+	/// @throws tatzel::Exception If the scope or location is invalid.
+	auto Navigate( std::string_view hash ) -> void
+	{
+		if( !parent.Get() ) throw Exception{ "Builder parent has been removed or destroyed" };
+		auto dispatch = parent.Get()->BeginDispatch();
+		core->Navigate( hash );
+	}
+
 	/// @brief Creates a builder for another logical parent on the same page.
 	/// @tparam NewParentT New logical parent type.
 	/// @param new_parent Parent for the new scope.
