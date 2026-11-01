@@ -16,6 +16,8 @@ module;
 
 export module UI.Element.Select;
 
+import UI.Diagnostics;
+
 export import UI.Element.FormField;
 
 namespace tatzel::ui {
@@ -175,7 +177,11 @@ public:
 		if( IsRemoved() ) return;
 		auto callback = on_change;
 		auto snapshot = this->value;
-		if( callback ) callback( snapshot );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Select change" };
+			callback( snapshot );
+		}
 	}
 
 	/// @brief Replaces the accepted-selection callback.

@@ -12,6 +12,8 @@ module;
 
 export module UI.Element.Checkbox;
 
+import UI.Diagnostics;
+
 export import UI.Element.FormField;
 
 namespace tatzel::ui {
@@ -101,7 +103,11 @@ public:
 		if( IsRemoved() ) return;
 
 		auto callback = on_change;
-		if( callback ) callback( checked );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Checkbox change" };
+			callback( checked );
+		}
 	}
 
 	/// @brief Installs custom validation for this field's current value.

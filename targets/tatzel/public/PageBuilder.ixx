@@ -15,6 +15,8 @@ module;
 
 export module UI.PageBuilder;
 
+import UI.Diagnostics;
+
 import UI.PageBuilderCore;
 import UI.ClientUpdater;
 import UI.Utility;
@@ -419,6 +421,7 @@ private:
 		if( child_parent.IsRemoved() ) return;
 		auto scoped_builder = PageBuilder<ParentT>{ *core, child_parent, slot };
 		using ScopedBuilderT = decltype( scoped_builder );
+		auto callback_scope = CallbackScope{ "Child builder" };
 		if constexpr( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&, ParentT*> )
 			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder, &child_parent );
 		else

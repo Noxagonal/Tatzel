@@ -9,6 +9,7 @@ Start with the model, then build the example:
 1. [Architecture and ownership](architecture.md)
 2. [Build and run](building.md)
 3. [Working with logical controls](logical-controls.md)
+4. [Logging and exception traces](diagnostics.md)
 
 For framework development:
 

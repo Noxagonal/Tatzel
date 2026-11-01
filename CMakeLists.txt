@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
+include(cmake/Stacktrace.cmake)
 
 # Keep the initial build smaller.
 # You can turn these back ON later if you need them.

@@ -52,7 +52,7 @@ jobs:
       - name: Install module build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
+          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev libstdc++-13-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev
           python3 -m pip install 'cmake==4.4.4'
       - name: Build application and core behavior checks
         run: |

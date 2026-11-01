@@ -9,6 +9,8 @@ module;
 
 export module UI.Element.Button;
 
+import UI.Diagnostics;
+
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Clickable;
 
@@ -78,7 +80,11 @@ public:
 		if( IsRemoved() || role != ButtonRole::Action ) return;
 
 		auto callback = on_click;
-		if( callback ) callback();
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Button click" };
+			callback();
+		}
 	}
 
 	/// @brief Reads the immutable activation role.

@@ -188,6 +188,13 @@ Do not claim guarantees the implementation does not provide.
 Validate browser messages before accessing their fields. Use the documented
 op/data envelope for success and error messages. Keep application exceptions
 inside a transport boundary and report useful diagnostics on the server.
+Use Log and LogException to share the existing Drogon logging backend. Construct
+tatzel::Exception at a throw expression when an original source location and
+stacktrace are needed. Capture event identity before invoking callbacks that
+may remove their own controls. Keep catch/report locations distinct from throw
+locations; ordinary exceptions do not carry an original stacktrace. Framework
+invocations of application code establish a CallbackScope so diagnostic output
+can stop at that boundary. See [diagnostics](docs/diagnostics.md).
 
 Test behavior at boundaries: logical-to-DOM mapping, event ownership, string
 lifetimes, and protocol payloads. Avoid tests that only restate an implementation.

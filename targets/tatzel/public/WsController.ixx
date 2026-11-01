@@ -26,6 +26,8 @@ import UI.Element.Interface.Submittable;
 import UI.Element.Interface.Inputable;
 import UI.Element.Interface.Dismissible;
 import UI.Element.Form;
+import UI.Diagnostics;
+import UI.Logging;
 
 /// @brief Routes browser transport messages to the owning client's logical page.
 /// @details Connection registry entries have stable shared ownership. Each logical
@@ -93,20 +95,34 @@ public:
 			return;
 		}
 
+		auto route = std::string{};
+		auto operation = std::string{};
+		auto part_id = std::string{};
+		auto element_id = std::string{};
 		try
 		{
+			operation = json[ "op" ].asString();
+			if( connection->page ) route = connection->page->route_path;
+			else if( json[ "data" ][ "route_path" ].isString() ) route = json[ "data" ][ "route_path" ].asString();
+			if( json[ "data" ][ "part_id" ].isString() )
+			{
+				part_id = json[ "data" ][ "part_id" ].asString();
+				if( auto* owner = connection->element_tree->FindElementByPartID<tatzel::ui::LogicalElement>( part_id ) )
+					element_id = owner->GetID();
+			}
 			auto dispatch = connection->element_tree->root.BeginDispatch();
 			DispatchMessage( *connection, json );
 		}
-		catch( const std::exception& error )
-		{
-			LOG_ERROR << "Tatzel page handler failed: " << error.what();
-			SendError( ws_connection, "handler_failed", "Page handler failed" );
-		}
 		catch( ... )
 		{
-			LOG_ERROR << "Tatzel page handler failed with an unknown exception";
-			SendError( ws_connection, "handler_failed", "Page handler failed" );
+			tatzel::LogException( std::current_exception(), { route, operation, element_id, part_id } );
+			try { SendError( ws_connection, "handler_failed", "Page handler failed" ); }
+			catch( ... )
+			{
+				tatzel::LogException( std::current_exception(), { route, "error_response", element_id, part_id } );
+				try { ws_connection->forceClose(); }
+				catch( ... ) { tatzel::Log( tatzel::LogLevel::Error, "Failed to close the affected WebSocket" ); }
+			}
 		}
 	}
 
@@ -241,6 +257,7 @@ private:
 			}
 			connection.page = page;
 			auto builder = tatzel::PageBuilder{ *connection.page_builder_core, connection.element_tree->root };
+			auto scope = tatzel::CallbackScope{ "Page builder" };
 			page->page_builder_fn( builder );
 			return;
 		}

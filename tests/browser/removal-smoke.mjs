@@ -120,6 +120,13 @@ test("logical removal invalidates identities, preserves parents, and survives ca
 		const throwing = first.button("Remove then throw");
 		click("Remove then throw");
 		await waitFor(() => errors().some(message => message.data.code === "handler_failed"));
+		await waitFor(() => diagnostics.includes("application callback invocation boundary"));
+		assert.match(diagnostics, /route=\/lifecycle operation=on_click element=ui-/);
+		assert.match(diagnostics, /exception=tatzel::Exception.*Lifecycle example callback failed after removal/);
+		assert.match(diagnostics, /thrown_at=.*Main\.cpp:\d+ in void FailLifecycleAction/);
+		assert.match(diagnostics, /callback=Button click/);
+		assert.ok(!diagnostics.includes("__libc_start_main") && !diagnostics.includes("WsController::DispatchMessage"));
+		assert.ok(!diagnostics.includes("/bits/invoke.h") && !diagnostics.includes("/bits/std_function.h"));
 		assert.ok(removed(throwing));
 		send("on_click", throwing);
 		click("Add item"); await status("Added item 4");

@@ -7,6 +7,15 @@
 
 import UI;
 
+/// @brief Provides an application helper frame for the traced failure example.
+/// @pre Called from the lifecycle button callback.
+/// @post Never returns; the exception retains the helper and callback stack.
+/// @throws tatzel::Exception Always, to exercise diagnostic reporting after removal.
+auto FailLifecycleAction() -> void
+{
+	throw tatzel::Exception{ "Lifecycle example callback failed after removal" };
+}
+
 /// @brief Runs an interactive example using logical controls.
 /// @return Zero after the server stops.
 /// @pre Runtime configuration, template, and compiled browser assets are available.
@@ -229,7 +238,7 @@ auto main() -> int
 		throwing->SetOnClick( [ throwing_handle, status ] {
 			if( auto* button = throwing_handle.Get() ) button->Remove();
 			if( auto* text = status.Get() ) text->SetText( "Removed before error" );
-			throw std::runtime_error{ "Lifecycle example callback failed after removal" };
+			FailLifecycleAction();
 		} );
 	} );
 

@@ -9,6 +9,8 @@ module;
 
 export module UI.Element.Modal;
 
+import UI.Diagnostics;
+
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Dismissible;
 
@@ -83,7 +85,11 @@ public:
 		if( IsRemoved() ) return;
 
 		auto callback = on_close;
-		if( callback ) callback();
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Modal close" };
+			callback();
+		}
 	}
 
 	/// @brief Replaces the close-transition callback.

@@ -110,6 +110,9 @@ test("the running example maps logical updates and events across real WebSockets
 			await pause(50);
 		}
 		assert.ok(response?.ok, diagnostics);
+		await waitFor(() => diagnostics.includes("Tatzel listening at http://0.0.0.0:8080"));
+		assert.match(diagnostics, /Starting Tatzel on 0\.0\.0\.0:8080/);
+		assert.ok(!diagnostics.includes("Registered route:"), "INFO does not include DEBUG route details");
 		assert.match(await response.text(), /id="root\|main"/);
 		const script = await fetch("http://127.0.0.1:8080/app/main.js", { headers: { Connection: "close" } });
 		assert.equal(script.status, 200);

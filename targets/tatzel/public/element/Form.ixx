@@ -13,6 +13,8 @@ module;
 
 export module UI.Element.Form;
 
+import UI.Diagnostics;
+
 export import UI.Element.FormField;
 export import UI.Element.Interface.Submittable;
 
@@ -175,7 +177,11 @@ public:
 		const auto valid = Validate();
 		if( IsRemoved() ) return false;
 		auto callback = valid ? on_submit : on_invalid;
-		if( callback ) callback();
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ valid ? "Form submit" : "Form invalid" };
+			callback();
+		}
 		return valid;
 	}
 

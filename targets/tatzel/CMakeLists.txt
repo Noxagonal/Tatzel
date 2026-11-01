@@ -10,6 +10,8 @@ add_library(Tatzel STATIC)
 set_default_target_files(Tatzel "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(Tatzel
+	PUBLIC
+		TatzelStacktrace
 	PRIVATE
 		Drogon::Drogon
 )

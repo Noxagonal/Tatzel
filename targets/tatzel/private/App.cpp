@@ -15,6 +15,7 @@ import UI.PageBuilder;
 
 import UI.Utility;
 import UI.WSController;
+import UI.Logging;
 
 namespace {
 	tatzel::App* global_app = nullptr;
@@ -70,7 +71,23 @@ auto tatzel::App::Run() -> void
 	if( has_run ) throw std::logic_error{ "The application can only run once" };
 	has_run = true;
 	drogon::app().registerController( std::make_shared<WsController>() );
+	drogon::app().registerBeginningAdvice( [ this ] {
+		// Beginning advice precedes startListening; report readiness on the next loop turn.
+		drogon::app().getLoop()->queueInLoop( [ this ] {
+#ifdef NDEBUG
+			const auto mode = "Release";
+#else
+			const auto mode = "Debug";
+#endif
+			Log( LogLevel::Info, std::string{ "Tatzel listening at http://0.0.0.0:8080 (" } + mode
+				+ ", " + std::to_string( registered_page_list.size() ) + " routes)" );
+			for( const auto& page : registered_page_list )
+				Log( LogLevel::Debug, "Registered route: " + page.route_path );
+		} );
+	} );
+	Log( LogLevel::Info, "Starting Tatzel on 0.0.0.0:8080" );
 	drogon::app().addListener( "0.0.0.0", 8080 ).run();
+	Log( LogLevel::Info, "Tatzel stopped" );
 }
 
 auto tatzel::GetGlobalApp() -> App&

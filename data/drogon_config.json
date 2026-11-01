@@ -1,5 +1,9 @@
 {
 	"app": {
+		"log": {
+			"log_level": "INFO",
+			"log_path": ""
+		},
 		"document_root": "./www",
 		"home_page": "",
 		"use_implicit_page": true,
