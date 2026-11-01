@@ -22,7 +22,7 @@ public:
 	/// @brief Loads runtime configuration and establishes the global application.
 	/// @pre No other App exists; the working directory contains data/drogon_config.json.
 	/// @post This object is returned by GetGlobalApp().
-	/// @throws std::runtime_error If another App already exists.
+	/// @throws tatzel::Exception If another App already exists.
 	App();
 
 	/// @brief Prevents a second application owner.
@@ -61,8 +61,8 @@ public:
 	/// @param page_builder_fn Factory that creates one client's logical controls.
 	/// @pre Run() has not started; the route is unique; captures outlive their use.
 	/// @post HTTP requests receive the template and WebSocket connect builds this page.
-	/// @throws std::invalid_argument If the route or factory is invalid or duplicated.
-	/// @throws std::logic_error If registration happens after Run() starts.
+	/// @throws tatzel::Exception If the route or factory is invalid or duplicated.
+	/// @throws tatzel::Exception If registration happens after Run() starts.
 	auto RegisterPage(
 		std::string_view route_path,
 		std::function<void( PageBuilder<> )>&& page_builder_fn
@@ -78,7 +78,7 @@ public:
 	/// @brief Registers the WebSocket controller and runs the server on port 8080.
 	/// @pre Called once after all pages are registered; runtime assets are available.
 	/// @post Returns after Drogon stops; the application cannot be run again.
-	/// @throws std::logic_error If Run() has already been called.
+	/// @throws tatzel::Exception If Run() has already been called.
 	auto Run() -> void;
 
 private:
@@ -90,7 +90,7 @@ private:
 /// @return Borrowed application reference.
 /// @pre An App has been constructed and is still alive.
 /// @post Global application identity is unchanged.
-/// @throws std::runtime_error If no application exists.
+/// @throws tatzel::Exception If no application exists.
 export auto GetGlobalApp() -> App&;
 
 }

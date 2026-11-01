@@ -2,8 +2,9 @@
 
 | Module or family | Location | Purpose |
 | --- | --- | --- |
-| UI | targets/tatzel/public/UI.ixx | Application umbrella exporting App and PageBuilder. |
+| UI | targets/tatzel/public/UI.ixx | Application umbrella exporting building and diagnostic APIs. |
 | UI.App, UI.Page | targets/tatzel/public | Application and registered page factories. |
+| UI.Logging, UI.Diagnostics | targets/tatzel/public | Shared backend logging, traced exceptions, and callback boundaries. |
 | UI.PageBuilder, UI.PageBuilderCore | targets/tatzel/public | Logical building scopes and their borrowed services. |
 | UI.Element.* | targets/tatzel/public/element | Application-facing logical control types. |
 | UI.Element.ElementHandle, UI.Element.ElementLifecycle | targets/tatzel/public/element | Checked references and synchronous execution guards. |

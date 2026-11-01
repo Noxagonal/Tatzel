@@ -8,6 +8,7 @@
 #include <variant>
 #include <vector>
 
+import UI.Diagnostics;
 import UI.ClientElementTree;
 import UI.Element.Row;
 import UI.Element.Column;
@@ -45,7 +46,7 @@ auto main() -> int
 		select.SetOptions( { { "duplicate", "First" }, { "duplicate", "Second" } } );
 		assert( false );
 	}
-	catch( const std::invalid_argument& ) {}
+	catch( const tatzel::Exception& ) {}
 	assert( select.GetValue() == "b" && select.GetOptions().size() == 2 );
 	select.SetOptions( { { "b", "Now unavailable", true } } );
 	assert( select.GetValue().empty() );
@@ -54,7 +55,7 @@ auto main() -> int
 		select.SetValue( "b" );
 		assert( false );
 	}
-	catch( const std::invalid_argument& ) {}
+	catch( const tatzel::Exception& ) {}
 	select.SetRequired( true );
 	assert( !select.Validate() && !select.GetError().empty() );
 	select.SetDisabled( true );
@@ -81,7 +82,7 @@ auto main() -> int
 		notes->SetRows( 0 );
 		assert( false );
 	}
-	catch( const std::invalid_argument& ) {}
+	catch( const tatzel::Exception& ) {}
 	assert( notes->GetRows() == 7 );
 
 	auto edit_callbacks = 0;
@@ -146,6 +147,6 @@ auto main() -> int
 		auto nested = tatzel::ui::Form{ "nested", column, "Invalid", {} };
 		assert( false );
 	}
-	catch( const std::invalid_argument& ) {}
+	catch( const tatzel::Exception& ) {}
 	return 0;
 }

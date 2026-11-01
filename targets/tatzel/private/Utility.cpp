@@ -8,21 +8,22 @@ module;
 #include <string_view>
 #include <cstdint>
 #include <sstream>
-#include <stdexcept>
 
 module UI.Utility;
 
+import UI.Diagnostics;
+
 auto tatzel::GetTemplateDocument( const std::filesystem::path& path ) -> std::string
 {
-	if( !std::filesystem::is_regular_file( path ) ) throw std::runtime_error{ "Template file does not exist" };
+	if( !std::filesystem::is_regular_file( path ) ) throw tatzel::Exception{ "Template file does not exist" };
 	auto file = std::ifstream{ path, std::ios::binary | std::ios::ate };
-	if( !file ) throw std::runtime_error{ "Could not open template file" };
+	if( !file ) throw tatzel::Exception{ "Could not open template file" };
 	auto length = file.tellg();
-	if( length <= 0 ) throw std::runtime_error{ "Template file is empty or unreadable" };
+	if( length <= 0 ) throw tatzel::Exception{ "Template file is empty or unreadable" };
 	file.seekg( 0 );
 	auto result = std::string( static_cast<size_t>( length ), '\0' );
 	if( !file.read( result.data(), static_cast<std::streamsize>( result.size() ) ) )
-		throw std::runtime_error{ "Could not read complete template file" };
+		throw tatzel::Exception{ "Could not read complete template file" };
 	return result;
 }
 
@@ -33,7 +34,7 @@ auto tatzel::ParseJson( std::string_view text ) -> Json::Value
 	std::string errors;
 	std::istringstream stream{ std::string{ text } };
 	if( !Json::parseFromStream( builder, stream, &result, &errors ) )
-		throw std::runtime_error{ "Failed to parse JSON string" };
+		throw tatzel::Exception{ "Failed to parse JSON string" };
 	return result;
 }
 

@@ -11,6 +11,9 @@ The project declares these build requirements:
 - Git and network access for CMake's pinned Drogon dependency and npm packages.
 - JsonCpp development files and the platform dependencies required by Drogon.
   OpenSSL and zlib development packages enable the corresponding optional support.
+- A working std::stacktrace implementation, including its link support library.
+  The CI toolchain installs libstdc++-13-dev; CMake probes native linkage,
+  stdc++exp, and stdc++_libbacktrace and reports unsupported toolchains at configure time.
 
 Drogon is fetched at v1.9.13. TypeScript is installed from package-lock.json.
 The Node package exists to build browser assets and is private.
@@ -60,7 +63,9 @@ text edits, checkbox changes, explicit reset values, and a modal preview.
 Open http://localhost:8080/forms for the row/column layout and validated form
 example, including choice updates and multiline editing.
 Open http://localhost:8080/lifecycle for dynamic creation, removal, child
-clearing, checked references, and modal disposal.
+clearing, checked references, modal disposal, and a callback throwing a traced exception.
+Startup and shutdown messages use the shared INFO logger. See
+[logging and exception traces](diagnostics.md) for verbosity and file-output configuration.
 
 The runtime currently resolves these paths relative to the working directory:
 
@@ -98,7 +103,11 @@ ctest --test-dir build --output-on-failure
 node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```
+
+These checks include logging/exception reports and an independently optimized
+diagnostic-module target with NDEBUG and debug symbols, even in a Debug build.
 
 The Clang/Linux build can also instrument the logical removal tests:
 

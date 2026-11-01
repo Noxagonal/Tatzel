@@ -10,6 +10,8 @@ module;
 
 export module UI.Element.FormField;
 
+import UI.Diagnostics;
+
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Changeable;
 
@@ -165,7 +167,12 @@ public:
 		else
 		{
 			auto validator = validation_handler;
-			auto result = validator ? validator() : std::string{};
+			auto result = std::string{};
+			if( validator )
+			{
+				auto scope = tatzel::CallbackScope{ "Field validator" };
+				result = validator();
+			}
 			if( IsRemoved() ) return true;
 			SetError( result );
 		}

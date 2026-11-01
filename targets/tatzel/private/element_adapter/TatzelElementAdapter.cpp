@@ -3,13 +3,14 @@ module;
 #include <string_view>
 #include <utility>
 #include <vector>
-#include <stdexcept>
 #include <optional>
 #include <array>
 #include <cstddef>
 #include <string>
 
 module UI.ElementAdapter.TatzelElementAdapter;
+
+import UI.Diagnostics;
 
 import UI.DOM.ElementPart;
 import UI.DOM.SelectOption;
@@ -24,7 +25,7 @@ namespace {
 /// @return The parent's concrete insertion part.
 /// @pre element has a nonnull mapped parent.
 /// @post Logical and DOM state are unchanged.
-/// @throws std::invalid_argument If an actions slot is requested from an unsupported parent.
+/// @throws tatzel::Exception If an actions slot is requested from an unsupported parent.
 auto ParentPartFor( tatzel::ui::LogicalElement& element ) -> tatzel::dom::ElementPart&
 {
 	if( element.GetParentSlot() == tatzel::ui::ChildSlot::Content )
@@ -33,7 +34,7 @@ auto ParentPartFor( tatzel::ui::LogicalElement& element ) -> tatzel::dom::Elemen
 	}
 
 	auto* card = dynamic_cast<tatzel::ui::Card*>( element.GetParent() );
-	if( !card || !card->HasActions() ) throw std::invalid_argument{ "Parent has no actions slot" };
+	if( !card || !card->HasActions() ) throw tatzel::Exception{ "Parent has no actions slot" };
 	return *card->FindPart( "actions" );
 }
 
@@ -284,7 +285,7 @@ auto SendSelectOptions(
 /// @return HTML tag for the level.
 /// @pre style is a defined HeadingStyle value.
 /// @post No logical or browser state is changed.
-/// @throws std::invalid_argument If style is not a defined value.
+/// @throws tatzel::Exception If style is not a defined value.
 auto HeadingStyleToTag( tatzel::ui::HeadingStyle style ) -> std::string_view
 {
 	switch( style )
@@ -296,7 +297,7 @@ auto HeadingStyleToTag( tatzel::ui::HeadingStyle style ) -> std::string_view
 	case tatzel::ui::HeadingStyle::H5: return "h5";
 	case tatzel::ui::HeadingStyle::H6: return "h6";
 	}
-	throw std::invalid_argument{ "Invalid heading style" };
+	throw tatzel::Exception{ "Invalid heading style" };
 }
 
 }

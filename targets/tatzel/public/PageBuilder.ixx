@@ -6,7 +6,6 @@ module;
 #include <concepts>
 #include <functional>
 #include <memory>
-#include <stdexcept>
 #include <vector>
 #include <string>
 #include <string_view>
@@ -14,6 +13,8 @@ module;
 #include <utility>
 
 export module UI.PageBuilder;
+
+import UI.Diagnostics;
 
 import UI.PageBuilderCore;
 import UI.ClientUpdater;
@@ -68,11 +69,11 @@ public:
 	/// @return Borrowed builder with the new logical parent.
 	/// @pre new_parent belongs to this builder's live client page.
 	/// @post This builder's scope is unchanged.
-	/// @throws std::logic_error If this builder's parent has been removed or destroyed.
+	/// @throws tatzel::Exception If this builder's parent has been removed or destroyed.
 	template<ui::LogicalElementDerived NewParentT>
 	auto Scope( NewParentT& new_parent ) const -> PageBuilder<NewParentT>
 	{
-		if( !parent.Get() ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
+		if( !parent.Get() ) throw tatzel::Exception{ "Builder parent has been removed or destroyed" };
 		return { *core, new_parent };
 	}
 
@@ -285,7 +286,7 @@ public:
 	/// @return Borrowed page-owned selector.
 	/// @pre Called on the owning event loop; callback captures outlive their invocation.
 	/// @post The selector is created with its current choices and value.
-	/// @throws std::invalid_argument If IDs are empty/duplicated or value is unavailable.
+	/// @throws tatzel::Exception If IDs are empty/duplicated or value is unavailable.
 	auto Select(
 		std::string_view label,
 		std::vector<ui::SelectOption> options,
@@ -320,7 +321,7 @@ public:
 	/// @return Borrowed page-owned form. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; callback captures outlive their invocation.
 	/// @post A surviving form owns its children and accepts browser submissions; removal returns nullptr.
-	/// @throws std::invalid_argument If an ancestor is already a form.
+	/// @throws tatzel::Exception If an ancestor is already a form.
 	template<typename ContentFn>
 	auto Form(
 		std::string_view label,
@@ -342,7 +343,7 @@ public:
 	/// @return Borrowed page-owned form. Returns nullptr if initialization or the child callback removes it.
 	/// @pre Called on the owning event loop; content_fn accepts a scoped builder.
 	/// @post A surviving form owns its children and accepts submissions; removal returns nullptr.
-	/// @throws std::invalid_argument If an ancestor is already a form.
+	/// @throws tatzel::Exception If an ancestor is already a form.
 	template<typename ContentFn> requires ( !std::is_convertible_v<ContentFn, std::string_view> )
 	auto Form(
 		ContentFn&& content_fn,
@@ -357,14 +358,14 @@ public:
 	/// @return Borrowed page-owned submit button.
 	/// @pre Called on the owning event loop within a logical form subtree.
 	/// @post Native activation requests the form snapshot and never invokes a click callback.
-	/// @throws std::invalid_argument If this scope has no form ancestor.
-	/// @throws std::logic_error If this builder's parent has been removed or destroyed.
+	/// @throws tatzel::Exception If this scope has no form ancestor.
+	/// @throws tatzel::Exception If this builder's parent has been removed or destroyed.
 	auto SubmitButton( std::string_view text ) -> ui::Button*
 	{
 		auto* ancestor = static_cast<ui::LogicalElement*>( parent.Get() );
-		if( !ancestor ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
+		if( !ancestor ) throw tatzel::Exception{ "Builder parent has been removed or destroyed" };
 		while( ancestor && !dynamic_cast<ui::Form*>( ancestor ) ) ancestor = ancestor->GetParent();
-		if( !ancestor ) throw std::invalid_argument{ "SubmitButton requires a logical Form" };
+		if( !ancestor ) throw tatzel::Exception{ "SubmitButton requires a logical Form" };
 		return AddChild<ui::Button>( text, std::function<void()>{}, ui::ButtonRole::Submit );
 	}
 
@@ -376,7 +377,7 @@ private:
 	/// @return Borrowed pointer to the owned logical control, or nullptr if initialization removes it.
 	/// @pre The builder's page is alive and the adapter supports NewElementT.
 	/// @post The parent owns an active control at a stable address and DOM creation is queued, unless initialization removes it.
-	/// @throws std::logic_error If the builder parent has been removed or destroyed.
+	/// @throws tatzel::Exception If the builder parent has been removed or destroyed.
 	template<
 		ui::LogicalElementDerived NewElementT,
 		typename ...ArgsT
@@ -384,7 +385,7 @@ private:
 	auto AddChild( ArgsT&& ...args ) -> NewElementT*
 	{
 		auto* logical_parent = parent.Get();
-		if( !logical_parent ) throw std::logic_error{ "Builder parent has been removed or destroyed" };
+		if( !logical_parent ) throw tatzel::Exception{ "Builder parent has been removed or destroyed" };
 		auto dispatch = logical_parent->BeginDispatch();
 		auto element = std::make_unique<NewElementT>(
 			std::string{ "ui-" } + GenerateUUID(), logical_parent, std::forward<ArgsT>( args )... );
@@ -419,6 +420,7 @@ private:
 		if( child_parent.IsRemoved() ) return;
 		auto scoped_builder = PageBuilder<ParentT>{ *core, child_parent, slot };
 		using ScopedBuilderT = decltype( scoped_builder );
+		auto callback_scope = CallbackScope{ "Child builder" };
 		if constexpr( std::is_invocable_v<ChildBuilderFn&&, ScopedBuilderT&, ParentT*> )
 			std::invoke( std::forward<ChildBuilderFn>( child_builder_fn ), scoped_builder, &child_parent );
 		else

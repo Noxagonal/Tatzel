@@ -11,6 +11,8 @@ module;
 
 export module UI.Element.TextInput;
 
+import UI.Diagnostics;
+
 export import UI.Element.FormField;
 export import UI.Element.Interface.Inputable;
 export import UI.Element.Interface.Submittable;
@@ -142,7 +144,11 @@ public:
 
 		auto callback = on_input;
 		auto snapshot = this->value;
-		if( callback ) callback( snapshot );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Text input" };
+			callback( snapshot );
+		}
 	}
 
 	/// @brief Reports that this editor accepts string change values.
@@ -168,7 +174,11 @@ public:
 
 		auto callback = on_change;
 		auto snapshot = this->value;
-		if( callback ) callback( snapshot );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Text change" };
+			callback( snapshot );
+		}
 	}
 
 	/// @brief Submits the current logical value when Enter is pressed.
@@ -183,7 +193,11 @@ public:
 
 		auto callback = on_submit;
 		auto snapshot = value;
-		if( callback ) callback( snapshot );
+		if( callback )
+		{
+			auto scope = tatzel::CallbackScope{ "Text submit" };
+			callback( snapshot );
+		}
 	}
 
 	/// @brief Installs custom validation for this field's current value.

@@ -169,7 +169,10 @@ Current error codes are session_expired, invalid_json, invalid_message,
 already_connected, page_not_found, unknown_operation, and handler_failed.
 
 The server validates envelopes and event field types before dispatch. Callback
-exceptions are logged on the server and reported as handler_failed. A failed
+exceptions are logged with event context on the server and reported as handler_failed.
+Traced tatzel::Exception values retain a callback-bounded pre-unwind stack;
+ordinary exceptions retain their available type/message. See [diagnostics](diagnostics.md).
+A failed
 page factory can leave a partial page and requires a reload.
 
 The browser validates server envelopes and operation payloads before applying
