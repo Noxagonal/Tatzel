@@ -13,7 +13,7 @@ function sendInput(target: EventTarget | null): void
 		|| target.matches(":disabled") || target.readOnly) return;
 	if (!target.hasAttribute("data-ui-on-input")) return;
 
-	sendToServer({ op: "on_input", data: { part_id: target.id, value: target.value } });
+	sendToServer({ op: "on_input", data: { part_id: target.id, value: getElementValue(target) as string } });
 }
 
 /**
@@ -63,7 +63,7 @@ export function registerBrowserEventHandlers(): void
 		if (!(target instanceof Element)) return;
 
 		const element = target.closest("[data-ui-on-change]");
-		if (!element || element.matches(":disabled")
+		if (!element || target.matches(":disabled") || element.matches(":disabled")
 			|| ((element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) && element.readOnly)) return;
 
 		const value = getElementValue(element);
@@ -100,7 +100,7 @@ export function registerBrowserEventHandlers(): void
 		if (element instanceof HTMLFormElement) {
 			const fields: Array<{ part_id: string; value: string | boolean; }> = [];
 			for (const field of Array.from(element.elements)) {
-				if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)
+				if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement || field instanceof HTMLFieldSetElement)
 					|| field.form !== element || !field.hasAttribute("data-ui-form-field") || field.matches(":disabled")) continue;
 
 				const value = getElementValue(field);

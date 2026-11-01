@@ -116,6 +116,87 @@ Explicit server replacements may supersede an edit already in flight. There is
 no revision-based conflict resolution between independently initiated server
 updates and newer browser edits.
 
+## Numeric input
+
+NumberInput takes a label, an optional initial double, and an optional callback
+receiving std::optional<double>. GetValue returns a finite number or nullopt;
+empty is distinct from zero. GetTextValue exposes the current editing text and
+HasInvalidInput distinguishes an invalid draft from an intentionally empty field.
+Browser drafts are retained without clamping or value echoes.
+
+```cpp
+auto* amount = ui.NumberInput( "Amount", 1.5 );
+amount->SetRange( 0, 100 );
+amount->SetStep( 0.5 );
+amount->SetRequired( true );
+amount->SetValue( std::nullopt );
+```
+
+SetRange replaces the optional inclusive bounds atomically. SetStep accepts a
+positive finite increment or nullopt for any increment (the default). The step
+base is the minimum when present, otherwise zero. Decimal step checks allow
+small floating-point rounding error. Bounds and step policies validate on the
+server; changing them does not round or discard the current draft. Explicit
+nonfinite values, reversed bounds, and nonpositive steps throw tatzel::Exception
+without changing state. SetValidator receives an optional number after the
+built-in required, numeric, range, and step checks succeed.
+
+SetOnInput, SetOnChange, and SetOnSubmit receive numeric snapshots; empty and
+invalid edits both pass nullopt. Read HasInvalidInput when that distinction is
+needed. Disabled, read-only, error, placeholder, label, and form behavior follows
+TextInput. Numeric transport values remain strings so incomplete input and empty
+fields never become zero. A native bad-input draft uses the invalid wire token
+NaN; it always fails numeric validation, including for optional fields.
+
+## Radio groups
+
+RadioGroup takes a label, owned RadioOption choices, an optional initial ID, and
+an optional string-ID change callback. RadioOption shares SelectOption's id,
+label, and disabled properties. IDs must be unique and nonempty; labels may repeat.
+
+```cpp
+auto* delivery = ui.RadioGroup( "Delivery", {
+	{ "pickup", "Pickup" }, { "courier", "Courier" },
+	{ "post", "Post (unavailable)", true }
+}, "pickup" );
+delivery->SetRequired( true );
+```
+
+GetValue, SetValue, SetOptions, SetOnChange, and SetValidator follow Select's
+contracts. Empty means no checked option. Replacing choices preserves an enabled
+selected ID and otherwise clears it. Native buttons have group-local names,
+label association, disabled choices, and keyboard navigation. Each group appears
+once in a form snapshot, even with no checked option. Browser-created choice
+nodes do not become separate logical elements or trusted event sources.
+
+## Links and images
+
+Link takes plain text, a URL, and an optional LinkTarget. GetText/SetText and
+GetURL/SetURL own and synchronize their text. SetTarget selects SameContext or
+NewTab; a new tab requests noopener noreferrer. Activation uses ordinary browser
+navigation and supports keyboard activation and modified clicks. It does not
+invoke a server callback or implement client-side routing.
+
+Image takes a source URL and explicit alternative text. Use an empty description
+for decorative images. GetSource/SetSource and
+GetAlternativeText/SetAlternativeText synchronize owned strings. SetSize takes
+optional positive width and height hints in CSS pixels; nullopt removes each
+hint. SetLazyLoading changes the native eager/lazy loading hint. An empty source
+removes src, avoiding a request for the current document.
+
+```cpp
+ui.Link( "Tatzel home", "/", tatzel::ui::LinkTarget::NewTab );
+auto* image = ui.Image( "/images/team.png", "The team at the workshop" );
+image->SetSize( 640, 360 );
+image->SetLazyLoading( true );
+```
+
+Both controls accept relative references and HTTP/HTTPS URLs. Links also accept
+mailto and tel. Unsupported schemes (including javascript, data, and file),
+backslashes, whitespace, and control characters throw tatzel::Exception before
+state changes. Encode spaces in resource URLs. This checks schemes; it is not a
+host allowlist or a substitute for application authorization.
+
 ## Rows and columns
 
 Row and Column receive a child builder and optional LayoutOptions. Their

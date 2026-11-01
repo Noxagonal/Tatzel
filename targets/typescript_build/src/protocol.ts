@@ -76,6 +76,9 @@ export type ReceiveData_SetSelectOptions = {
 	options: Array<{ value: string; label: string; disabled: boolean; }>;
 };
 
+/** @brief Native-radio choices and selected state replaced as one operation. */
+export type ReceiveData_SetRadioOptions = Omit<ReceiveData_SetSelectOptions, "placeholder">;
+
 /** @brief ReceiveData SetOnClick wire-format type; DOM identifiers are part IDs. */
 export type ReceiveData_SetOnClick = {
 	part_id: string;
@@ -105,6 +108,7 @@ export type ReceiveServerMessage =
 	| { op: "set_value"; data: Array<ReceiveData_SetValue>; }
 	| { op: "set_modal_open"; data: Array<ReceiveData_SetModalOpen>; }
 	| { op: "set_select_options"; data: Array<ReceiveData_SetSelectOptions>; }
+	| { op: "set_radio_options"; data: Array<ReceiveData_SetRadioOptions>; }
 	| { op: "set_on_click"; data: Array<ReceiveData_SetOnClick>; }
 	| { op: "set_on_change"; data: Array<ReceiveData_SetOnChange>; }
 	| { op: "set_on_submit"; data: Array<ReceiveData_SetOnSubmit>; };

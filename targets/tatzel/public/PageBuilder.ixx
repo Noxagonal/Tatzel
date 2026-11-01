@@ -6,6 +6,7 @@ module;
 #include <concepts>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 #include <string>
 #include <string_view>
@@ -35,6 +36,11 @@ export import UI.Element.Column;
 export import UI.Element.Select;
 export import UI.Element.TextArea;
 export import UI.Element.Form;
+export import UI.Element.NumberInput;
+export import UI.Element.RadioGroup;
+export import UI.Element.Link;
+export import UI.Element.Image;
+
 
 namespace tatzel {
 
@@ -200,6 +206,74 @@ public:
 	) -> ui::TextInput*
 	{
 		return AddChild<ui::TextInput>( label, value, std::move( on_change ) );
+	}
+
+	/// @brief Creates an optional numeric field.
+	/// @param label Accessible field label.
+	/// @param value Finite initial value, or nullopt for empty.
+	/// @param on_change Optional committed-value callback.
+	/// @return Borrowed page-owned NumberInput pointer, valid until removal or page destruction.
+	/// @pre Called on the live owning event loop; captures outlive callback invocation.
+	/// @post The logical control is owned and browser creation is queued.
+	/// @throws tatzel::Exception If initial state is invalid.
+	auto NumberInput(
+		std::string_view label,
+		std::optional<double> value = {},
+		std::function<void( std::optional<double> )> on_change = {}
+	) -> ui::NumberInput*
+	{
+		return AddChild<ui::NumberInput>( label, value, std::move( on_change ) );
+	}
+
+	/// @brief Creates a native single-choice radio group.
+	/// @param label Accessible group label.
+	/// @param options Owned choices with unique nonempty IDs.
+	/// @param value Enabled choice ID, or empty for no selection.
+	/// @param on_change Optional accepted-choice callback.
+	/// @return Borrowed page-owned RadioGroup pointer, valid until removal or page destruction.
+	/// @pre Called on the live owning event loop; captures outlive callback invocation.
+	/// @post The logical control is owned and browser creation is queued.
+	/// @throws tatzel::Exception If initial state is invalid.
+	auto RadioGroup(
+		std::string_view label,
+		std::vector<ui::RadioOption> options,
+		std::string_view value = {},
+		std::function<void( std::string_view )> on_change = {}
+	) -> ui::RadioGroup*
+	{
+		return AddChild<ui::RadioGroup>( label, std::move( options ), value, std::move( on_change ) );
+	}
+
+	/// @brief Creates a plain-text native navigation link.
+	/// @param text Visible plain text, copied before returning.
+	/// @param url Supported navigation URL, copied before returning.
+	/// @param target Requested navigation context.
+	/// @return Borrowed page-owned Link pointer, valid until removal or page destruction.
+	/// @pre Called on the live owning event loop; captures outlive callback invocation.
+	/// @post The logical control is owned and browser creation is queued.
+	/// @throws tatzel::Exception If initial state is invalid.
+	auto Link(
+		std::string_view text,
+		std::string_view url,
+		ui::LinkTarget target = ui::LinkTarget::SameContext
+	) -> ui::Link*
+	{
+		return AddChild<ui::Link>( text, url, target );
+	}
+
+	/// @brief Creates a native image resource.
+	/// @param source Supported image URL, copied before returning.
+	/// @param alternative_text Accessible description, or empty for decoration.
+	/// @return Borrowed page-owned Image pointer, valid until removal or page destruction.
+	/// @pre Called on the live owning event loop; captures outlive callback invocation.
+	/// @post The logical control is owned and browser creation is queued.
+	/// @throws tatzel::Exception If initial state is invalid.
+	auto Image(
+		std::string_view source,
+		std::string_view alternative_text
+	) -> ui::Image*
+	{
+		return AddChild<ui::Image>( source, alternative_text );
 	}
 
 	/// @brief Creates an accessible labeled checkbox.

@@ -16,6 +16,7 @@ import {
 	setText,
 	setValue,
 	setSelectOptions,
+	setRadioOptions,
 } from "./dom-ops.js";
 
 
@@ -86,6 +87,10 @@ socket.addEventListener(
 
 		case "set_value":
 			setValue(message.data);
+			break;
+
+		case "set_radio_options":
+			setRadioOptions(message.data);
 			break;
 
 		case "set_select_options":

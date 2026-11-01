@@ -62,6 +62,8 @@ logical heading, nested container, and button, plus a profile card demonstrating
 text edits, checkbox changes, explicit reset values, and a modal preview.
 Open http://localhost:8080/forms for the row/column layout and validated form
 example, including choice updates and multiline editing.
+Open http://localhost:8080/elements for numeric input, radio groups, native links,
+and images, including coordinated validation and explicit resets.
 Open http://localhost:8080/lifecycle for dynamic creation, removal, child
 clearing, checked references, modal disposal, and a callback throwing a traced exception.
 Startup and shutdown messages use the shared INFO logger. See
@@ -102,6 +104,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/elements-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```

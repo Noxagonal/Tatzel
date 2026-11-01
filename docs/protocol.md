@@ -75,6 +75,7 @@ Every row below uses a data array of the listed payload objects.
 | add_class | part_id, class_name | Browser handler only. |
 | remove_class | part_id, class_name | Browser handler only. |
 | set_value | part_id, value | ClientUpdater method; value is a string, including true/false for checkboxes. |
+| set_radio_options | part_id, value, options | Replaces native radio choices while retaining the registered group and label. |
 | set_select_options | part_id, placeholder, value, options | Replaces native option choices and selection while retaining the select editor. |
 
 All identifier and text fields are strings. open is boolean. classes is an
@@ -93,10 +94,10 @@ the browser has applied it when the C++ method returns.
 {"op":"on_dismiss","data":{"part_id":"ui-modal|base"}}
 ```
 
-Action buttons support on_click. TextInput and TextArea accept on_input and
+Action buttons support on_click. TextInput, TextArea, and NumberInput accept on_input and
 on_change with string values. Standalone editor submission sends the latest
 input first. Within a Form, keyboard submission targets the whole form. Select
-on_change values must name enabled option IDs or be empty. Checkbox
+and RadioGroup on_change values must name enabled option IDs or be empty. Checkbox
 on_change values must be boolean; the transport normalizes them to true/false
 strings for the framework interface. Modal accepts on_dismiss from its dialog
 or close-button part. Browser edits are accepted before callbacks without
@@ -158,6 +159,22 @@ The adapter initializes Select choices after queuing the editor's DOM creation.
 The set_select_options operation builds native option children with plain text;
 those children do not have logical event-source IDs. Replacement options and
 the selected value are carried together.
+
+Radio groups use set_radio_options with the same options/value schema, without
+a placeholder. The editor is a fieldset containing a legend and a dedicated
+options container. Native radios are browser-owned children with a shared,
+group-local name. Changes and snapshots use the registered fieldset part ID and
+one selected ID (empty when unchecked); individual radio nodes are not event
+sources. Explicit set_value on that fieldset replaces checked state without
+rebuilding choices. Disabled native choices cannot emit normal browser changes;
+the server also rejects their IDs.
+
+NumberInput uses decimal string values for input, change, and snapshots. Empty
+remains empty. A native badInput flag is encoded as NaN so an invalid draft
+cannot become an accepted optional empty value. The server retains malformed or
+out-of-range drafts for field validation and accepts only finite numbers through
+the application setter. Initial numeric state is sent with set_value after DOM
+creation, keeping the native step base at minimum or zero.
 
 ## Errors and validation
 

@@ -105,6 +105,30 @@ public:
 	/// @post The control owns its DOM representation and is bound to the adapter.
 	auto CreatePartsFor( ui::Form& element ) const -> void override;
 
+	/// @brief Maps a logical NumberInput and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::NumberInput& element ) const -> void override;
+
+	/// @brief Maps a logical RadioGroup and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::RadioGroup& element ) const -> void override;
+
+	/// @brief Maps a logical Link and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Link& element ) const -> void override;
+
+	/// @brief Maps a logical Image and binds its supported updates.
+	/// @param element Logical control to map.
+	/// @pre The parent is mapped; no parts have been assigned.
+	/// @post The control owns its DOM representation and is bound to the adapter.
+	auto CreatePartsFor( ui::Image& element ) const -> void override;
+
 	/// @brief Queues control-specific initialization after browser parts are created.
 	/// @param element Newly mapped logical control.
 	/// @pre DOM creation for element's parts is already queued on the same page.
