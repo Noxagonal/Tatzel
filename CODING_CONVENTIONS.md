@@ -190,7 +190,12 @@ op/data envelope for success and error messages. Keep application exceptions
 inside a transport boundary and report useful diagnostics on the server.
 Use Log and LogException to share the existing Drogon logging backend. Construct
 tatzel::Exception at a throw expression when an original source location and
-stacktrace are needed. Capture event identity before invoking callbacks that
+stacktrace are needed. All explicit exceptions raised by Tatzel C++ code use
+tatzel::Exception, including argument validation, lifecycle guards, and utility
+failures. Standard-library and third-party exceptions retain their original
+types; report their available type and message at framework entry boundaries.
+An application catch that handles a failure locally calls LogException when it
+should also appear in server diagnostics. Capture event identity before invoking callbacks that
 may remove their own controls. Keep catch/report locations distinct from throw
 locations; ordinary exceptions do not carry an original stacktrace. Framework
 invocations of application code establish a CallbackScope so diagnostic output

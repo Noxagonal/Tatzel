@@ -20,7 +20,7 @@ than earlier experiments.
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
 | DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
-| Error reporting | Structured transport errors, contextual server logs, and standard stacktraces on tatzel::Exception trimmed at application callback invocations. |
+| Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
 | Logging | Runtime-configurable Tatzel API over Drogon's backend, startup/shutdown messages, and existing file/rotation configuration. |
 | Documentation | Authored Markdown guides, Doxygen contracts, and a static HTML build. |
 
@@ -41,7 +41,7 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - No automatic reconnect, page-state restoration, or client-side navigation.
 - No rollback of a partially built logical page after a factory throws; reload to retry.
 - Original throw traces require tatzel::Exception; native stack capture and symbol resolution are best effort.
-- Startup, HTTP handling, and connection creation do not yet share a unified exception boundary.
+- Applications embedding the library supply their own outer startup catch; the development example demonstrates it.
 - No DOM diff engine or automatic mutation batching.
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
 - No cross-thread logical UI scheduler.

@@ -85,6 +85,15 @@ test("logical removal invalidates identities, preserves parents, and survives ca
 		send("on_click", retiredButton);
 		click("Try retired builder"); await status("Retired builder rejected");
 		assert.equal(errors().length, 0);
+		await waitFor(() => diagnostics.includes("Builder parent has been removed or destroyed"));
+		assert.match(diagnostics, /Exception: tatzel::Exception/);
+		const beforeStandardFailure = diagnostics.length;
+		click("Throw standard exception");
+		await waitFor(() => errors().length === 1);
+		await waitFor(() => diagnostics.slice(beforeStandardFailure).includes("Exception: std::out_of_range"));
+		const standardReport = diagnostics.slice(beforeStandardFailure);
+		assert.ok(standardReport.includes("Message:") && !standardReport.includes("Thrown at:") && !standardReport.includes("Stack trace:"));
+		assert.equal(errors()[0].data.code, "handler_failed");
 		click("Clear items"); await status("Items cleared");
 		assert.ok(removed(secondRow) && !removed(list));
 		click("Add item"); await status("Added item 3");
@@ -106,7 +115,7 @@ test("logical removal invalidates identities, preserves parents, and survives ca
 		const form = first.parts().find(part => part.tag === "form").part_id;
 		send("on_change", label.attributes.for, { value: "Late browser edit" });
 		send("on_submit", form, { fields: [] }); await status("Submitted without field");
-		assert.equal(errors().length, 0);
+		assert.equal(errors().length, 1);
 
 		const modal = first.parts().find(part => part.tag === "dialog").part_id;
 		click("Open disposable modal");
@@ -119,18 +128,20 @@ test("logical removal invalidates identities, preserves parents, and survives ca
 
 		const throwing = first.button("Remove then throw");
 		click("Remove then throw");
-		await waitFor(() => errors().some(message => message.data.code === "handler_failed"));
+		await waitFor(() => errors().length === 2);
 		await waitFor(() => diagnostics.includes("application callback invocation boundary"));
-		assert.match(diagnostics, /route=\/lifecycle operation=on_click element=ui-/);
-		assert.match(diagnostics, /exception=tatzel::Exception.*Lifecycle example callback failed after removal/);
-		assert.match(diagnostics, /thrown_at=.*Main\.cpp:\d+ in void FailLifecycleAction/);
-		assert.match(diagnostics, /callback=Button click/);
+		await waitFor(() => diagnostics.includes("Lifecycle example callback failed after removal"));
+		assert.match(diagnostics, /Route: \/lifecycle\n  Operation: on_click\n  Element: ui-/);
+		assert.match(diagnostics, /Exception: tatzel::Exception\n  Message: Lifecycle example callback failed after removal/);
+		assert.match(diagnostics, /Thrown at: .*Main\.cpp:\d+\n  Function: void FailLifecycleAction/);
+		assert.match(diagnostics, /Callback: Button click/);
 		assert.ok(!diagnostics.includes("__libc_start_main") && !diagnostics.includes("WsController::DispatchMessage"));
 		assert.ok(!diagnostics.includes("/bits/invoke.h") && !diagnostics.includes("/bits/std_function.h"));
+		assert.doesNotMatch(diagnostics, /#\d+ _Z/);
 		assert.ok(removed(throwing));
 		send("on_click", throwing);
 		click("Add item"); await status("Added item 4");
-		assert.equal(errors().length, 1);
+		assert.equal(errors().length, 2);
 
 		for (let index = 5; index <= 34; index++) click("Add item");
 		await status("Added item 34");

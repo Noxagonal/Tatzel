@@ -5,7 +5,6 @@ module;
 #include <algorithm>
 #include <functional>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -42,7 +41,7 @@ public:
 	/// @param on_submit Optional callback invoked only after successful validation.
 	/// @pre parent is nonnull; callback captures outlive their invocation.
 	/// @post The form owns its label and callback; the builder supplies parts and children.
-	/// @throws std::invalid_argument If a logical ancestor is already a Form.
+	/// @throws tatzel::Exception If a logical ancestor is already a Form.
 	Form(
 		std::string_view id,
 		LogicalElement* parent,
@@ -55,7 +54,7 @@ public:
 	{
 		for( auto* ancestor = parent; ancestor; ancestor = ancestor->GetParent() )
 		{
-			if( dynamic_cast<Form*>( ancestor ) ) throw std::invalid_argument{ "Forms cannot be nested" };
+			if( dynamic_cast<Form*>( ancestor ) ) throw tatzel::Exception{ "Forms cannot be nested" };
 		}
 	}
 

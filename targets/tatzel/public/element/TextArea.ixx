@@ -4,11 +4,12 @@ module;
 
 #include <cstddef>
 #include <functional>
-#include <stdexcept>
 #include <string_view>
 #include <utility>
 
 export module UI.Element.TextArea;
+
+import UI.Diagnostics;
 
 export import UI.Element.TextInput;
 
@@ -48,10 +49,10 @@ public:
 	/// @param rows Positive number of visible text rows.
 	/// @pre Called on the owning event loop.
 	/// @post The row count is stored and a bound adapter queues its presentation update.
-	/// @throws std::invalid_argument If rows is zero.
+	/// @throws tatzel::Exception If rows is zero.
 	auto SetRows( size_t rows ) -> void
 	{
-		if( rows == 0 ) throw std::invalid_argument{ "TextArea rows must be positive" };
+		if( rows == 0 ) throw tatzel::Exception{ "TextArea rows must be positive" };
 		if( this->rows == rows ) return;
 
 		this->rows = rows;

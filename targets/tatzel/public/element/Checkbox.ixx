@@ -4,7 +4,6 @@ module;
 
 #include <cstddef>
 #include <functional>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -86,7 +85,7 @@ public:
 	/// @param value Exactly true or false, normalized by transport routing.
 	/// @pre Called on the owning event loop for this checkbox's editor part.
 	/// @post An enabled checkbox stores the accepted value before its callback runs.
-	/// @throws std::invalid_argument If value is not a normalized boolean string.
+	/// @throws tatzel::Exception If value is not a normalized boolean string.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
 		auto dispatch = BeginDispatch();
@@ -94,7 +93,7 @@ public:
 
 		if( value != "true" && value != "false" )
 		{
-			throw std::invalid_argument{ "Checkbox changes require a boolean" };
+			throw tatzel::Exception{ "Checkbox changes require a boolean" };
 		}
 		if( IsDisabled() ) return;
 

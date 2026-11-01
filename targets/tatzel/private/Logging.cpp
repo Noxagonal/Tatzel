@@ -57,6 +57,7 @@ auto ReportingFailed() noexcept -> void
 /// @post No exception state is changed.
 auto ExceptionType( const std::exception& error ) -> std::string
 {
+	if( typeid( error ) == typeid( tatzel::Exception ) ) return "tatzel::Exception";
 #if defined( __GNUG__ )
 	auto status = 0;
 	auto name = std::unique_ptr<char, decltype( &std::free )>{
@@ -64,6 +65,18 @@ auto ExceptionType( const std::exception& error ) -> std::string
 	if( status == 0 && name ) return name.get();
 #endif
 	return typeid( error ).name();
+}
+
+/// @brief Keeps compiler-generated function descriptions readable in console reports.
+/// @param description Complete native function description.
+/// @return Readable description abbreviated to 160 characters, or an unresolved-symbol label.
+/// @pre None.
+/// @post Raw stack entries remain unchanged and available for inspection.
+auto ShortSymbol( std::string_view description ) -> std::string
+{
+	if( description.starts_with( "_Z" ) ) return "<unresolved C++ symbol>";
+	if( description.size() <= 160 ) return std::string{ description };
+	return std::string{ description.substr( 0, 157 ) } + "...";
 }
 
 /// @brief Recognizes standard-library callable plumbing for presentation only.
@@ -96,32 +109,33 @@ auto AppendTrace(
 ) -> void
 {
 	const auto location = error.GetLocation();
-	report << "\n  thrown_at=" << location.file_name() << ':' << location.line()
-		<< " in " << location.function_name();
-	if( !error.GetCallbackName().empty() ) report << "\n  callback=" << error.GetCallbackName();
+	report << "\n  Thrown at: " << location.file_name() << ':' << location.line()
+		<< "\n  Function: " << ShortSymbol( location.function_name() );
+	if( !error.GetCallbackName().empty() ) report << "\n  Callback: " << error.GetCallbackName();
 	if( error.GetStackTrace().empty() )
 	{
-		report << "\n  stacktrace unavailable";
+		report << "\n  Stack trace unavailable";
 		return;
 	}
 	if( !error.GetCallbackName().empty() && !error.HasCallbackBoundary() )
 	{
-		report << "\n  callback boundary unavailable; raw framework frames omitted";
+		report << "\n  Callback boundary unavailable; raw framework frames omitted";
 		return;
 	}
 	auto displayed = size_t{ 0 };
+	report << "\n  Stack trace:";
 	for( size_t index = 0; index < error.GetVisibleFrameCount(); ++index )
 	{
 		const auto& frame = error.GetStackTrace()[ index ];
 		auto description = frame.description();
 		auto file = frame.source_file();
 		if( IsCallableDispatch( description, file ) ) continue;
-		report << "\n  #" << displayed++ << ' ';
+		report << "\n    #" << displayed++ << ' ';
 		if( description.empty() ) report << "<unresolved frame>";
-		else report << description;
-		if( !file.empty() ) report << " at " << file << ':' << frame.source_line();
+		else report << ShortSymbol( description );
+		if( !file.empty() ) report << "\n       " << file << ':' << frame.source_line();
 	}
-	if( error.HasCallbackBoundary() ) report << "\n  -- application callback invocation boundary --";
+	if( error.HasCallbackBoundary() ) report << "\n    -- application callback invocation boundary --";
 }
 
 /// @brief Formats standard, traced, nested, and nonstandard exceptions with a recursion bound.
@@ -136,18 +150,18 @@ auto AppendException(
 	unsigned depth
 ) -> void
 {
-	if( !exception ) { report << "\n  unknown exception"; return; }
-	if( depth == 8 ) { report << "\n  further nested causes omitted"; return; }
+	if( !exception ) { report << "\n  Exception: unknown failure"; return; }
+	if( depth == 8 ) { report << "\n  Further nested causes omitted"; return; }
 	try { std::rethrow_exception( exception ); }
 	catch( const std::exception& error )
 	{
-		report << ( depth ? "\n  caused_by=" : "\n  exception=" ) << ExceptionType( error ) << ": " << error.what();
+		report << ( depth ? "\n  Caused by: " : "\n  Exception: " ) << ExceptionType( error )
+			<< "\n  Message: " << error.what();
 		if( auto* traced = dynamic_cast<const tatzel::Exception*>( &error ) ) AppendTrace( *traced, report );
-		else report << "\n  original stacktrace unavailable for this exception type";
 		if( auto* nested = dynamic_cast<const std::nested_exception*>( &error ); nested && nested->nested_ptr() )
 			AppendException( nested->nested_ptr(), report, depth + 1 );
 	}
-	catch( ... ) { report << "\n  nonstandard exception (no standard message or throw trace)"; }
+	catch( ... ) { report << "\n  Exception: nonstandard thrown value (no standard message)"; }
 }
 
 }
@@ -193,23 +207,14 @@ auto tatzel::LogException(
 	{
 		const auto error_id = next_error_id.fetch_add( 1, std::memory_order_relaxed );
 		auto report = std::ostringstream{};
-		report << "Tatzel operation failed";
-		if( !context.route.empty() ) report << " route=" << context.route;
-		if( !context.operation.empty() ) report << " operation=" << context.operation;
-		if( !context.element_id.empty() ) report << " element=" << context.element_id;
-		if( !context.part_id.empty() ) report << " part=" << context.part_id;
-		report << "\n  caught_at=" << location.file_name() << ':' << location.line();
+		report << "Tatzel error #" << error_id;
+		if( !context.route.empty() ) report << "\n  Route: " << context.route;
+		if( !context.operation.empty() ) report << "\n  Operation: " << context.operation;
+		if( !context.element_id.empty() ) report << "\n  Element: " << context.element_id;
+		if( !context.part_id.empty() ) report << "\n  Part: " << context.part_id;
+		report << "\n  Reported at: " << location.file_name() << ':' << location.line();
 		AppendException( exception, report, 0 );
-		auto rendered = report.str();
-		auto lines = std::string_view{ rendered };
-		while( !lines.empty() )
-		{
-			const auto end = lines.find( '\n' );
-			auto line = std::string{ "[error=" } + std::to_string( error_id ) + "] " + std::string{ lines.substr( 0, end ) };
-			Log( LogLevel::Error, line, location );
-			if( end == std::string_view::npos ) break;
-			lines.remove_prefix( end + 1 );
-		}
+		Log( LogLevel::Error, report.str(), location );
 	}
 	catch( ... ) { ReportingFailed(); }
 }

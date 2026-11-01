@@ -103,6 +103,7 @@ ctest --test-dir build --output-on-failure
 node tests/browser/server-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```
 
 These checks include logging/exception reports and an independently optimized

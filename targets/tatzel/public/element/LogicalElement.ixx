@@ -9,7 +9,6 @@ module;
 #include <functional>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <span>
 #include <string>
 #include <string_view>
@@ -17,6 +16,8 @@ module;
 #include <vector>
 
 export module UI.Element.LogicalElement;
+
+import UI.Diagnostics;
 
 import UI.DOM.ElementPart;
 export import UI.Element.ElementHandle;
@@ -287,11 +288,11 @@ public:
 	/// @return Borrowed pointer to the inserted child.
 	/// @pre child is nonnull, active, and its logical parent is this control.
 	/// @post The child is owned by this control; its address is unchanged.
-	/// @throws std::logic_error If this control was already removed.
+	/// @throws tatzel::Exception If this control was already removed.
 	template<typename ElementT> requires std::derived_from<ElementT, LogicalElement>
 	auto InsertChild( std::unique_ptr<ElementT> child ) -> ElementT*
 	{
-		if( removed ) throw std::logic_error{ "Cannot insert children into a removed control" };
+		if( removed ) throw tatzel::Exception{ "Cannot insert children into a removed control" };
 		assert( child && !child->IsRemoved() && child->GetParent() == this );
 		auto* result = child.get();
 		child_list.push_back( std::move( child ) );

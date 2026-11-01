@@ -38,6 +38,10 @@ Exception derives from std::runtime_error. Construct it at the throw expression
 so its std::source_location and std::stacktrace::current describe the failing
 application code before stack unwinding. Constructing it earlier records that
 earlier location. A bare rethrow preserves the original diagnostic object.
+All explicit C++ throws in Tatzel use this type, including builder/lifecycle
+guards, control validation, adapter checks, and utility/application errors.
+Recoverable application catches should catch tatzel::Exception rather than
+the previous std::logic_error or std::invalid_argument types.
 
 Tatzel establishes CallbackScope around button, editor, selector, checkbox,
 modal-close, form, validator, page-builder, and child-builder invocations. The
@@ -63,6 +67,9 @@ symbols for useful file/line output. If a callback boundary cannot be identified
 the report retains the explicit construction location and callback name while
 omitting raw framework frames. GetStackTrace exposes the bounded raw capture for
 manual inspection; GetVisibleFrameCount identifies the normal display prefix.
+Long native function descriptions are abbreviated in console output; unsupported
+C++ mangled names are labelled unresolved. Complete descriptions remain available
+through the raw entries.
 An exception constructed outside any CallbackScope exposes its entire bounded
 trace because there is no application invocation boundary to trim against.
 
@@ -70,15 +77,19 @@ Ordinary std::exception values still get their dynamic type and what() logged.
 They do not acquire an original throw stack automatically. Capturing a fresh
 stack in a catch block would describe the catch site instead. Nonstandard thrown
 values are reported without inventing a message or throw trace. Nested causes
-are inspected up to eight levels.
+are inspected up to eight levels. Standard-library exceptions are not converted
+to Tatzel exceptions and do not need trace/location metadata to be reported.
 
 ## Server reports
 
 WebSocket dispatch captures route, operation, logical element ID, and browser
 part ID before invoking application code. Those owned IDs remain available when
 the callback removes its own receiver. Caught failures are reported with a unique
-process-local error ID on each report line, separate caught_at and thrown_at
-locations, and available callback/trace metadata. Browser field values are not
+process-local error ID on a single report block, distinct Reported at and Thrown at
+locations, and available callback/trace metadata. A report is emitted as one
+backend message with one timestamp/severity header. Ordinary exceptions show
+their type and message while omitting unavailable original location/trace fields.
+Browser field values are not
 included in this context. Explicit application exception messages remain the
 application's responsibility.
 
@@ -89,14 +100,22 @@ is closed on a best-effort basis. The browser still receives only the generic
 handler_failed envelope; stack traces stay in server logs. It currently logs that
 envelope to its console without displaying a notification.
 
+WebSocket connection/message/close handlers and registered HTTP handlers report
+escaping standard and nonstandard exceptions. A failed HTTP template read returns
+a generic 500 response; response-delivery failures are reported separately.
+The example main function reports exceptions escaping application setup or Run
+and returns a failure status. Library callers own the corresponding outer catch
+when they write their own main. Locally handled exceptions are reported only when
+that catch calls LogException; the retired-builder example does so explicitly.
+
 An event failure leaves preceding logical changes applied, finishes deferred
 destruction, and allows later events. A failed page factory can still leave an
-incomplete page that requires reload. Connection creation, HTTP handling, and
-startup do not yet share a unified Tatzel exception boundary. Diagnostics do not
+incomplete page that requires reload. Diagnostics do not
 make failed assertions, memory corruption, or throwing noexcept/destructor code
 recoverable.
 
 Open /lifecycle and press Remove then throw to inspect a traced application
-helper and its button callback. Try retired builder remains a locally caught,
-expected std::logic_error and updates its status instead of producing a central
-error report.
+helper and its button callback. Try retired builder logs a locally handled
+tatzel::Exception and updates its status without sending a browser failure.
+Throw standard exception exercises std::vector::at: its std::out_of_range type
+and message appear in the server log without a fabricated throw trace/location.

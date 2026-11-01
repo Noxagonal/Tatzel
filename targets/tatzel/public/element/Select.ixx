@@ -6,7 +6,6 @@ module;
 #include <cstddef>
 #include <functional>
 #include <span>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_set>
@@ -45,7 +44,7 @@ public:
 	/// @param on_change Optional callback receiving accepted choice IDs.
 	/// @pre parent is nonnull; callback captures outlive their invocation.
 	/// @post Valid choices, value, and callback are owned; DOM parts are not yet assigned.
-	/// @throws std::invalid_argument If IDs are empty/duplicated or value is unavailable.
+	/// @throws tatzel::Exception If IDs are empty/duplicated or value is unavailable.
 	Select(
 		std::string_view id,
 		LogicalElement* parent,
@@ -60,7 +59,7 @@ public:
 		on_change{ std::move( on_change ) }
 	{
 		ValidateOptions( this->options );
-		if( !AcceptsChangeValue( value ) ) throw std::invalid_argument{ "Select value is not an enabled option" };
+		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
 	}
 
 	/// @brief Reads the available choices.
@@ -73,7 +72,7 @@ public:
 	/// @param options New choices with unique nonempty IDs.
 	/// @pre Called on the owning event loop.
 	/// @post Choices are owned; a removed/disabled selection becomes empty; the adapter queues one options update.
-	/// @throws std::invalid_argument If an ID is empty or duplicated; existing state is unchanged.
+	/// @throws tatzel::Exception If an ID is empty or duplicated; existing state is unchanged.
 	auto SetOptions( std::vector<SelectOption> options ) -> void
 	{
 		ValidateOptions( options );
@@ -93,10 +92,10 @@ public:
 	/// @param value Enabled choice ID, or empty for no selection.
 	/// @pre Called on the owning event loop.
 	/// @post Changed selection is stored and the adapter queues a value replacement.
-	/// @throws std::invalid_argument If value is not an enabled choice; existing state is unchanged.
+	/// @throws tatzel::Exception If value is not an enabled choice; existing state is unchanged.
 	auto SetValue( std::string_view value ) -> void
 	{
-		if( !AcceptsChangeValue( value ) ) throw std::invalid_argument{ "Select value is not an enabled option" };
+		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
 		if( this->value == value ) return;
 
 		this->value = value;
@@ -163,13 +162,13 @@ public:
 	/// @param value Enabled option ID, or empty for no selection.
 	/// @pre Called on the owning event loop for this selector's editor source.
 	/// @post An enabled control stores the ID before calling application code, without value echoes.
-	/// @throws std::invalid_argument If the ID is unavailable.
+	/// @throws tatzel::Exception If the ID is unavailable.
 	auto InvokeOnChange( std::string_view value ) -> void override
 	{
 		auto dispatch = BeginDispatch();
 		if( IsRemoved() ) return;
 
-		if( !AcceptsChangeValue( value ) ) throw std::invalid_argument{ "Select value is not an enabled option" };
+		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
 		if( IsDisabled() ) return;
 
 		this->value = value;
@@ -219,7 +218,7 @@ private:
 	/// @param options Candidate choices.
 	/// @pre None.
 	/// @post Candidate choices are unchanged.
-	/// @throws std::invalid_argument If an ID is empty or duplicated.
+	/// @throws tatzel::Exception If an ID is empty or duplicated.
 	static auto ValidateOptions( std::span<const SelectOption> options ) -> void
 	{
 		auto ids = std::unordered_set<std::string_view>{};
@@ -227,7 +226,7 @@ private:
 		{
 			if( option.id.empty() || !ids.insert( option.id ).second )
 			{
-				throw std::invalid_argument{ "Select option IDs must be unique and nonempty" };
+				throw tatzel::Exception{ "Select option IDs must be unique and nonempty" };
 			}
 		}
 	}

@@ -48,7 +48,7 @@ ui.Container( [](
 
 A copied scoped builder keeps the same logical parent. It can be captured for
 later use by that page's callbacks, but it does not extend the page lifetime.
-Builders throw logic_error before using removed parents or expired page services.
+Builders throw tatzel::Exception before using removed parents or expired page services.
 A compound builder returns nullptr if its child callback removes the new control;
 Card skips its actions builder if its content callback already removed the card.
 

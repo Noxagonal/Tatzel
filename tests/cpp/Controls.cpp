@@ -3,6 +3,7 @@
 #include <string>
 #include <string_view>
 
+import UI.Diagnostics;
 import UI.ClientElementTree;
 import UI.Element.Text;
 import UI.Element.Paragraph;
@@ -88,7 +89,7 @@ auto main() -> int
 		checkbox.InvokeOnChange( "not-a-boolean" );
 		assert( false );
 	}
-	catch( const std::invalid_argument& ) {}
+	catch( const tatzel::Exception& ) {}
 
 	auto modal = tatzel::ui::Modal{ "modal", &tree.root, "Preview" };
 	auto closes = 0;

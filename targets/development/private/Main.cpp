@@ -1,9 +1,10 @@
 #include <memory>
 #include <cassert>
 #include <functional>
-#include <stdexcept>
+#include <exception>
 #include <string>
 #include <string_view>
+#include <vector>
 
 import UI;
 
@@ -17,10 +18,11 @@ auto FailLifecycleAction() -> void
 }
 
 /// @brief Runs an interactive example using logical controls.
-/// @return Zero after the server stops.
+/// @return Zero after normal shutdown, or one after a reported application/startup failure.
 /// @pre Runtime configuration, template, and compiled browser assets are available.
 /// @post The application server has stopped.
 auto main() -> int
+try
 {
 	auto app = tatzel::App{};
 
@@ -184,8 +186,9 @@ auto main() -> int
 		assert( removed_card == nullptr && !actions_called );
 		ui.Button( "Try retired builder", [ expired_builder, status ] {
 			try { ( *expired_builder )(); }
-			catch( const std::logic_error& )
+			catch( const tatzel::Exception& )
 			{
+				tatzel::LogException( std::current_exception(), { "/lifecycle", "retired_builder" } );
 				if( auto* text = status.Get() ) text->SetText( "Retired builder rejected" );
 			}
 		} );
@@ -233,6 +236,10 @@ auto main() -> int
 			else if( auto* text = status.Get() ) text->SetText( "Modal already removed" );
 		} );
 
+		ui.Button( "Throw standard exception", [] {
+			auto values = std::vector<int>{};
+			static_cast<void>( values.at( 0 ) );
+		} );
 		auto* throwing = ui.Button( "Remove then throw", {} );
 		auto throwing_handle = throwing->GetHandle();
 		throwing->SetOnClick( [ throwing_handle, status ] {
@@ -245,4 +252,9 @@ auto main() -> int
 	app.Run();
 
 	return 0;
+}
+catch( ... )
+{
+	tatzel::LogException( std::current_exception(), { {}, "application" } );
+	return 1;
 }
