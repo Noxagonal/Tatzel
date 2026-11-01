@@ -4,6 +4,8 @@
 Tatzel's logical C++ controls. Its browser code is the framework runtime: views,
 forms, filtering, validation, and application actions are written in C++.
 
+![Tatzel Workspace overview](images/workspace-desktop.png)
+
 ## Build and run
 
 Install the normal [build dependencies](building.md), plus SQLite development

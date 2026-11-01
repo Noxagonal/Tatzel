@@ -265,8 +265,9 @@ private:
 				const auto first = !self->snapshot;
 				self->snapshot = std::move( snapshot );
 				if( first ) self->Notify( "Everything is up to date." );
-				if( !self->editing ) self->Render();
-				else self->Notify( "Workspace updated. Your open draft has been preserved." );
+				if( self->editing ) self->Notify( "Workspace updated. Your open draft has been preserved." );
+				else if( self->results.Get() ) self->RefreshTaskResults();
+				else self->Render();
 			}
 		} ) )
 		{
@@ -506,8 +507,8 @@ private:
 			auto projects = std::vector<tatzel::ui::SelectOption>{ { "all", "All projects" } };
 			for( const auto& project : snapshot->projects ) projects.push_back( { std::to_string( project.id ), project.name + ( project.archived ? " (archived)" : "" ) } );
 			if( std::ranges::none_of( projects, [ this ]( const auto& option ) { return option.id == project_filter; } ) ) project_filter = "all";
-			filters.Select( "Project", std::move( projects ), project_filter,
-				[ self ]( std::string_view value ) { self->project_filter = value; self->RenderTaskRows(); } );
+			self->project_selector = filters.Select( "Project", std::move( projects ), project_filter,
+				[ self ]( std::string_view value ) { self->project_filter = value; self->RenderTaskRows(); } )->GetHandle();
 			filters.Select( "Sort", { { "newest", "Newest first" }, { "title", "Title A–Z" }, { "priority", "Priority" } }, sort,
 				[ self ]( std::string_view value ) { self->sort = value; self->RenderTaskRows(); } );
 		} )->SetAppearance( "filters" );
@@ -523,6 +524,29 @@ private:
 			} )->SetAppearance( "quiet" );
 		} )->SetAppearance( "list-controls" );
 		results = ui.Container( []( auto ) {} )->GetHandle();
+		RenderTaskRows();
+	}
+
+	/// @brief Applies external snapshots without replacing the task filter editors.
+	/// @pre Called on the owning loop while the task results and project selector are active.
+	/// @post Filter values and focus survive; options, spacing, and results reflect the snapshot.
+	auto RefreshTaskResults() -> void
+	{
+		if( auto* selector = project_selector.Get() )
+		{
+			auto options = std::vector<tatzel::ui::SelectOption>{ { "all", "All projects" } };
+			for( const auto& project : snapshot->projects )
+				options.push_back( { std::to_string( project.id ), project.name + ( project.archived ? " (archived)" : "" ) } );
+
+			if( std::ranges::none_of( options, [ this ]( const auto& option ) { return option.id == project_filter; } ) )
+				project_filter = "all";
+
+			selector->SetOptions( std::move( options ) );
+			selector->SetValue( project_filter );
+		}
+		if( auto* parent = content.Get() )
+			parent->SetAppearance( snapshot->compact ? "page-content compact" : "page-content" );
+
 		RenderTaskRows();
 	}
 
@@ -767,6 +791,7 @@ private:
 	tatzel::ui::ElementHandle<tatzel::ui::Container> content;
 	tatzel::ui::ElementHandle<tatzel::ui::Container> results;
 	tatzel::ui::ElementHandle<tatzel::ui::Paragraph> notice;
+	tatzel::ui::ElementHandle<tatzel::ui::Select> project_selector;
 	tatzel::ui::ElementHandle<tatzel::ui::Form> active_form;
 	tatzel::ui::ElementHandle<tatzel::ui::Modal> confirmation;
 	std::vector<std::pair<std::string, tatzel::ui::ElementHandle<tatzel::ui::Link>>> navigation;

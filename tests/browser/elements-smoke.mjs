@@ -22,6 +22,19 @@ async function waitFor(predicate)
 	throw new Error("Timed out waiting for element integration state");
 }
 
+/**
+ * @brief Compares numerical feedback independently of standard-library float formatting.
+ * @param text Example status text.
+ * @returns Status with its numerical amount in JavaScript's canonical representation.
+ * @pre None.
+ * @post Other status text and choice identifiers are unchanged.
+ */
+function normalizeNumericStatus(text)
+{
+	return text.replace(/^(Editing|Ordered): (-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)/i,
+		(_, prefix, amount) => `${prefix}: ${Number(amount)}`);
+}
+
 test("numeric and radio fields validate complete snapshots and synchronize resources", { timeout: 30000 }, async () => {
 	const server = spawn(process.argv[2], [], { stdio: ["ignore", "pipe", "pipe"] });
 	let diagnostics = "";
@@ -63,7 +76,7 @@ test("numeric and radio fields validate complete snapshots and synchronize resou
 		const submit = (value, choice = "pickup", wrap = "box") => send("on_submit", form, { fields: [
 			{ part_id: amount, value }, { part_id: delivery, value: choice }, { part_id: packaging, value: wrap }
 		] });
-		const statusIs = text => waitFor(() => payloads("set_text").some(part => part.part_id === status && part.text === text));
+		const statusIs = text => waitFor(() => payloads("set_text").some(part => part.part_id === status && normalizeNumericStatus(part.text) === normalizeNumericStatus(text)));
 		const invalidMessage = async action => {
 			const count = messages.filter(message => message.op === "error").length;
 			action();
@@ -119,7 +132,7 @@ test("numeric and radio fields validate complete snapshots and synchronize resou
 		send("on_change", delivery, { value: "bike" });
 		await statusIs("Choice: bike");
 		submit("9", "bike");
-		await waitFor(() => payloads("set_text").filter(part => part.part_id === status && part.text === "Ordered: 2.000000 | bike").length === 2);
+		await waitFor(() => payloads("set_text").filter(part => part.part_id === status && normalizeNumericStatus(part.text) === "Ordered: 2 | bike").length === 2);
 		click("Toggle fields");
 		await waitFor(() => payloads("set_attribute").some(part => part.part_id === delivery && part.attribute === "disabled"));
 		const beforeDisabledSubmit = messages.filter(message => message.op === "error").length;

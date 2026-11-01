@@ -29,7 +29,13 @@ try {
 		await pause(30);
 	}
 	assert.ok(ready, diagnostics);
-	browser = await chromium.launch({ headless: true });
+	browser = await chromium.launch({
+		headless: true,
+		...(process.env.TATZEL_TEST_CHROMIUM ? {
+			executablePath: process.env.TATZEL_TEST_CHROMIUM,
+			args: ["--single-process", "--no-zygote", "--disable-dev-shm-usage"]
+		} : {})
+	});
 	const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 	page = await context.newPage();
 	const peer = await context.newPage();
@@ -41,6 +47,7 @@ try {
 	await page.screenshot({ path: join(previews, "overview-desktop.png"), fullPage: true });
 	await peer.goto("http://127.0.0.1:8080/#/tasks");
 	await peer.getByLabel("Search tasks").waitFor();
+	await peer.getByLabel("Search tasks").fill("Browser task");
 
 	await page.getByRole("link", { name: "+ Create a task", exact: true }).click();
 	await page.getByLabel("Task title").fill("Browser task");
@@ -51,6 +58,7 @@ try {
 	await page.waitForURL("**/#/tasks");
 	await page.getByRole("link", { name: "Browser task", exact: true }).waitFor();
 	await peer.getByRole("link", { name: "Browser task", exact: true }).waitFor();
+	assert.equal(await peer.getByLabel("Search tasks").evaluate(element => document.activeElement === element), true, "external updates preserve search focus");
 	await page.screenshot({ path: join(previews, "tasks-desktop.png"), fullPage: true });
 
 	await page.getByLabel("Search tasks").fill("Browser task");
@@ -58,10 +66,10 @@ try {
 	assert.equal(await page.getByLabel("Search tasks").evaluate(element => document.activeElement === element), true, "search preserves focus");
 	await page.getByRole("link", { name: "Browser task", exact: true }).click();
 	await page.getByLabel("Task title").waitFor();
-	await page.back();
+	await page.goBack();
 	await page.getByLabel("Search tasks").waitFor();
 	assert.equal(await page.getByLabel("Search tasks").getAttribute("value"), "Browser task");
-	await page.forward();
+	await page.goForward();
 	await page.getByLabel("Task title").waitFor();
 	await peer.getByRole("link", { name: "Browser task", exact: true }).click();
 	await peer.getByLabel("Task title").fill("A draft kept in the second window");
