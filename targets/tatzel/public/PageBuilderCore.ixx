@@ -7,6 +7,7 @@ export module UI.PageBuilderCore;
 import UI.ClientElementTree;
 import UI.ClientUpdater;
 import UI.ElementAdapter.ElementAdapter;
+import UI.Dispatcher;
 
 namespace tatzel {
 
@@ -18,16 +19,19 @@ public:
 	/// @param element_tree Logical tree owned by the client connection.
 	/// @param client_updater DOM protocol sender owned by the client connection.
 	/// @param element_adapter Logical-to-DOM adapter owned by the client connection.
+	/// @param dispatcher Weak submission handle for this client's UI event loop; empty for standalone integration.
 	/// @pre All services outlive this context and every builder copied from it.
 	/// @post Accessors return the supplied services without taking ownership.
 	PageBuilderCore(
 		ClientElementTree& element_tree,
 		ClientUpdater& client_updater,
-		ElementAdapter& element_adapter
+		ElementAdapter& element_adapter,
+		Dispatcher dispatcher = {}
 	) :
 		element_tree{ &element_tree },
 		client_updater{ &client_updater },
-		element_adapter{ &element_adapter }
+		element_adapter{ &element_adapter },
+		dispatcher{ dispatcher }
 	{}
 
 	/// @brief Reads the logical tree.
@@ -54,10 +58,17 @@ public:
 	/// @post State is unchanged.
 	auto GetElementAdapter() const noexcept -> ElementAdapter* { return element_adapter; }
 
+	/// @brief Copies the non-owning dispatcher for this logical page.
+	/// @return Thread-transferable submission handle, possibly empty for standalone contexts.
+	/// @pre This context is alive and accessed on its owning loop.
+	/// @post The returned handle retains neither this context nor its services.
+	auto GetDispatcher() const noexcept -> Dispatcher { return dispatcher; }
+
 private:
 	ClientElementTree* element_tree;
 	ClientUpdater* client_updater;
 	ElementAdapter* element_adapter;
+	Dispatcher dispatcher;
 };
 
 }

@@ -4,6 +4,9 @@ module;
 
 #include <drogon/WebSocketConnection.h>
 #include <memory>
+#include <functional>
+#include <source_location>
+#include <thread>
 
 export module UI.ClientConnection;
 
@@ -12,6 +15,7 @@ import UI.ClientUpdater;
 import UI.PageBuilderCore;
 import UI.Page;
 import UI.ElementAdapter.ElementAdapter;
+import UI.Dispatcher;
 
 namespace tatzel {
 
@@ -21,11 +25,24 @@ namespace tatzel {
 export class ClientConnection
 {
 public:
-	/// @brief Creates a client-owned logical tree, adapter, sender, and builder context.
+	/// @brief Creates shared session ownership and binds its weak dispatcher invocation boundary.
 	/// @param ws_connection Live browser WebSocket.
-	/// @pre ws_connection is nonnull.
-	/// @post The session has an empty logical root and is ready for one connect message.
-	explicit ClientConnection( drogon::WebSocketConnectionPtr ws_connection );
+	/// @return Shared session with an empty logical root and a working dispatcher.
+	/// @pre ws_connection is nonnull and the caller is on its owning event loop.
+	/// @post The session is ready for one connect message; queued work retains it only while executing.
+	/// @throws tatzel::Exception If the caller has no owning event loop or the transport is null.
+	static auto Create( drogon::WebSocketConnectionPtr ws_connection ) -> std::shared_ptr<ClientConnection>;
+
+	/// @brief Closes dispatch submission and cancels pending callbacks for this session.
+	/// @pre Called on the owning event loop before registry ownership is released.
+	/// @post No further queued callback begins for this page.
+	auto Close() noexcept -> void;
+
+	/// @brief Tests whether this session belongs to the calling event-loop thread.
+	/// @return Whether the caller is the session's owning thread, even after dispatcher closure.
+	/// @pre Called on an event-loop thread.
+	/// @post Session state is unchanged.
+	auto IsOnCurrentLoop() const noexcept -> bool;
 
 	/// @brief Browser transport retained for the session lifetime.
 	drogon::WebSocketConnectionPtr ws_connection;
@@ -44,6 +61,26 @@ public:
 
 	/// @brief Borrowed framework context; destroyed before its services.
 	std::unique_ptr<PageBuilderCore> page_builder_core;
+
+private:
+	/// @brief Allocates the logical tree, adapter, and DOM sender before dispatcher initialization.
+	/// @param ws_connection Nonnull browser transport.
+	/// @pre Called by Create on the transport's owning event loop.
+	/// @post Logical services are ready; Create completes the dispatcher and builder context.
+	explicit ClientConnection( drogon::WebSocketConnectionPtr ws_connection );
+
+	/// @brief Runs posted application work while retaining normal logical removal and trace boundaries.
+	/// @param callback Application callback to invoke synchronously.
+	/// @param origin Submission site included in a failure report.
+	/// @pre Called on the owning loop with shared session ownership retained by the invoker.
+	/// @post The callback completes or its failure is logged; retired controls have been released.
+	auto InvokeDispatched(
+		std::move_only_function<void()>& callback,
+		std::source_location origin
+	) noexcept -> void;
+
+	const std::thread::id owner_thread = std::this_thread::get_id();
+	std::unique_ptr<DispatcherOwner> dispatcher_owner;
 };
 
 }

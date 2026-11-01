@@ -68,6 +68,9 @@ Open http://localhost:8080/lifecycle for dynamic creation, removal, child
 clearing, checked references, modal disposal, and a callback throwing a traced exception.
 Startup and shutdown messages use the shared INFO logger. See
 [logging and exception traces](diagnostics.md) for verbosity and file-output configuration.
+Open http://localhost:8080/dispatcher for background form completion, removal
+before completion, disconnection cancellation, and dispatched error recovery.
+See [posting work to a logical page](dispatcher.md) for the API and lifetime rules.
 
 The runtime currently resolves these paths relative to the working directory:
 
@@ -107,21 +110,23 @@ node tests/browser/forms-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/elements-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/dispatcher-smoke.mjs ./build/targets/development/TatzelDevelopment
 ```
 
-These checks include logging/exception reports and an independently optimized
+These checks include concurrent dispatcher producers, shutdown races, logging/exception reports, and an independently optimized
 diagnostic-module target with NDEBUG and debug symbols, even in a Debug build.
 
-The Clang/Linux build can also instrument the logical removal tests:
+The Clang/Linux build can also instrument the logical removal and dispatcher tests:
 
 ```sh
 cmake -S . -B build -DTATZEL_BUILD_TESTS=ON -DTATZEL_BUILD_SANITIZER_TESTS=ON
-cmake --build build --target TatzelRemovalSanitizerTests
-ctest --test-dir build -R TatzelRemovalSanitizerTests --output-on-failure
+cmake --build build --target TatzelRemovalSanitizerTests TatzelDispatcherSanitizerTests
+ctest --test-dir build -R 'Tatzel(Removal|Dispatcher)SanitizerTests' --output-on-failure
 ```
 
-This target compiles the actual logical C++ modules with AddressSanitizer and
-UndefinedBehaviorSanitizer, independently of the server dependency. It requires
+These targets compile the actual logical and dispatcher C++ modules with
+AddressSanitizer and UndefinedBehaviorSanitizer. The dispatcher check links the
+real Trantor event loop through Drogon. The instrumentation requires
 the compiler's sanitizer runtime (libclang-rt-18-dev for the CI toolchain). CI
 runs with leak detection enabled. In restricted executors where LeakSanitizer
 cannot inspect /proc, ASAN_OPTIONS=detect_leaks=0 can run address/undefined checks

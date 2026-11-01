@@ -18,6 +18,11 @@ add_executable(TatzelDiagnosticTests Diagnostics.cpp)
 target_link_libraries(TatzelDiagnosticTests PRIVATE Tatzel Drogon::Drogon)
 add_test(NAME TatzelDiagnosticTests COMMAND TatzelDiagnosticTests)
 
+add_executable(TatzelDispatcherTests Dispatcher.cpp)
+target_link_libraries(TatzelDispatcherTests PRIVATE Tatzel Drogon::Drogon)
+add_test(NAME TatzelDispatcherTests COMMAND TatzelDispatcherTests)
+set_tests_properties(TatzelDispatcherTests PROPERTIES TIMEOUT 15)
+
 add_executable(TatzelOptimizedTraceTests
 	OptimizedTrace.cpp
 	"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Diagnostics.cpp"
@@ -36,7 +41,7 @@ endif()
 target_link_libraries(TatzelOptimizedTraceTests PRIVATE TatzelStacktrace)
 add_test(NAME TatzelOptimizedTraceTests COMMAND TatzelOptimizedTraceTests)
 
-option(TATZEL_BUILD_SANITIZER_TESTS "Instrument logical removal tests with address/undefined sanitizers" OFF)
+option(TATZEL_BUILD_SANITIZER_TESTS "Instrument logical removal and dispatcher tests with address/undefined sanitizers" OFF)
 if(TATZEL_BUILD_SANITIZER_TESTS)
 	file(GLOB_RECURSE _LOGICAL_MODULES CONFIGURE_DEPENDS
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/public/element/*.ixx"
@@ -60,6 +65,30 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 	target_compile_options(TatzelRemovalSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
 	target_link_options(TatzelRemovalSanitizerTests PRIVATE -fsanitize=address,undefined)
 	add_test(NAME TatzelRemovalSanitizerTests COMMAND TatzelRemovalSanitizerTests)
+
+	add_executable(TatzelDispatcherSanitizerTests
+		Dispatcher.cpp
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/ClientElementTree.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Diagnostics.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Logging.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Dispatcher.cpp"
+	)
+	target_sources(TatzelDispatcherSanitizerTests PRIVATE
+		FILE_SET dispatcher_modules TYPE CXX_MODULES
+		BASE_DIRS "${Tatzel_SOURCE_DIR}/targets/tatzel/public"
+		FILES
+			${_LOGICAL_MODULES}
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ClientElementTree.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Diagnostics.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Logging.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Dispatcher.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ResourceURL.ixx"
+	)
+	target_link_libraries(TatzelDispatcherSanitizerTests PRIVATE TatzelStacktrace Drogon::Drogon)
+	target_compile_options(TatzelDispatcherSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+	target_link_options(TatzelDispatcherSanitizerTests PRIVATE -fsanitize=address,undefined)
+	add_test(NAME TatzelDispatcherSanitizerTests COMMAND TatzelDispatcherSanitizerTests)
+	set_tests_properties(TatzelDispatcherSanitizerTests PROPERTIES TIMEOUT 20)
 endif()
 
 add_executable(TatzelElementTests Elements.cpp)

@@ -15,6 +15,8 @@ module;
 
 export module UI.PageBuilder;
 
+export import UI.Dispatcher;
+
 import UI.Diagnostics;
 
 import UI.PageBuilderCore;
@@ -68,6 +70,17 @@ public:
 		parent{ parent.GetHandle() },
 		child_slot{ child_slot }
 	{}
+
+	/// @brief Obtains this page's dispatcher for use by asynchronous completion callbacks.
+	/// @return Copyable weak handle that can safely be transferred to another thread.
+	/// @pre Called on the owning loop; the builder's parent is active.
+	/// @post The handle retains neither the builder, page, nor its controls.
+	/// @throws tatzel::Exception If this builder's parent has been removed or destroyed.
+	auto GetDispatcher() const -> Dispatcher
+	{
+		if( !parent.Get() ) throw tatzel::Exception{ "Builder parent has been removed or destroyed" };
+		return core->GetDispatcher();
+	}
 
 	/// @brief Creates a builder for another logical parent on the same page.
 	/// @tparam NewParentT New logical parent type.

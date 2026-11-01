@@ -212,6 +212,8 @@ auto tatzel::LogException(
 		if( !context.operation.empty() ) report << "\n  Operation: " << context.operation;
 		if( !context.element_id.empty() ) report << "\n  Element: " << context.element_id;
 		if( !context.part_id.empty() ) report << "\n  Part: " << context.part_id;
+		if( context.submitted_at )
+			report << "\n  Submitted at: " << context.submitted_at->file_name() << ':' << context.submitted_at->line();
 		report << "\n  Reported at: " << location.file_name() << ':' << location.line();
 		AppendException( exception, report, 0 );
 		Log( LogLevel::Error, report.str(), location );
