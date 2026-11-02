@@ -1,5 +1,6 @@
 import { sendToServer } from "./websocket.js";
-import { getElementValue } from "./dom-ops.js";
+import { getElementValue, captureEdit, beginComposition, endComposition } from "./field-revisions.js";
+import type { ClientEdit } from "./protocol.js";
 
 /**
  * @brief Sends a non-composing edit from a registered, editable text field.
@@ -13,7 +14,8 @@ function sendInput(target: EventTarget | null): void
 		|| target.matches(":disabled") || target.readOnly) return;
 	if (!target.hasAttribute("data-ui-on-input")) return;
 
-	sendToServer({ op: "on_input", data: { part_id: target.id, value: getElementValue(target) as string } });
+	const edit = captureEdit(target, true);
+	if (edit) sendToServer({ op: "on_input", data: { part_id: target.id, value: getElementValue(target) as string, ...edit } });
 }
 
 /**
@@ -52,11 +54,19 @@ export function registerBrowserEventHandlers(): void
 	});
 
 	document.addEventListener("input", event => {
-		if (event instanceof InputEvent && event.isComposing) return;
+		if (event instanceof InputEvent && event.isComposing) {
+			if (event.target instanceof Element) captureEdit(event.target, true);
+			return;
+		}
 		sendInput(event.target);
 	});
 
-	document.addEventListener("compositionend", event => sendInput(event.target));
+	document.addEventListener("compositionstart", event => {
+		if (event.target instanceof Element) beginComposition(event.target);
+	});
+	document.addEventListener("compositionend", event => {
+		if (event.target instanceof Element && endComposition(event.target)) sendInput(event.target);
+	});
 
 	document.addEventListener("change", event => {
 		const target = event.target;
@@ -69,7 +79,8 @@ export function registerBrowserEventHandlers(): void
 		const value = getElementValue(element);
 		if (value === null) return;
 
-		sendToServer({ op: "on_change", data: { part_id: element.id, value } });
+		const edit = captureEdit(element, true);
+		if (edit) sendToServer({ op: "on_change", data: { part_id: element.id, value, ...edit } });
 	});
 
 	document.addEventListener("keydown", event => {
@@ -98,13 +109,14 @@ export function registerBrowserEventHandlers(): void
 
 		event.preventDefault();
 		if (element instanceof HTMLFormElement) {
-			const fields: Array<{ part_id: string; value: string | boolean; }> = [];
+			const fields: Array<ClientEdit & { part_id: string; value: string | boolean; }> = [];
 			for (const field of Array.from(element.elements)) {
 				if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement || field instanceof HTMLFieldSetElement)
 					|| field.form !== element || !field.hasAttribute("data-ui-form-field") || field.matches(":disabled")) continue;
 
 				const value = getElementValue(field);
-				if (value !== null) fields.push({ part_id: field.id, value });
+				const edit = captureEdit(field);
+				if (value !== null && edit) fields.push({ part_id: field.id, value, ...edit });
 			}
 			sendToServer({ op: "on_submit", data: { part_id: element.id, fields } });
 		}

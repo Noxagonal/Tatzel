@@ -238,7 +238,7 @@ auto MapTextEditor(
 		if( revision != element.GetValueRevision() )
 		{
 			revision = element.GetValueRevision();
-			updater.SetValue( editor.GetPartID(), element.GetValue() );
+			updater.SetValue( editor.GetPartID(), element.GetValue(), element.GetValueUpdate() );
 		}
 	} );
 }
@@ -296,8 +296,8 @@ auto SendChoiceOptions(
 	auto options = std::vector<tatzel::dom::SelectOption>{};
 	for( const auto& option : select.GetOptions() ) options.push_back( { option.id, option.label, option.disabled } );
 	if( dynamic_cast<tatzel::ui::RadioGroup*>( &select ) )
-		updater.SetRadioOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetValue() );
-	else updater.SetSelectOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetPlaceholder(), select.GetValue() );
+		updater.SetRadioOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetValue(), select.GetValueUpdate() );
+	else updater.SetSelectOptions( select.FindPart( "editor" )->GetPartID(), options, select.GetPlaceholder(), select.GetValue(), select.GetValueUpdate() );
 }
 
 /// @brief Converts a logical heading level at the DOM adapter boundary.
@@ -428,7 +428,7 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Checkbox& element ) const
 		if( revision != element.GetValueRevision() )
 		{
 			revision = element.GetValueRevision();
-			client_updater->SetValue( editor.GetPartID(), element.IsChecked() ? "true" : "false" );
+			client_updater->SetValue( editor.GetPartID(), element.IsChecked() ? "true" : "false", element.GetValueUpdate() );
 		}
 	} );
 }
@@ -505,7 +505,7 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 		else if( value_revision != element.GetValueRevision() )
 		{
 			value_revision = element.GetValueRevision();
-			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue() );
+			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue(), element.GetValueUpdate() );
 		}
 	} );
 }
@@ -520,7 +520,7 @@ auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& eleme
 		SyncAttribute( element.GetBasePart(), "data-ui-appearance", element.GetAppearance(), *client_updater );
 	if( auto* select = dynamic_cast<ui::Select*>( &element ) ) SendChoiceOptions( *select, *client_updater );
 	if( auto* number = dynamic_cast<ui::NumberInput*>( &element ) )
-		client_updater->SetValue( number->FindPart( "editor" )->GetPartID(), number->GetTextValue() );
+		client_updater->SetValue( number->FindPart( "editor" )->GetPartID(), number->GetTextValue(), number->GetValueUpdate() );
 }
 
 auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Form& element ) const -> void
@@ -576,7 +576,7 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::RadioGroup& element ) con
 		else if( value_revision != element.GetValueRevision() )
 		{
 			value_revision = element.GetValueRevision();
-			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue() );
+			client_updater->SetValue( element.FindPart( "editor" )->GetPartID(), element.GetValue(), element.GetValueUpdate() );
 		}
 	} );
 }

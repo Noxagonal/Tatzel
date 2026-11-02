@@ -30,7 +30,9 @@ UI.Element.*. Concrete DOM descriptions use tatzel::dom and UI.DOM.*.
 4. The server creates a client-owned logical tree and invokes the page factory once.
 5. Builders create logical controls; the adapter assigns DOM parts; ClientUpdater
    queues DOM creation messages.
-6. The browser creates nodes and sends input events with their exact part_id.
+6. The sender flushes bounded ordered batches and acknowledges page readiness.
+   The browser applies those batches, enables interaction, and sends revisioned
+   input events with their exact part_id.
 7. The server resolves each part ID to its logical owner, invokes the control's
    callback, and sends any resulting DOM updates.
 
@@ -58,8 +60,18 @@ state is unavailable.
 Accepted browser edits update logical state before application callbacks. They
 do not echo value replacements. Adapters track explicit server-value revisions
 so label, placeholder, or disabled-state updates cannot reset active typing.
-A programmatic SetValue or SetChecked change explicitly replaces the browser
-value; matching text values are left untouched to preserve the caret.
+A programmatic SetValue or SetChecked change carries a browser revision baseline
+and preserves newer browser input. Intentional resets use ValueUpdatePolicy::Replace
+to invalidate old-generation edits. Captured EditRevision tokens guard asynchronous
+logical field results. Matching text values are left untouched to preserve the caret.
+See the [protocol](protocol.md) for the revision and choice-rebasing rules.
+
+A ClientUpdateScope surrounds page builds, browser messages, and dispatched
+callbacks, outside the logical removal scope so deferred removals join the same
+ordered stream. Nested updates flush at the outer boundary, on size limits, or
+before error/readiness control frames. Completed mutations flush on exceptions;
+there is no rollback. The browser blocks a session after framing/DOM failures
+and offers a fresh page through reload.
 
 ## Ownership
 

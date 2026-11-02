@@ -1,5 +1,7 @@
 
-import { stringToBoolean } from "./utilities.js";
+import { registerField, applyValueUpdate, prepareChoiceUpdate } from "./field-revisions.js";
+import { sendToServer } from "./websocket.js";
+export { getElementValue } from "./field-revisions.js";
 import type {
 	ReceiveData_CreateElementPart,
 	ReceiveData_RemoveElementPart,
@@ -20,6 +22,20 @@ import type {
 
 
 /**
+ * @brief Resolves an operation target or identifies a desynchronized page.
+ * @param id Exact DOM part identity.
+ * @returns Existing target node.
+ * @pre Called after validating the operation payload.
+ * @post No state changes; missing targets throw to the fatal batch boundary.
+ */
+function requirePart(id: string): HTMLElement
+{
+	const element = document.getElementById(id);
+	if (!element) throw new Error("UI operation references a missing DOM part");
+	return element;
+}
+
+/**
  * @brief Creates concrete DOM nodes in parent-before-child order.
  * @param parts Validated DOM operation payloads using browser part IDs.
  * @pre Every parent exists before its child is processed.
@@ -33,8 +49,7 @@ export function createElementPart(
 		const domElementParent = document.getElementById(part.parent_id);
 		if (domElementParent === null)
 		{
-			console.error("Parent not found: ", part.parent_id);
-			return;
+			throw new Error("DOM creation references a missing parent");
 		}
 
 		const domElement = document.createElement(part.tag);
@@ -48,7 +63,9 @@ export function createElementPart(
 
 		if (part.text_content !== "" ) domElement.textContent = part.text_content;
 
+		if (document.getElementById(part.part_id)) throw new Error("DOM creation reuses an existing part identity");
 		domElementParent.appendChild(domElement);
+		if (domElement.hasAttribute("data-ui-form-field")) registerField(domElement);
 	});
 
 }
@@ -116,7 +133,7 @@ export function setAttribute(
 			return;
 		}
 
-		document.getElementById(part.part_id)?.setAttribute(part.attribute, part.attribute_value);
+		requirePart(part.part_id).setAttribute(part.attribute, part.attribute_value);
 	});
 }
 
@@ -132,7 +149,7 @@ export function removeAttribute(
 ): void
 {
 	parts.forEach(part => {
-		document.getElementById(part.part_id)?.removeAttribute(part.attribute);
+		requirePart(part.part_id).removeAttribute(part.attribute);
 	});
 }
 
@@ -148,7 +165,7 @@ export function addClass(
 ): void
 {
 	parts.forEach(part => {
-		document.getElementById(part.part_id)?.classList.add(part.class_name);
+		requirePart(part.part_id).classList.add(part.class_name);
 	});
 }
 
@@ -164,7 +181,7 @@ export function removeClass(
 ): void
 {
 	parts.forEach(part => {
-		document.getElementById(part.part_id)?.classList.remove(part.class_name);
+		requirePart(part.part_id).classList.remove(part.class_name);
 	});
 }
 
@@ -181,7 +198,8 @@ export function setText(
 {
 	parts.forEach(part => {
 		const element = document.getElementById(part.part_id);
-		if (element !== null) element.textContent = part.text;
+		if (!element) throw new Error("Text update references a missing DOM part");
+		element.textContent = part.text;
 	});
 }
 
@@ -192,49 +210,15 @@ export function setText(
  * @pre Targets are inputs, text areas, or selects.
  * @post Supported targets have the new value; checkbox strings become booleans.
  */
-export function setValue(
-	parts: Array<ReceiveData_SetValue>
-): void
+export function setValue(parts: Array<ReceiveData_SetValue>): void
 {
-	parts.forEach(part => {
+	for (const part of parts) {
 		const element = document.getElementById(part.part_id);
-
-		if (element === null) {
-			console.warn("setValue failed, element not found: ", part.part_id);
-			return;
-		}
-
-		if (element instanceof HTMLInputElement) {
-			if (element.type === "checkbox") {
-				element.checked = stringToBoolean(part.value);
-				return;
-			}
-
-			// Avoid resetting the caret when an explicit server update already matches.
-			if (element.value !== part.value || (element.type === "number" && element.validity.badInput)) element.value = part.value;
-			return;
-		}
-
-		if (element instanceof HTMLTextAreaElement) {
-			if (element.value !== part.value) element.value = part.value;
-			return;
-		}
-
-		if (element instanceof HTMLFieldSetElement && element.hasAttribute("data-ui-radio-group")) {
-			for (const radio of element.querySelectorAll<HTMLInputElement>('input[type="radio"]')) {
-				radio.checked = radio.value === part.value;
-			}
-			return;
-		}
-
-		if (element instanceof HTMLSelectElement) {
-			element.value = part.value;
-			return;
-		}
-
-		console.warn("setValue called on unsupported element: ", element, " | While trying to assign value: ", part.value);
-	});
+		if (!element) throw new Error("Value update references a missing editor");
+		applyValueUpdate(element, part);
+	}
 }
+
 
 /**
  * @brief Replaces a native selector's choices and current selection atomically.
@@ -247,10 +231,11 @@ export function setSelectOptions(parts: Array<ReceiveData_SetSelectOptions>): vo
 	for (const part of parts) {
 		const element = document.getElementById(part.part_id);
 		if (!(element instanceof HTMLSelectElement)) {
-			console.warn("Select editor not found:", part.part_id);
-			continue;
+			throw new Error("Choice update references a missing select");
 		}
 
+		const selected = prepareChoiceUpdate(element, part, part.options);
+		if (!selected) continue;
 		const choices = [{ value: "", label: part.placeholder, disabled: false }, ...part.options];
 		const options = choices.map(choice => {
 			const option = document.createElement("option");
@@ -260,7 +245,8 @@ export function setSelectOptions(parts: Array<ReceiveData_SetSelectOptions>): vo
 			return option;
 		});
 		element.replaceChildren(...options);
-		element.value = part.value;
+		element.value = selected.value;
+		if (selected.edit) sendToServer({ op: "on_change", data: { part_id: element.id, value: selected.value, ...selected.edit } });
 	}
 }
 
@@ -279,13 +265,11 @@ export function setModalOpen(
 		const element = document.getElementById(part.part_id);
 
 		if (!element) {
-			console.warn("SetModalOpen failed, element not found:", part.part_id);
-			return;
+			throw new Error("Dialog update references a missing part");
 		}
 
 		if (!(element instanceof HTMLDialogElement)) {
-			console.warn("SetModalOpen failed, element is not a dialog:", part.part_id);
-			return;
+			throw new Error("Dialog update targets another element type");
 		}
 
 		element.dataset.uiModalOpen = String(part.open);
@@ -319,8 +303,7 @@ export function setOnClick(
 
 		if (element === null)
 		{
-			console.error("Element not found:", part.part_id);
-			return;
+			throw new Error("Event marker references a missing DOM part");
 		}
 
 		element.dataset.uiOnClick = "true";
@@ -343,8 +326,7 @@ export function setOnChange(
 
 		if (element === null)
 		{
-			console.error("Element not found:", part.part_id);
-			return;
+			throw new Error("Event marker references a missing DOM part");
 		}
 
 		element.dataset.uiOnChange = "true";
@@ -367,8 +349,7 @@ export function setOnSubmit(
 
 		if (element === null)
 		{
-			console.error("Element not found:", part.part_id);
-			return;
+			throw new Error("Event marker references a missing DOM part");
 		}
 
 		element.dataset.uiOnSubmit = "true";
@@ -377,39 +358,6 @@ export function setOnSubmit(
 
 
 
-/**
- * @brief Reads a concrete browser form control value.
- * @param element Concrete DOM form control.
- * @returns Control value, or null for unsupported nodes.
- * @pre None.
- * @post The DOM is unchanged.
- */
-export function getElementValue(element: Element): null | string | boolean
-{
-	if (element instanceof HTMLInputElement) {
-		if (element.type === "checkbox") return element.checked;
-
-		// Native number editors expose an empty value for incomplete numeric drafts.
-		// Preserve that distinction using a token that finite numeric parsing rejects.
-		if (element.type === "number" && element.validity.badInput) return "NaN";
-		return element.value;
-	}
-
-	if (element instanceof HTMLFieldSetElement && element.hasAttribute("data-ui-radio-group")) {
-		return element.querySelector<HTMLInputElement>('input[type="radio"]:checked')?.value ?? "";
-	}
-
-	if (element instanceof HTMLTextAreaElement) {
-		return element.value;
-	}
-
-	if (element instanceof HTMLSelectElement) {
-		return element.value;
-	}
-
-	console.warn("getElementValue called on unsupported element: ", element);
-	return null;
-}
 
 /**
  * @brief Replaces native radio choices inside an existing registered group.
@@ -421,10 +369,12 @@ export function setRadioOptions(parts: Array<ReceiveData_SetRadioOptions>): void
 {
 	for (const part of parts) {
 		const group = document.getElementById(part.part_id);
-		if (!(group instanceof HTMLFieldSetElement) || !group.hasAttribute("data-ui-radio-group")) continue;
+		if (!(group instanceof HTMLFieldSetElement) || !group.hasAttribute("data-ui-radio-group")) throw new Error("Radio update targets an invalid group");
 		const container = group.querySelector<HTMLElement>("[data-ui-radio-options]");
-		if (!container) continue;
+		if (!container) throw new Error("Radio group is missing its choices container");
 
+		const selected = prepareChoiceUpdate(group, part, part.options);
+		if (!selected) continue;
 		const active = document.activeElement;
 		const hadFocus = active instanceof HTMLInputElement && container.contains(active);
 		const focusedValue = hadFocus ? active.value : null;
@@ -436,7 +386,7 @@ export function setRadioOptions(parts: Array<ReceiveData_SetRadioOptions>): void
 			radio.name = group.id;
 			radio.value = choice.value;
 			radio.disabled = choice.disabled;
-			radio.checked = choice.value === part.value;
+			radio.checked = choice.value === selected.value;
 			const text = document.createElement("span");
 			text.textContent = choice.label;
 			label.append(radio, text);
@@ -444,6 +394,7 @@ export function setRadioOptions(parts: Array<ReceiveData_SetRadioOptions>): void
 			return label;
 		});
 		container.replaceChildren(...choices);
+		if (selected.edit) sendToServer({ op: "on_change", data: { part_id: group.id, value: selected.value, ...selected.edit } });
 		if (hadFocus) {
 			const next = radios.find(radio => radio.value === focusedValue && !radio.disabled)
 				?? radios.find(radio => !radio.disabled);

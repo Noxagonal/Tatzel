@@ -60,6 +60,7 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ClientElementTree.ixx"
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Diagnostics.ixx"
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ResourceURL.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Protocol.ixx"
 	)
 	target_link_libraries(TatzelRemovalSanitizerTests PRIVATE TatzelStacktrace)
 	target_compile_options(TatzelRemovalSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
@@ -83,6 +84,7 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Logging.ixx"
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Dispatcher.ixx"
 			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/ResourceURL.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Protocol.ixx"
 	)
 	target_link_libraries(TatzelDispatcherSanitizerTests PRIVATE TatzelStacktrace Drogon::Drogon)
 	target_compile_options(TatzelDispatcherSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
@@ -94,3 +96,7 @@ endif()
 add_executable(TatzelElementTests Elements.cpp)
 target_link_libraries(TatzelElementTests PRIVATE Tatzel)
 add_test(NAME TatzelElementTests COMMAND TatzelElementTests)
+
+add_executable(TatzelProtocolTests Protocol.cpp)
+target_link_libraries(TatzelProtocolTests PRIVATE Tatzel Drogon::Drogon)
+add_test(NAME TatzelProtocolTests COMMAND TatzelProtocolTests)

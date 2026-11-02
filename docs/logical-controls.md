@@ -382,3 +382,35 @@ callback may reopen the modal. TextInput Enter submissions are handled by the
 logical editor or its enclosing Form and do not implicitly close a dialog.
 
 The [feature status](status.md) lists controls that remain planned.
+
+## Revision-aware field updates
+
+SetValue and Checkbox::SetChecked default to ValueUpdatePolicy::PreserveNewerInput.
+A setter changes logical state and offers a browser correction only against the
+last accepted browser edit. Use ValueUpdatePolicy::Replace for an intentional
+reset or authoritative load, including resetting an already-matching value.
+Replace starts a new generation and cancels superseded browser composition.
+These policies apply to TextInput, TextArea, NumberInput, Select, RadioGroup,
+and Checkbox.
+
+For asynchronous normalization, capture GetEditRevision before work starts:
+
+```cpp
+auto revision = field->GetEditRevision();
+auto handle = field->GetHandle();
+// Perform work on owned data, then on the UI dispatcher:
+dispatcher.Post( [ handle, revision, result ] {
+    if( auto* field = handle.Get() ) field->TrySetValue( result, revision );
+} );
+```
+
+TrySetValue/TrySetChecked return whether the captured logical field state was
+still current. A token checks control identity, client edits, server setters,
+and choice generations; use a checked handle for object lifetime. An accepted
+result can still be ignored by a browser with newer input in transit.
+The revision contract does not provide transactional updates across controls.
+
+Replacing Select/RadioGroup options preserves a newer local choice if it is
+still enabled, then rebases it into the new generation. Removed or disabled
+choices use the server fallback. Revisioned form snapshots reject obsolete
+fields together before any field value or submit callback changes.

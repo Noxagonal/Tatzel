@@ -3,6 +3,7 @@
 module;
 
 #include <functional>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -11,6 +12,7 @@ module;
 export module UI.Element.FormField;
 
 import UI.Diagnostics;
+export import UI.Protocol;
 
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Changeable;
@@ -179,7 +181,89 @@ public:
 		return IsRemoved() || error.empty();
 	}
 
+	/// @brief Captures this field's current edit identity for asynchronous work.
+	/// @return Owned token identifying this control and its client/server revisions.
+	/// @pre Called on the owning loop while the field is alive.
+	/// @post The token retains no control or page ownership.
+	auto GetEditRevision() const -> EditRevision
+	{
+		return { std::string{ GetID() }, epoch, client_revision, server_revision };
+	}
+
+	/// @brief Checks whether an asynchronous result still targets unchanged logical state.
+	/// @param revision Previously captured token for this field.
+	/// @return Whether identity and all revision counters still match.
+	/// @pre Called on the owning loop while the field is alive.
+	/// @post State is unchanged; browser edits still in transit are checked separately on the browser.
+	auto IsEditRevisionCurrent( const EditRevision& revision ) const -> bool
+	{
+		return !IsRemoved() && GetEditRevision() == revision;
+	}
+
+	/// @brief Reads metadata for the adapter's latest explicit value or choice update.
+	/// @return Copy of the update generation, baseline, and policy.
+	/// @pre Called on the owning loop.
+	/// @post State is unchanged.
+	auto GetValueUpdate() const noexcept -> ValueUpdate { return value_update; }
+
+	/// @brief Validates a browser edit counter and generation before accepting its value.
+	/// @param edit Browser metadata validated as JavaScript-safe integers by the transport.
+	/// @param value Candidate typed field value.
+	/// @return Current, superseded, or invalid metadata.
+	/// @pre Called on the owning loop; field identity has already been resolved.
+	/// @post State is unchanged.
+	auto CheckClientEdit(
+		ClientEdit edit,
+		const FieldValue& value
+	) const -> EditAcceptance
+	{
+		if( edit.epoch > epoch || edit.revision > tatzel::MaximumWireRevision ) return EditAcceptance::Invalid;
+		if( edit.epoch < epoch || edit.revision < client_revision ) return EditAcceptance::Stale;
+		if( edit.revision == client_revision && !IsReadOnly() && value != GetFieldValue() ) return EditAcceptance::Invalid;
+		return EditAcceptance::Current;
+	}
+
+	/// @brief Stores validated browser revision metadata without notifying application callbacks.
+	/// @param edit Metadata already accepted by CheckClientEdit.
+	/// @pre Called on the owning loop after complete message/snapshot validation.
+	/// @post Later guarded updates use the accepted browser counter.
+	auto AcceptClientEdit( ClientEdit edit ) noexcept -> void { client_revision = edit.revision; }
+
+	/// @brief Reads the last accepted browser counter for duplicate-event suppression.
+	/// @return Counter within the current generation.
+	/// @pre Called on the owning loop.
+	/// @post State is unchanged.
+	auto GetClientRevision() const noexcept -> std::uint64_t { return client_revision; }
+
 protected:
+	/// @brief Records an explicit value change before notifying the adapter.
+	/// @param policy Whether newer browser input is preserved or deliberately replaced.
+	/// @pre Called on the owning loop before a corresponding value notification.
+	/// @post The server token changes; replacement begins a fresh browser edit generation.
+	/// @throws tatzel::Exception If a JavaScript-safe revision counter is exhausted.
+	auto RecordServerValueChange( ValueUpdatePolicy policy ) -> void
+	{
+		if( server_revision == tatzel::MaximumWireRevision || epoch == tatzel::MaximumWireRevision )
+			throw tatzel::Exception{ "Field revision counter exhausted" };
+
+		value_update = { epoch, epoch, client_revision, policy == ValueUpdatePolicy::Replace };
+		++server_revision;
+		if( policy == ValueUpdatePolicy::Replace )
+		{
+			value_update.epoch = ++epoch;
+			client_revision = 0;
+		}
+	}
+
+	/// @brief Starts a new choices generation while retaining its previous browser-edit baseline.
+	/// @pre Called on the owning loop before replacing native choices or their prompt.
+	/// @post Old-generation edits are obsolete; a surviving newer browser choice may be rebased by the runtime.
+	auto RecordChoiceChange() -> void
+	{
+		RecordServerValueChange( ValueUpdatePolicy::Replace );
+		value_update.replace = false;
+	}
+
 	/// @brief Installs a typed control's validation wrapper.
 	/// @param handler Callback returning an error or an empty string; may be empty.
 	/// @pre Called on the owning event loop; captures outlive their use.
@@ -196,6 +280,10 @@ protected:
 	}
 
 private:
+	std::uint64_t epoch = 0;
+	std::uint64_t client_revision = 0;
+	std::uint64_t server_revision = 0;
+	ValueUpdate value_update;
 	std::string label;
 	std::string error;
 	bool disabled = false;

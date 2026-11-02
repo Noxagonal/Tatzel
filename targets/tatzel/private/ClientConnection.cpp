@@ -52,7 +52,13 @@ tatzel::ClientConnection::ClientConnection( drogon::WebSocketConnectionPtr ws_co
 	} );
 }
 
-auto tatzel::ClientConnection::Close() noexcept -> void { dispatcher_owner->Close(); }
+auto tatzel::ClientConnection::Close() noexcept -> void
+{
+	closed = true;
+	page_ready = false;
+	dispatcher_owner->Close();
+	client_updater->Close();
+}
 
 auto tatzel::ClientConnection::IsOnCurrentLoop() const noexcept -> bool
 {
@@ -66,6 +72,7 @@ auto tatzel::ClientConnection::InvokeDispatched(
 {
 	try
 	{
+		auto updates = client_updater->BeginBatch();
 		auto dispatch = element_tree->root.BeginDispatch();
 		auto boundary = CallbackScope{ "Dispatched callback" };
 		callback();
@@ -73,5 +80,12 @@ auto tatzel::ClientConnection::InvokeDispatched(
 	catch( ... )
 	{
 		LogException( std::current_exception(), { page ? page->route_path : "", "dispatch", {}, {}, origin } );
+		try { client_updater->SendError( "handler_failed", "A background page operation failed. You can continue or retry." ); }
+		catch( ... )
+		{
+			LogException( std::current_exception(), { page ? page->route_path : "", "dispatch_error_response" } );
+			Close();
+			try { ws_connection->forceClose(); } catch( ... ) {}
+		}
 	}
 }

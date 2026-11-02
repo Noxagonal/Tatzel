@@ -89,9 +89,24 @@ ordinary STL exceptions retain their type and message. Submission location is
 metadata, not an invented cross-thread stack trace.
 
 A failed callback does not prevent later callbacks from executing. Changes made
-before the failure remain in effect. Reporting is server-side; browser error
-notifications and rollback are separate work.
+before the failure remain in effect. The ordered update scope flushes those
+changes before a recoverable handler_failed browser alert. Later callbacks and
+browser actions remain usable. There is no rollback.
 
 Run the example at /dispatcher to submit a background form save, remove its
 result before completion, close the page during a save, and exercise a dispatched
 failure followed by successful recovery.
+
+## Guarding asynchronous field results
+
+Capture a field's GetEditRevision on its owning loop before submitting work.
+Capture its checked handle and the owned revision/value in the worker; resolve
+the handle only inside Dispatcher::Post. Use TrySetValue (or TrySetChecked) with
+the captured revision in that completion. It returns false when browser edits,
+server setters, choice changes, or removal have superseded the captured state.
+Ordinary wire updates separately protect newer browser edits still in transit.
+
+/protocol demonstrates delayed normalization with this policy. The token owns
+no control and does not make raw pointers safe across threads. For results that
+change multiple controls or domain records, retain application-level request
+identities and validate the complete operation before mutating any of them.

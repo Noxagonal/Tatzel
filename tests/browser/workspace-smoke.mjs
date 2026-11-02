@@ -1,3 +1,4 @@
+import { ProtocolSocket } from "./protocol-client.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -34,7 +35,7 @@ class Client {
 	constructor(hash = "#/overview") {
 		this.parts = new Map();
 		this.errors = [];
-		this.socket = new WebSocket("ws://127.0.0.1:8080/ws");
+		this.socket = new ProtocolSocket("ws://127.0.0.1:8080/ws");
 		this.socket.addEventListener("message", event => {
 			const message = JSON.parse(event.data);
 			if (message.op === "error") this.errors.push(message.data);

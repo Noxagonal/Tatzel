@@ -1,0 +1,4 @@
+#connection-status { position: sticky; top: 0; z-index: 1000; padding: .75rem 1rem; background: #fff3d8; color: #493b1c; border-bottom: 1px solid #e0c991; font: 14px/1.5 system-ui, sans-serif; }
+#connection-status[hidden] { display: none; }
+#connection-status button { display: inline-block; width: auto; margin: 0 0 0 1rem; padding: .3rem .65rem; font: inherit; cursor: pointer; }
+html[data-tatzel-connection="failed"] #connection-status { background: #fff0ed; color: #8c3024; border-color: #dfb8b0; }
