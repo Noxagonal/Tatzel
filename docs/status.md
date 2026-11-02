@@ -30,7 +30,8 @@ than earlier experiments.
 | Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
 | Logging | Runtime-configurable Tatzel API over Drogon's backend, startup/shutdown messages, and existing file/rotation configuration. |
 | Workspace sample | Persistent project/task SPA with SQLite, background work, per-browser navigation, and shared committed snapshots. |
-| Appearance | Adapter-defined appearance names through logical SetAppearance; the default adapter preserves built-in classes. |
+| Components | Typed builder construction, logical subtree ownership, failed-build cleanup, reusable filter/confirmation controls, and application editor examples. |
+| Appearance | Named appearances, typed button variants/control sizes, accessible live feedback, local CSS variables, and responsive component styles. |
 | Hash navigation | Initial-location callback, same-page history updates, and native hash/Back/Forward events. |
 | Documentation | Authored Markdown guides, Doxygen contracts, and a static HTML build. |
 
@@ -56,7 +57,7 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
 - Dispatcher callbacks must remain short; background executors, task cancellation, non-field stale-result policies, and asynchronous validation remain application responsibilities.
 - No built-in authentication or authorization layer.
-- No table, chart, or reusable component abstraction.
+- No table or chart abstraction; component composition uses the existing logical controls.
 - Forms validate synchronously; asynchronous validators, file inputs, and multiple selection are not supported.
 - Runtime paths depend on the repository working directory.
 - No install/export package; compatibility coverage is currently one CI toolchain.

@@ -27,6 +27,7 @@ export import UI.Element.LogicalElement;
 export import UI.Element.Heading;
 export import UI.Element.Button;
 export import UI.Element.Container;
+export import UI.Element.Component;
 export import UI.Element.Text;
 export import UI.Element.Paragraph;
 export import UI.Element.Card;
@@ -163,6 +164,43 @@ public:
 		if( !container ) return nullptr;
 		auto handle = container->GetHandle();
 		BuildChildren( *container, std::forward<ChildBuilderFn>( child_builder_fn ) );
+		return handle.Get();
+	}
+
+	/// @brief Attaches a typed composed control and builds its owned logical subtree.
+	/// @tparam ComponentT Component-derived class providing Build(scoped_builder).
+	/// @tparam ArgsT Constructor argument types following identity and parent.
+	/// @param args Owned or transient constructor inputs forwarded to ComponentT.
+	/// @return Borrowed typed component, or nullptr if initialization or Build removes it.
+	/// @pre Called on the live owning loop; Build uses the supplied scope for children.
+	/// @post Surviving children belong to the component; failed construction removes its partial subtree before propagation.
+	/// @throws tatzel::Exception If the parent expired; application construction/Build exceptions propagate after cleanup.
+	template<
+		typename ComponentT,
+		typename ...ArgsT
+	>
+		requires std::derived_from<ComponentT, ui::Component>
+	auto Component( ArgsT&& ...args ) -> ComponentT*
+	{
+		auto* logical_parent = parent.Get();
+		if( !logical_parent ) throw Exception{ "Builder parent has been removed or destroyed" };
+		auto updates = core->GetClientUpdater()->BeginBatch();
+		auto dispatch = logical_parent->BeginDispatch();
+		auto* component = AddChild<ComponentT>( std::forward<ArgsT>( args )... );
+		if( !component ) return nullptr;
+		auto handle = component->GetHandle();
+		try
+		{
+			BuildChildren( *component, [](
+				auto children,
+				ComponentT* owner
+			) { owner->Build( children ); } );
+		}
+		catch( ... )
+		{
+			if( auto* owner = handle.Get() ) owner->Remove();
+			throw;
+		}
 		return handle.Get();
 	}
 
@@ -503,8 +541,16 @@ private:
 		core->GetElementAdapter()->CreatePartsFor( *element );
 		auto* result = logical_parent->InsertChild( std::move( element ) );
 		auto handle = result->GetHandle();
-		core->GetClientUpdater()->CreateElementParts( result->GetParts() );
-		core->GetElementAdapter()->InitializePartsFor( *result );
+		try
+		{
+			core->GetClientUpdater()->CreateElementParts( result->GetParts() );
+			core->GetElementAdapter()->InitializePartsFor( *result );
+		}
+		catch( ... )
+		{
+			if( auto* active = handle.Get() ) active->Remove();
+			throw;
+		}
 		return handle.Get();
 	}
 

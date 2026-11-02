@@ -13,6 +13,7 @@ export module UI.Element.FormField;
 
 import UI.Diagnostics;
 export import UI.Protocol;
+export import UI.Element.Style;
 
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Changeable;
@@ -43,6 +44,23 @@ public:
 		LogicalElement{ id, parent },
 		label{ label }
 	{}
+
+	/// @brief Reads control size.
+	/// @return Current logical control size.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetSize() const noexcept -> ControlSize { return size; }
+
+	/// @brief Changes control size without altering appearance or value state.
+	/// @param size New logical control size.
+	/// @pre Called on the owning loop; enum arguments are defined values.
+	/// @post Changed state is stored and a bound adapter queues its presentation.
+	auto SetSize( ControlSize size ) -> void
+	{
+		if( this->size == size ) return;
+		this->size = size;
+		NotifyChanged();
+	}
 
 	/// @brief Reads the accessible label.
 	/// @return Borrowed label, invalidated by label mutation or destruction.
@@ -284,6 +302,7 @@ private:
 	std::uint64_t client_revision = 0;
 	std::uint64_t server_revision = 0;
 	ValueUpdate value_update;
+	ControlSize size = ControlSize::Medium;
 	std::string label;
 	std::string error;
 	bool disabled = false;

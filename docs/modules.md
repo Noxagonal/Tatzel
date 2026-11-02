@@ -35,3 +35,7 @@ emitted into the ignored www/app directory.
 UI.Protocol defines shared batch limits, version 2, ClientEdit, EditRevision,
 ValueUpdate, and ValueUpdatePolicy. UI.ClientUpdater owns nested update scopes
 and ordered control-frame barriers.
+
+UI.Element.Component provides the logical composition base. UI.Component.SearchFilterBar
+and UI.Component.ConfirmationDialog provide reusable compositions and are exported
+by UI. UI.Element.Style defines ControlSize and LiveRegion.

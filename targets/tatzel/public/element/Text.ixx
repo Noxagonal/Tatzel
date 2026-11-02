@@ -8,6 +8,7 @@ module;
 export module UI.Element.Text;
 
 export import UI.Element.LogicalElement;
+export import UI.Element.Style;
 
 namespace tatzel::ui {
 
@@ -49,8 +50,26 @@ public:
 		NotifyChanged();
 	}
 
+	/// @brief Reads text announcement policy.
+	/// @return Current logical text announcement policy.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetLiveRegion() const noexcept -> LiveRegion { return live_region; }
+
+	/// @brief Changes text announcement policy without altering appearance or value state.
+	/// @param live_region New logical text announcement policy.
+	/// @pre Called on the owning loop; enum arguments are defined values.
+	/// @post Changed state is stored and a bound adapter queues its presentation.
+	auto SetLiveRegion( LiveRegion live_region ) -> void
+	{
+		if( this->live_region == live_region ) return;
+		this->live_region = live_region;
+		NotifyChanged();
+	}
+
 private:
 	std::string text;
+	LiveRegion live_region = LiveRegion::Off;
 };
 
 }

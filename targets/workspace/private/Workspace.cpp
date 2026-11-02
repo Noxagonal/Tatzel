@@ -1,4 +1,5 @@
 #include "Repository.hpp"
+#include "TaskEditor.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -341,7 +342,7 @@ private:
 					{
 						self->busy = false;
 						if( auto* form = self->active_form.Get() ) form->SetDisabled( false );
-						if( auto* modal = self->confirmation.Get() ) modal->Close();
+						if( auto* modal = self->confirmation.Get() ) modal->Cancel();
 						self->Notify( message, true );
 					}
 				} );
@@ -498,30 +499,38 @@ private:
 		Header( ui, "Tasks", "Find your focus. Move one useful thing forward." );
 		ui.Link( "+ Create a task", "#/task/new" )->SetAppearance( "primary-link" );
 		auto self = shared_from_this();
-		ui.Container( [ this, self ]( auto filters ) {
-			auto* search = filters.TextInput( "Search tasks", query );
-			search->SetPlaceholder( "Search titles and descriptions…" );
-			search->SetOnInput( [ self ]( std::string_view value ) { self->query = value; self->RenderTaskRows(); } );
-			filters.Select( "Status", { { "all", "All statuses" }, { "todo", "To do" }, { "doing", "In progress" }, { "done", "Done" } }, status_filter,
-				[ self ]( std::string_view value ) { self->status_filter = value; self->RenderTaskRows(); } );
-			auto projects = std::vector<tatzel::ui::SelectOption>{ { "all", "All projects" } };
-			for( const auto& project : snapshot->projects ) projects.push_back( { std::to_string( project.id ), project.name + ( project.archived ? " (archived)" : "" ) } );
-			if( std::ranges::none_of( projects, [ this ]( const auto& option ) { return option.id == project_filter; } ) ) project_filter = "all";
-			self->project_selector = filters.Select( "Project", std::move( projects ), project_filter,
-				[ self ]( std::string_view value ) { self->project_filter = value; self->RenderTaskRows(); } )->GetHandle();
-			filters.Select( "Sort", { { "newest", "Newest first" }, { "title", "Title A–Z" }, { "priority", "Priority" } }, sort,
-				[ self ]( std::string_view value ) { self->sort = value; self->RenderTaskRows(); } );
-		} )->SetAppearance( "filters" );
+		auto projects = std::vector<tatzel::ui::SelectOption>{ { "all", "All projects" } };
+		for( const auto& project : snapshot->projects ) projects.push_back( { std::to_string( project.id ), project.name + ( project.archived ? " (archived)" : "" ) } );
+		if( std::ranges::none_of( projects, [ this ]( const auto& option ) { return option.id == project_filter; } ) ) project_filter = "all";
+		auto options = tatzel::ui::SearchFilterOptions{
+			.search_label = "Search tasks", .placeholder = "Search titles and descriptions…", .query = query,
+			.filters = {
+				{ "status", "Status", { { "all", "All statuses" }, { "todo", "To do" }, { "doing", "In progress" }, { "done", "Done" } }, status_filter, "all" },
+				{ "project", "Project", std::move( projects ), project_filter, "all" },
+				{ "sort", "Sort", { { "newest", "Newest first" }, { "title", "Title A–Z" }, { "priority", "Priority" } }, sort, "newest" }
+			}, .reset_label = ""
+		};
+		auto* filters = ui.Component<tatzel::ui::SearchFilterBar>( std::move( options ) );
+		filters->SetAppearance( "filters" );
+		filter_bar = filters->GetHandle();
+		filters->SetOnChange( [ self ]( tatzel::ui::FilterValues values ) {
+			self->query = std::move( values.query );
+			for( const auto& [ key, value ] : values.selections )
+			{
+				if( key == "status" ) self->status_filter = value;
+				else if( key == "project" ) self->project_filter = value;
+				else if( key == "sort" ) self->sort = value;
+			}
+			self->RenderTaskRows();
+		} );
 		ui.Container( [ this, self ]( auto controls ) {
 			controls.Checkbox( "Show archived tasks and projects", show_archived,
 				[ self ]( bool value ) { self->show_archived = value; self->RenderTaskRows(); } );
 			controls.Button( "Clear filters", [ self ] {
-				self->query.clear();
-				self->status_filter = "all";
-				self->project_filter = "all";
+				if( auto* filters = self->filter_bar.Get() ) filters->Reset();
 				self->show_archived = false;
 				self->root.Navigate( "#/tasks" );
-			} )->SetAppearance( "quiet" );
+			} )->SetVariant( tatzel::ui::ButtonVariant::Secondary );
 		} )->SetAppearance( "list-controls" );
 		results = ui.Container( []( auto ) {} )->GetHandle();
 		RenderTaskRows();
@@ -532,17 +541,12 @@ private:
 	/// @post Filter values and focus survive; options, spacing, and results reflect the snapshot.
 	auto RefreshTaskResults() -> void
 	{
-		if( auto* selector = project_selector.Get() )
+		if( auto* filters = filter_bar.Get() )
 		{
 			auto options = std::vector<tatzel::ui::SelectOption>{ { "all", "All projects" } };
 			for( const auto& project : snapshot->projects )
 				options.push_back( { std::to_string( project.id ), project.name + ( project.archived ? " (archived)" : "" ) } );
-
-			if( std::ranges::none_of( options, [ this ]( const auto& option ) { return option.id == project_filter; } ) )
-				project_filter = "all";
-
-			selector->SetOptions( std::move( options ) );
-			selector->SetValue( project_filter, tatzel::ui::ValueUpdatePolicy::Replace );
+			project_filter = filters->SetChoices( "project", std::move( options ), "all" );
 		}
 		if( auto* parent = content.Get() )
 			parent->SetAppearance( snapshot->compact ? "page-content compact" : "page-content" );
@@ -618,30 +622,11 @@ private:
 		Header( ui, task.id ? "Task details" : "Create a task", "A clear next step starts with a little context." );
 		ui.Link( "← All tasks", "#/tasks" );
 		auto self = shared_from_this();
-		auto* form = ui.Form( "Task editor", [ self, task, options = std::move( options ) ](
-			auto fields,
-			tatzel::ui::Form* form
-		) {
-			auto* title = fields.TextInput( "Task title", task.title );
-			title->SetRequired( true );
-			auto* description = fields.TextArea( "Description", task.description );
-			auto* project = fields.Select( "Project", options, std::to_string( task.project_id ) );
-			project->SetRequired( true );
-			auto* status = fields.Select( "Status", { { "todo", "To do" }, { "doing", "In progress" }, { "done", "Done" } }, task.status );
-			auto* priority = fields.Select( "Priority", { { "low", "Low" }, { "normal", "Normal" }, { "high", "High" } }, task.priority );
-			fields.SubmitButton( "Save task" );
-			form->SetOnSubmit( [ self, task, title = title->GetHandle(), description = description->GetHandle(), project = project->GetHandle(), status = status->GetHandle(), priority = priority->GetHandle() ]() mutable {
-				if( !title.Get() || !description.Get() || !project.Get() || !status.Get() || !priority.Get() ) return;
-				task.title = title.Get()->GetValue();
-				task.description = description.Get()->GetValue();
-				task.project_id = ParseID( project.Get()->GetValue() );
-				task.status = status.Get()->GetValue();
-				task.priority = priority.Get()->GetValue();
-				self->Mutate( [ task ]( Repository& repository ) { repository.SaveTask( task ); }, "Task saved. Everything is up to date.", "#/tasks" );
-			} );
+		auto* editor = ui.Component<TaskEditor>( task, std::move( options ) );
+		editor->SetOnSave( [ self ]( Task draft ) {
+			self->Mutate( [ draft = std::move( draft ) ]( Repository& repository ) { repository.SaveTask( draft ); }, "Task saved. Everything is up to date.", "#/tasks" );
 		} );
-		form->SetAppearance( "editor-form" );
-		active_form = form->GetHandle();
+		active_form = editor->GetFormHandle();
 		editing = true;
 		if( task.id )
 		{
@@ -650,12 +635,12 @@ private:
 					auto updated = Task{ task };
 					updated.archived = !updated.archived;
 					self->Mutate( [ updated ]( Repository& repository ) { repository.SaveTask( updated ); }, "Task archive state updated.", "#/tasks" );
-				} )->SetAppearance( "quiet" );
+				} )->SetVariant( tatzel::ui::ButtonVariant::Secondary );
 				actions.Button( "Delete task", [ self, task ] {
 					self->Confirm( "Delete this task?", "“" + task.title + "” will be permanently removed.", [ self, task ] {
 						self->Mutate( [ task ]( Repository& repository ) { repository.DeleteTask( task ); }, "Task deleted.", "#/tasks" );
 					} );
-				} )->SetAppearance( "danger" );
+				} )->SetVariant( tatzel::ui::ButtonVariant::Danger );
 			} )->SetAppearance( "editor-actions" );
 		}
 	}
@@ -681,7 +666,7 @@ private:
 						auto updated = Project{ project };
 						updated.archived = !updated.archived;
 						self->Mutate( [ updated ]( Repository& repository ) { repository.SaveProject( updated ); }, "Project archive state updated." );
-					} )->SetAppearance( "quiet" );
+					} )->SetVariant( tatzel::ui::ButtonVariant::Secondary );
 				} )->SetAppearance( "project-card" );
 			}
 		} )->SetAppearance( "project-grid" );
@@ -756,7 +741,7 @@ private:
 				self->Confirm( "Restore sample data?", "All current projects and tasks will be replaced. This cannot be undone.", [ self ] {
 					self->Mutate( []( Repository& repository ) { repository.Reset(); }, "Sample workspace restored.", "#/overview" );
 				} );
-			} )->SetAppearance( "danger" );
+			} )->SetVariant( tatzel::ui::ButtonVariant::Danger );
 		} )->SetAppearance( "reset-card" );
 	}
 
@@ -775,13 +760,12 @@ private:
 		if( busy ) return;
 		if( auto* modal = confirmation.Get() ) modal->Remove();
 		auto self = shared_from_this();
-		auto* modal = root.Modal( title, [ self, message = std::string{ message }, action = std::move( action ) ]( auto content ) {
-			content.Paragraph( message );
-			content.Button( "Cancel", [ self ] { if( auto* dialog = self->confirmation.Get() ) dialog->Close(); } )->SetAppearance( "quiet" );
-			content.Button( "Confirm", [ self, action ] { if( !self->busy ) action(); } )->SetAppearance( "danger" );
+		auto* dialog = root.Component<tatzel::ui::ConfirmationDialog>( tatzel::ui::ConfirmationOptions{
+			.title = std::string{ title }, .message = std::string{ message } } );
+		confirmation = dialog->GetHandle();
+		dialog->Request( [ self, action = std::move( action ) ]( bool accepted ) {
+			if( accepted && !self->busy ) action();
 		} );
-		confirmation = modal->GetHandle();
-		modal->Open();
 	}
 
 	Builder root;
@@ -791,9 +775,9 @@ private:
 	tatzel::ui::ElementHandle<tatzel::ui::Container> content;
 	tatzel::ui::ElementHandle<tatzel::ui::Container> results;
 	tatzel::ui::ElementHandle<tatzel::ui::Paragraph> notice;
-	tatzel::ui::ElementHandle<tatzel::ui::Select> project_selector;
+	tatzel::ui::ElementHandle<tatzel::ui::SearchFilterBar> filter_bar;
 	tatzel::ui::ElementHandle<tatzel::ui::Form> active_form;
-	tatzel::ui::ElementHandle<tatzel::ui::Modal> confirmation;
+	tatzel::ui::ElementHandle<tatzel::ui::ConfirmationDialog> confirmation;
 	std::vector<std::pair<std::string, tatzel::ui::ElementHandle<tatzel::ui::Link>>> navigation;
 	std::string location = "#/overview";
 	std::string query;

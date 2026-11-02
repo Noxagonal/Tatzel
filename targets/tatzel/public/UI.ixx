@@ -7,3 +7,6 @@ export import UI.App;
 export import UI.Diagnostics;
 export import UI.Logging;
 export import UI.Dispatcher;
+
+export import UI.Component.SearchFilterBar;
+export import UI.Component.ConfirmationDialog;

@@ -84,10 +84,11 @@ The runtime currently resolves these paths relative to the working directory:
 | data/template.html | Initial browser document. |
 | www | Static document root. |
 | www/app/main.js | Generated browser entry module. |
-| www/framework/layout.css | Local layout rules that cooperate with Pico defaults. |
+| www/framework/layout.css | Local semantic row/column layout rules. |
+| www/framework/components.css | Local control/theme tokens and responsive component styling. |
 
-The default listener binds 0.0.0.0:8080. The template uses Pico CSS from a CDN,
-so external stylesheet access is needed for its default presentation.
+The default listener binds 0.0.0.0:8080. The default template loads local layout, component-theme, and connection styles;
+it does not need an external stylesheet service.
 Runtime asset packaging and configurable resource roots remain future work.
 
 ## Checks
@@ -154,3 +155,11 @@ and form identities, delayed server frames with live browser edits/caret,
 composition cancellation, readiness gating, recoverable errors, and fatal reload.
 Legacy control smoke suites flatten batches through a test-only ProtocolSocket;
 reliability-smoke uses unmodified native WebSocket frames to verify framing.
+
+Open http://localhost:8080/components for independent filter/editor instances,
+confirmation outcomes, asynchronous save failures, authoritative loads, and scoped
+theme switching. See [components and themes](components.md).
+
+```sh
+node tests/browser/components-ui.mjs ./build/targets/development/TatzelDevelopment
+```
