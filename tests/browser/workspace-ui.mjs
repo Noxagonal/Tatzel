@@ -59,12 +59,27 @@ try {
 	await page.getByRole("link", { name: "Browser task", exact: true }).waitFor();
 	await peer.getByRole("link", { name: "Browser task", exact: true }).waitFor();
 	assert.equal(await peer.getByLabel("Search tasks").evaluate(element => document.activeElement === element), true, "external updates preserve search focus");
+	const taskTable = page.getByRole("table", { name: "Workspace tasks", exact: true });
+	const taskRow = taskTable.getByRole("row").filter({ has: page.getByRole("link", { name: "Browser task", exact: true }) });
+	const taskRowID = await taskRow.getAttribute("id");
+	await taskRow.getByRole("checkbox", { name: "Select Browser task", exact: true }).check();
+	await page.getByText("One task selected", { exact: true }).waitFor();
+	assert.equal(await page.getByRole("button", { name: "Open selected task", exact: true }).isEnabled(), true);
+	await taskTable.getByRole("button", { name: "Task", exact: true }).click();
+	await page.waitForFunction(() => document.querySelector('th[data-ui-column="task"]').getAttribute("aria-sort") === "ascending");
+	assert.equal(await page.getByLabel("Sort", { exact: true }).inputValue(), "title");
+	assert.equal(await taskRow.getAttribute("id"), taskRowID, "sorting retains task row identity");
+	assert.equal(await taskRow.getByRole("checkbox").isChecked(), true);
+	await page.getByLabel("Sort", { exact: true }).selectOption("priority-desc");
+	await page.waitForFunction(() => document.querySelector('th[data-ui-column="priority"]').getAttribute("aria-sort") === "descending");
+	assert.equal(await taskRow.getAttribute("id"), taskRowID);
 	await page.screenshot({ path: join(previews, "tasks-desktop.png"), fullPage: true });
 
 	await page.getByLabel("Search tasks").fill("Browser task");
 	await page.getByText("1 task", { exact: true }).waitFor();
 	assert.equal(await page.getByLabel("Search tasks").evaluate(element => document.activeElement === element), true, "search preserves focus");
-	await page.getByRole("link", { name: "Browser task", exact: true }).click();
+	assert.equal(await taskRow.getAttribute("id"), taskRowID, "filtering retains surviving task rows");
+	await page.getByRole("button", { name: "Open selected task", exact: true }).click();
 	await page.getByLabel("Task title").waitFor();
 	await page.goBack();
 	await page.getByLabel("Search tasks").waitFor();

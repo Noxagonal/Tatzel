@@ -2,7 +2,7 @@
 
 All application messages are UTF-8 JSON with an op string and a data field.
 Browser event data is an object. Server DOM operation data is an array.
-Transport status and error data are objects. Version 2 carries all DOM operations
+Transport status and error data are objects. Version 3 carries all DOM operations
 inside ordered update_batch frames; raw DOM commands are not top-level frames.
 
 DOM part IDs are exact browser node IDs. Logical control IDs are internal to
@@ -19,13 +19,13 @@ WebSocket because Node can otherwise reuse the HTTP connection.
 The server acknowledges the new WebSocket transport:
 
 ```json
-{"op":"connected","data":{"message":"Connected","protocol_version":2}}
+{"op":"connected","data":{"message":"Connected","protocol_version":3}}
 ```
 
 The browser independently sends its location after the socket opens:
 
 ```json
-{"op":"connect","data":{"protocol_version":2,"route_path":"/","query":"","hash":""}}
+{"op":"connect","data":{"protocol_version":3,"route_path":"/","query":"","hash":""}}
 ```
 
 route_path selects the registered page factory. query remains reserved. Optional
@@ -34,7 +34,7 @@ the page navigation handler after the factory returns. Invalid initial hashes
 are rejected before creating the logical page. Only one successful
 page initialization is allowed per connection. connected acknowledges the
 transport, not completion of the logical page build. Both peers require version
-2; incompatible clients receive a fatal protocol_mismatch error. Deploy the
+3; incompatible clients receive a fatal protocol_mismatch error. Deploy the
 server and compiled browser assets together.
 
 After successful factory construction, initial navigation, deferred removals,
@@ -112,6 +112,7 @@ Every row below uses a data array of the listed payload objects.
 | Operation | Payload fields | Server support |
 | --- | --- | --- |
 | create_element_part | part_id, parent_id, tag, classes, attributes, text_content | ClientUpdater method. |
+| set_child_order | parent_id, child_ids | Complete direct-child permutation; retains existing node identities. |
 | remove_element_part | part_id | Used for logical subtree roots; raw sender calls do not change logical ownership. |
 | set_attribute | part_id, attribute, attribute_value | ClientUpdater method. |
 | remove_attribute | part_id, attribute | ClientUpdater method. |
@@ -131,6 +132,26 @@ array of strings. Native select options contain value/label strings and a
 disabled boolean; values must be unique and nonempty. The empty selection is
 represented by a separate placeholder option. A DOM command is queued on the transport; it does not guarantee
 the browser has applied it when the C++ method returns.
+
+## Retaining rows while reordering
+
+Version 3 adds set_child_order. Each payload supplies one parent_id and a
+child_ids array containing every existing direct element child exactly once.
+All children must already exist under that parent. Missing, duplicate, foreign,
+or incomplete membership fails before any move in that payload. This is an
+ordering operation; it cannot create, remove, or reparent nodes.
+
+The browser uses native moveBefore where available. Its insertBefore fallback
+restores a surviving focused editor and text selection after the moves. The
+same DOM nodes, registered event sources, and field edit revisions survive.
+Native moveBefore also preserves browser state such as an active composition;
+the fallback cannot promise uninterrupted IME composition across a moved row.
+Applications targeting older browsers should avoid sorting during composition.
+
+Table sorting and selection use ordinary logical Button and Checkbox events;
+there is no browser-owned data/query model or additional table event envelope.
+Version 2 peers are incompatible because they cannot apply the new operation.
+Deploy the version 3 server and compiled browser modules together.
 
 ## Browser events
 

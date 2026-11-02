@@ -3,7 +3,7 @@ import { socket, parseServerMessage, sendToServer, protocolVersion } from "./web
 import { registerBrowserEventHandlers } from "./events.js";
 import { getConnectionState, setConnectionState } from "./connection-state.js";
 import {
-	addClass, createElementPart, removeElementPart, setAttribute, removeAttribute, removeClass,
+	addClass, setChildOrder, createElementPart, removeElementPart, setAttribute, removeAttribute, removeClass,
 	setModalOpen, setOnChange, setOnClick, setOnSubmit, setText, setValue, setSelectOptions, setRadioOptions
 } from "./dom-ops.js";
 
@@ -43,6 +43,7 @@ function applyOperation(operation: ReceiveOperation): void
 			sentHash = operation.data.hash;
 			break;
 		case "create_element_part": createElementPart(operation.data); break;
+		case "set_child_order": setChildOrder(operation.data); break;
 		case "remove_element_part": removeElementPart(operation.data); break;
 		case "set_attribute": setAttribute(operation.data); break;
 		case "remove_attribute": removeAttribute(operation.data); break;

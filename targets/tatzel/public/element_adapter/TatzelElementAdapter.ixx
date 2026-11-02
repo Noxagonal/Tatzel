@@ -27,6 +27,24 @@ public:
 	/// @post The control owns one div part that receives its children.
 	auto CreatePartsFor( ui::LogicalElement& element ) const -> void override;
 
+	/// @brief Maps a table caption, header/body areas, and loading/empty feedback.
+	/// @param element Logical Table to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	auto CreatePartsFor( ui::Table& element ) const -> void override;
+
+	/// @brief Maps a stable data row without replacing its cells.
+	/// @param element Logical TableRow to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	auto CreatePartsFor( ui::TableRow& element ) const -> void override;
+
+	/// @brief Maps a semantic header or data cell and its logical insertion area.
+	/// @param element Logical TableCell to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	auto CreatePartsFor( ui::TableCell& element ) const -> void override;
+
 	/// @brief Maps a logical heading to a semantic HTML heading.
 	/// @param element Logical heading to map.
 	/// @pre The parent is mapped; the heading level is valid; no parts are assigned.

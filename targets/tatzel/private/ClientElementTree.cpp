@@ -80,6 +80,12 @@ auto tatzel::ClientElementTree::RetireSubtrees( std::span<ui::LogicalElement* co
 	if( elements.empty() ) return 0;
 
 	auto roots = FindRenderedRoots( elements );
+	auto parents = std::vector<ui::ElementHandle<ui::LogicalElement>>{};
+	for( auto* element : elements )
+	{
+		auto* parent = element->GetParent();
+		if( std::ranges::none_of( parents, [ parent ]( const auto& handle ) { return handle.Get() == parent; } ) ) parents.push_back( parent->GetHandle() );
+	}
 	retired_elements.reserve( retired_elements.size() + elements.size() );
 	for( auto* element : elements )
 	{
@@ -93,6 +99,7 @@ auto tatzel::ClientElementTree::RetireSubtrees( std::span<ui::LogicalElement* co
 		auto handler = removal_handler;
 		handler( roots );
 	}
+	for( const auto& parent : parents ) if( auto* active = parent.Get() ) active->NotifyChildrenChanged();
 	return elements.size();
 }
 

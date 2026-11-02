@@ -26,6 +26,7 @@ export import UI.Element.NumberInput;
 export import UI.Element.RadioGroup;
 export import UI.Element.Link;
 export import UI.Element.Image;
+export import UI.Element.Table;
 
 
 namespace tatzel {
@@ -44,6 +45,24 @@ public:
 	/// @pre The control has a mapped logical parent and no assigned parts.
 	/// @post The control owns its parts and future logical changes are bound as supported.
 	virtual auto CreatePartsFor( ui::LogicalElement& element ) const -> void = 0;
+
+	/// @brief Maps a table caption, header/body areas, and loading/empty feedback.
+	/// @param element Logical Table to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	virtual auto CreatePartsFor( ui::Table& element ) const -> void = 0;
+
+	/// @brief Maps a stable data row without replacing its cells.
+	/// @param element Logical TableRow to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	virtual auto CreatePartsFor( ui::TableRow& element ) const -> void = 0;
+
+	/// @brief Maps a semantic header or data cell and its logical insertion area.
+	/// @param element Logical TableCell to map.
+	/// @pre The parent is mapped and this control has no parts.
+	/// @post Parts are owned and supported state setters are bound to this adapter.
+	virtual auto CreatePartsFor( ui::TableCell& element ) const -> void = 0;
 
 	/// @brief Maps a logical heading and binds its text updates.
 	/// @param element Logical heading to map.

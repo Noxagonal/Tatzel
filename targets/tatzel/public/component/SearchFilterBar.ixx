@@ -135,6 +135,24 @@ public:
 		EmitChanged();
 	}
 
+	/// @brief Silently selects a named filter while retaining all other fields.
+	/// @param key Application selection key.
+	/// @param value Enabled selection ID, or empty.
+	/// @param policy Whether the selection intentionally supersedes pending browser drafts.
+	/// @pre Called on the owning loop after Build.
+	/// @post Only this selector changes; no application callback runs.
+	/// @throws tatzel::Exception If the key/control/value is invalid.
+	auto SetFilterValue(
+		std::string_view key,
+		std::string_view value,
+		ValueUpdatePolicy policy = ValueUpdatePolicy::Replace
+	) -> void
+	{
+		auto found = std::ranges::find( fields, key, &Field::key );
+		if( found == fields.end() || !found->editor.Get() ) throw tatzel::Exception{ "Unknown or inactive filter key" };
+		found->editor.Get()->SetValue( value, policy );
+	}
+
 	/// @brief Refreshes one selector without rebuilding the filter bar or search draft.
 	/// @param key Application key of the selector.
 	/// @param choices New owned choices, including its configured reset value.

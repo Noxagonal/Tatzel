@@ -695,3 +695,88 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Image& element ) const ->
 		SyncAttribute( part, "height", element.GetHeight() ? std::optional<std::string_view>{ height } : std::nullopt, *client_updater );
 	} );
 }
+
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Table& element ) const -> void
+{
+	auto base = MakePartID( element, "base" );
+	auto table = MakePartID( element, "table" );
+	auto body = MakePartID( element, "body" );
+	auto state_row = MakePartID( element, "state-row" );
+	auto parts = std::vector<dom::ElementPart>{
+		{ base, ParentPartFor( element ).GetPartID(), "div" },
+		{ table, base, "table" },
+		{ MakePartID( element, "caption" ), table, "caption" },
+		{ MakePartID( element, "head" ), table, "thead" },
+		{ MakePartID( element, "headers" ), MakePartID( element, "head" ), "tr" },
+		{ body, table, "tbody" },
+		{ state_row, body, "tr" },
+		{ MakePartID( element, "state" ), state_row, "td" },
+		{ MakePartID( element, "feedback" ), base, "p" }
+	};
+	parts[ 0 ].AddAttribute( "data-ui-table", "true" );
+	parts[ 1 ].AddAttribute( "aria-busy", "false" );
+	parts[ 2 ].SetTextContent( element.GetCaption() );
+	parts[ 7 ].SetTextContent( element.GetEmptyText() );
+	parts[ 7 ].AddAttribute( "colspan", std::to_string( element.GetColumns().size() + ( element.GetSelectionMode() == ui::TableSelection::None ? 0 : 1 ) ) );
+	parts[ 8 ].AddAttribute( "aria-live", "polite" );
+	parts[ 8 ].AddAttribute( "aria-atomic", "true" );
+	parts[ 8 ].AddAttribute( "class", "tatzel-table-feedback" );
+	element.SetParts( std::move( parts ), 0, 5 );
+	element.SetChangeHandler( [ this, &element, revision = element.GetOrderRevision() ]() mutable {
+		auto rows = element.GetRows();
+		SyncText( *element.FindPart( "caption" ), element.GetCaption(), *client_updater );
+		SyncText( *element.FindPart( "state" ), element.IsLoading() ? "Loading…" : element.GetEmptyText(), *client_updater );
+		SyncAttribute( *element.FindPart( "state-row" ), "hidden", BooleanAttribute( !rows.empty() ), *client_updater );
+		SyncAttribute( *element.FindPart( "table" ), "aria-busy", element.IsLoading() ? "true" : "false", *client_updater );
+		SyncText( *element.FindPart( "feedback" ), element.IsLoading() ? "Loading…" : std::to_string( rows.size() ) + ( rows.size() == 1 ? " row" : " rows" ), *client_updater );
+		if( revision != element.GetOrderRevision() )
+		{
+			revision = element.GetOrderRevision();
+			auto ids = std::vector<std::string>{ std::string{ element.FindPart( "state-row" )->GetPartID() } };
+			for( auto* row : rows ) ids.emplace_back( row->GetBasePart().GetPartID() );
+			client_updater->SetChildOrder( element.FindPart( "body" )->GetPartID(), ids );
+		}
+	} );
+}
+
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::TableRow& element ) const -> void
+{
+	auto parts = std::vector<dom::ElementPart>{
+		{ MakePartID( element, "base" ), ParentPartFor( element ).GetPartID(), "tr" }
+	};
+	parts.front().AddAttribute( "data-ui-row-key", element.GetKey() );
+	parts.front().AddAttribute( "data-ui-selected", "false" );
+	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		SyncAttribute( element.GetBasePart(), "data-ui-selected", element.IsSelected() ? "true" : "false", *client_updater );
+	} );
+}
+
+
+auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::TableCell& element ) const -> void
+{
+	auto parent = std::string{ ParentPartFor( element ).GetPartID() };
+	if( element.IsHeader() )
+	{
+		auto* table = dynamic_cast<ui::Table*>( element.GetParent() );
+		if( !table ) throw tatzel::Exception{ "Table header requires a logical Table parent" };
+		parent = table->FindPart( "headers" )->GetPartID();
+	}
+	auto parts = std::vector<dom::ElementPart>{ { MakePartID( element, "base" ), parent, element.IsHeader() ? "th" : "td" } };
+	parts.front().SetTextContent( element.GetText() );
+	parts.front().AddAttribute( "data-ui-column", element.GetColumnKey() );
+	if( element.IsHeader() ) parts.front().AddAttribute( "scope", "col" );
+	if( element.IsSortable() ) parts.front().AddAttribute( "aria-sort", "none" );
+	element.SetParts( std::move( parts ), 0, 0 );
+	element.SetChangeHandler( [ this, &element ] {
+		SyncText( element.GetBasePart(), element.GetText(), *client_updater );
+		if( element.IsSortable() )
+		{
+			const auto direction = element.GetSortDirection();
+			SyncAttribute( element.GetBasePart(), "aria-sort", direction == ui::TableSortDirection::None ? "none"
+				: direction == ui::TableSortDirection::Ascending ? "ascending" : "descending", *client_updater );
+		}
+	} );
+}

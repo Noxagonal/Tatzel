@@ -40,8 +40,10 @@ defaults for existing applications.
 - **Overview:** task counts by status, project completion counts, recent saved
   activity, and links into task lists.
 - **Tasks:** search titles/descriptions, filter status or project, sort by title,
-  creation order, or priority, and show archived work. Search replaces only result
-  rows, preserving the search editor and focus.
+  creation order, or priority, and show archived work. Sortable table headers and
+  the sort filter stay synchronized. Matching rows retain their identities across
+  filtering and committed updates; only added/removed records create/remove rows.
+  Native single selection enables Open selected task.
 - **Task details:** create or edit title, description, project, status, and
   priority; archive or restore; permanently delete through a confirmation dialog.
 - **Projects:** create, rename, edit descriptions, archive, restore, and inspect
@@ -63,6 +65,8 @@ Saving disables the current form and displays pending feedback. A failed save
 reenables it and preserves entered values. The browser-owned connection banner
 blocks further interaction after disconnect and provides a reload action.
 Reload creates a fresh logical page; it does not restore unsaved drafts.
+
+![Workspace task table](images/workspace-tasks.png)
 
 ## Ownership and synchronization
 
@@ -137,7 +141,7 @@ suite exercises actual controls, focus, history, modal confirmations, persisted
 preferences, disconnect feedback, and narrow layouts. CI uploads desktop/mobile
 screenshots as `tatzel-workspace-preview`.
 
-The shared version-two runtime batches updates and keeps the logical root inert
+The shared version-three runtime batches updates and keeps the logical root inert
 until page_ready. Recoverable callback errors use the shared dismissible alert;
 connection loss or a fatal protocol/page error offers Reload workspace to start
 a fresh page. Ordinary field updates protect newer drafts, while navigation-driven

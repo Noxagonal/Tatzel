@@ -423,3 +423,11 @@ SearchFilterBar, ConfirmationDialog, and the application editor pattern. Button
 variants, Button/FormField sizes, and Text live-region policy are independent
 from named appearances and field values. Button::SetDisabled suppresses both
 native and direct logical activation.
+
+## Tables
+
+Use Table for a native semantic table with immutable column definitions, stable
+application row keys, and either text or ordinary logical controls in each cell.
+Header sort actions report application requests; the application updates data
+and supplies SetRowOrder. Selection uses normal checked logical controls.
+See [tables and stable rows](tables.md) for reconciliation and lifetime rules.

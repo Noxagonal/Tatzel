@@ -163,3 +163,11 @@ theme switching. See [components and themes](components.md).
 ```sh
 node tests/browser/components-ui.mjs ./build/targets/development/TatzelDevelopment
 ```
+
+Open http://localhost:8080/tables in TatzelDevelopment for sortable rows,
+native selection, incremental add/update/delete, editable control cells, and
+loading/empty states. See [tables and stable rows](tables.md).
+
+```sh
+node tests/browser/tables-ui.mjs ./build/targets/development/TatzelDevelopment
+```

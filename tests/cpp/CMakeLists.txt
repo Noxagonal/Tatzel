@@ -104,3 +104,7 @@ add_test(NAME TatzelProtocolTests COMMAND TatzelProtocolTests)
 add_executable(TatzelComponentTests Components.cpp)
 target_link_libraries(TatzelComponentTests PRIVATE Tatzel Drogon::Drogon)
 add_test(NAME TatzelComponentTests COMMAND TatzelComponentTests)
+
+add_executable(TatzelTableTests Tables.cpp)
+target_link_libraries(TatzelTableTests PRIVATE Tatzel Drogon::Drogon)
+add_test(NAME TatzelTableTests COMMAND TatzelTableTests)

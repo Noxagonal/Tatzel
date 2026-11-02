@@ -1,7 +1,7 @@
 import type { ReceiveServerMessage, ReceiveOperation, SendServerMessage } from "./protocol.js";
 import { setConnectionState } from "./connection-state.js";
 
-export const protocolVersion = 2;
+export const protocolVersion = 3;
 const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const wsUrl = wsProtocol + "//" + window.location.host + "/ws";
 /** @brief One page owns one transport; recovery reloads rather than replaying pending actions. */
@@ -30,7 +30,8 @@ function isCounter(value: unknown): value is number { return typeof value === "n
 
 const domFields: Record<string, readonly string[]> = {
 	create_element_part: ["part_id", "parent_id", "tag", "text_content"],
-	remove_element_part: ["part_id"], set_attribute: ["part_id", "attribute", "attribute_value"],
+	remove_element_part: ["part_id"],
+	set_child_order: ["parent_id"], set_attribute: ["part_id", "attribute", "attribute_value"],
 	remove_attribute: ["part_id", "attribute"], add_class: ["part_id", "class_name"], remove_class: ["part_id", "class_name"],
 	set_text: ["part_id", "text"], set_value: ["part_id", "value"], set_modal_open: ["part_id", "open"],
 	set_select_options: ["part_id", "placeholder", "value"], set_radio_options: ["part_id", "value"],
@@ -58,6 +59,10 @@ function validateOperation(message: unknown): ReceiveOperation
 	for (const part of data) {
 		if (!isRecord(part) || !domFields[op].every(field => typeof part[field] === (field === "open" ? "boolean" : "string")))
 			throw new Error("Invalid DOM operation payload");
+		if (op === "set_child_order") {
+			if (!Array.isArray(part.child_ids) || !part.child_ids.every(id => typeof id === "string" && id !== "")
+				|| new Set(part.child_ids).size !== part.child_ids.length) throw new Error("Invalid child order");
+		}
 		if (op === "create_element_part") {
 			if (!Array.isArray(part.classes) || !part.classes.every(value => typeof value === "string")
 				|| !isRecord(part.attributes) || !Object.values(part.attributes).every(value => typeof value === "string"))
@@ -86,14 +91,14 @@ function validateOperation(message: unknown): ReceiveOperation
 /**
  * @brief Parses an isolated operation for adapter/runtime behavior checks.
  * @param event Serialized operation envelope.
- * @returns Validated operation; not a complete version-two transport frame.
+ * @returns Validated operation; not a complete version-three transport frame.
  * @pre event contains text JSON.
  * @post No DOM state changes.
  */
 export function parseServerOperation(event: MessageEvent): ReceiveOperation { return validateOperation(JSON.parse(event.data)); }
 
 /**
- * @brief Validates a complete version-two frame, including every operation in a batch.
+ * @brief Validates a complete version-three frame, including every operation in a batch.
  * @param event Text WebSocket message event.
  * @returns Typed control or update-batch frame.
  * @pre None.

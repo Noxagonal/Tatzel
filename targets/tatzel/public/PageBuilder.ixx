@@ -43,6 +43,7 @@ export import UI.Element.NumberInput;
 export import UI.Element.RadioGroup;
 export import UI.Element.Link;
 export import UI.Element.Image;
+export import UI.Element.Table;
 
 
 namespace tatzel {
@@ -201,6 +202,152 @@ public:
 			if( auto* owner = handle.Get() ) owner->Remove();
 			throw;
 		}
+		return handle.Get();
+	}
+
+	/// @brief Creates a semantic table and its logical header actions.
+	/// @param caption Accessible table name, copied before returning.
+	/// @param columns Owned immutable column definitions.
+	/// @param selection Selection mode for subsequently created rows.
+	/// @return Borrowed table, or nullptr if initialization removes it.
+	/// @pre Called on the live owning loop.
+	/// @post Headers use normal logical controls; data rows can be created through Scope(table).
+	/// @throws tatzel::Exception If schema/caption is invalid or the builder expired.
+	auto Table(
+		std::string_view caption,
+		std::vector<ui::TableColumn> columns,
+		ui::TableSelection selection = ui::TableSelection::None
+	) -> ui::Table*
+	{
+		auto* logical_parent = parent.Get();
+		if( !logical_parent ) throw Exception{ "Builder parent has been removed or destroyed" };
+		auto updates = core->GetClientUpdater()->BeginBatch();
+		auto dispatch = logical_parent->BeginDispatch();
+		auto* table = AddChild<ui::Table>( caption, std::move( columns ), selection );
+		if( !table ) return nullptr;
+		auto handle = table->GetHandle();
+		try
+		{
+			auto headers = Scope( *table );
+			if( selection != ui::TableSelection::None )
+				headers.template AddChild<ui::TableCell>( ui::Table::SelectionColumn, "Select", true, false );
+			for( const auto& column : table->GetColumns() )
+			{
+				auto* cell = headers.template AddChild<ui::TableCell>( column.key, column.sortable ? "" : column.title, true, column.sortable );
+				if( !cell || !handle.Get() ) return nullptr;
+				if( column.sortable )
+				{
+					auto* button = Scope( *cell ).Button( column.title, [ handle, key = column.key ] {
+						if( auto* owner = handle.Get() ) owner->RequestSort( key );
+					} );
+					if( button )
+					{
+						button->SetVariant( ui::ButtonVariant::Secondary );
+						button->SetSize( ui::ControlSize::Small );
+						button->SetAppearance( "table-sort-action" );
+					}
+				}
+			}
+		}
+		catch( ... )
+		{
+			if( auto* owner = handle.Get() ) owner->Remove();
+			throw;
+		}
+		return handle.Get();
+	}
+
+	/// @brief Creates a stable data row and initializes all schema cells in column order.
+	/// @tparam ChildBuilderFn Callable populating named cells through the row-scoped builder.
+	/// @param key Unique nonempty application row identity.
+	/// @param child_builder_fn Callback building cell text or logical control subtrees.
+	/// @param label Accessible row wording used for selection, empty to use key.
+	/// @return Borrowed row, or nullptr if initialization/build removes it.
+	/// @pre This builder is scoped directly to a Table on the owning loop.
+	/// @post The table owns a complete row; failed building removes its partial subtree.
+	/// @throws tatzel::Exception If scope/key/cell definitions are invalid; application build exceptions propagate after cleanup.
+	template<typename ChildBuilderFn>
+	auto TableRow(
+		std::string_view key,
+		ChildBuilderFn&& child_builder_fn,
+		std::string_view label = {}
+	) -> ui::TableRow*
+	{
+		auto* table = dynamic_cast<ui::Table*>( parent.Get() );
+		if( !table || key.empty() || table->FindRow( key ) ) throw Exception{ "TableRow requires a table scope and a unique nonempty key" };
+		auto updates = core->GetClientUpdater()->BeginBatch();
+		auto dispatch = table->BeginDispatch();
+		auto table_handle = table->GetHandle();
+		auto* row = AddChild<ui::TableRow>( key, label );
+		if( !row ) return nullptr;
+		auto handle = row->GetHandle();
+		try
+		{
+			auto cells = Scope( *row );
+			if( table->GetSelectionMode() != ui::TableSelection::None )
+			{
+				auto* cell = cells.template AddChild<ui::TableCell>( ui::Table::SelectionColumn );
+				if( !cell || !handle.Get() ) return nullptr;
+				auto* checkbox = Scope( *cell ).Checkbox( "Select " + std::string{ row->GetLabel() }, false,
+					[ table_handle, handle, key = std::string{ key } ]( bool checked ) {
+						if( handle.Get() ) if( auto* owner = table_handle.Get() ) owner->AcceptRowSelection( key, checked );
+					} );
+				if( checkbox ) row->BindSelection( checkbox->GetHandle() );
+			}
+			for( const auto& column : table->GetColumns() ) cells.template AddChild<ui::TableCell>( column.key );
+			BuildChildren( *row, std::forward<ChildBuilderFn>( child_builder_fn ) );
+		}
+		catch( ... )
+		{
+			if( auto* owner = handle.Get() ) owner->Remove();
+			throw;
+		}
+		return handle.Get();
+	}
+
+	/// @brief Replaces one existing named row cell with plain text.
+	/// @param column Stable application column key.
+	/// @param text Plain-text content, copied before returning.
+	/// @return Borrowed cell, or nullptr if replacement removes it.
+	/// @pre This builder is scoped directly to a TableRow on the owning loop.
+	/// @post Existing logical cell controls are intentionally removed; other cells retain identity.
+	/// @throws tatzel::Exception If scope/key is invalid or names the managed selection cell.
+	auto TableCell(
+		std::string_view column,
+		std::string_view text
+	) -> ui::TableCell*
+	{
+		auto* row = dynamic_cast<ui::TableRow*>( parent.Get() );
+		auto* cell = row ? row->FindCell( column ) : nullptr;
+		if( !cell || column == ui::Table::SelectionColumn ) throw Exception{ "TableCell requires an existing data column in a row scope" };
+		auto dispatch = cell->BeginDispatch();
+		auto handle = cell->GetHandle();
+		cell->SetText( text );
+		return handle.Get();
+	}
+
+	/// @brief Replaces a named row cell with a subtree of ordinary logical controls.
+	/// @tparam ChildBuilderFn Callable accepting a cell-scoped builder and optionally its cell pointer.
+	/// @param column Stable application column key.
+	/// @param child_builder_fn Callback creating logical cell content.
+	/// @return Borrowed cell, or nullptr if the callback removes it.
+	/// @pre This builder is scoped directly to a TableRow on the owning loop.
+	/// @post The cell owns callback-created controls; other cells retain identity.
+	/// @throws tatzel::Exception If scope/key is invalid; callback exceptions propagate under the normal boundary.
+	template<typename ChildBuilderFn>
+		requires ( !std::convertible_to<ChildBuilderFn, std::string_view> )
+	auto TableCell(
+		std::string_view column,
+		ChildBuilderFn&& child_builder_fn
+	) -> ui::TableCell*
+	{
+		auto* row = dynamic_cast<ui::TableRow*>( parent.Get() );
+		auto* cell = row ? row->FindCell( column ) : nullptr;
+		if( !cell || column == ui::Table::SelectionColumn ) throw Exception{ "TableCell requires an existing data column in a row scope" };
+		auto dispatch = cell->BeginDispatch();
+		auto handle = cell->GetHandle();
+		cell->SetText( "" );
+		if( auto* active = handle.Get() ) BuildChildren( *active, std::forward<ChildBuilderFn>( child_builder_fn ) );
 		return handle.Get();
 	}
 
@@ -518,6 +665,8 @@ public:
 	}
 
 private:
+	template<ui::LogicalElementDerived OtherT> friend class PageBuilder;
+
 	/// @brief Allocates a logical control, maps its parts, and transfers ownership.
 	/// @tparam NewElementT Logical control type.
 	/// @tparam ArgsT Constructor argument types after identity and logical parent.
@@ -545,6 +694,7 @@ private:
 		{
 			core->GetClientUpdater()->CreateElementParts( result->GetParts() );
 			core->GetElementAdapter()->InitializePartsFor( *result );
+			logical_parent->NotifyChildrenChanged();
 		}
 		catch( ... )
 		{

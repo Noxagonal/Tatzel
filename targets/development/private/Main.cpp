@@ -1,4 +1,5 @@
 #include "NoteEditor.hpp"
+#include "TableDemo.hpp"
 
 #include <memory>
 #include <optional>
@@ -86,6 +87,7 @@ try
 				links.Link( "Background work and dispatcher", "/dispatcher" );
 				links.Link( "Protocol reliability", "/protocol" );
 				links.Link( "Reusable components and themes", "/components" );
+				links.Link( "Logical tables and stable rows", "/tables" );
 				links.Link( "Page initialization failure (expected error)", "/failed-page" );
 			} );
 		} );
@@ -481,6 +483,8 @@ try
 				? "tatzel-editor-grid alternate-theme" : "tatzel-editor-grid" );
 		} )->SetVariant( tatzel::ui::ButtonVariant::Secondary );
 	} );
+
+	app.RegisterPage( "/tables", []( tatzel::PageBuilder<> ui ) { ui.Component<example::TableDemo>(); } );
 
 	app.Run();
 
