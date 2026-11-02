@@ -138,3 +138,11 @@ executable. PageBuilder hash-navigation callbacks replace central content while
 keeping the shell, page context, and dispatcher alive. Appearance names are owned
 logical metadata synchronized independently of value handlers; the default
 adapter places them on each control's base part as `data-ui-appearance`.
+
+## Reusable logical components
+
+Component derives from Container and participates in the same ownership tree.
+The typed builder attaches/maps it before Build creates children. Failed builds
+remove their partial subtree; successful removals invalidate component/child
+handles together. Built-in compositions use existing primitive adapters and
+protocol commands. See [components](components.md) for the API and failure contracts.

@@ -12,6 +12,7 @@ export module UI.Element.Button;
 import UI.Diagnostics;
 
 export import UI.Element.LogicalElement;
+export import UI.Element.Style;
 export import UI.Element.Interface.Clickable;
 
 namespace tatzel::ui {
@@ -21,6 +22,14 @@ export enum class ButtonRole
 {
 	Action, ///< Invoke a server-side click callback.
 	Submit, ///< Request coordinated submission of the enclosing form.
+};
+
+/// @brief Semantic emphasis for a logical button.
+export enum class ButtonVariant
+{
+	Primary, ///< Main action in its context.
+	Secondary, ///< Supporting or cancellation action.
+	Danger, ///< Destructive action requiring clear emphasis.
 };
 
 /// @brief Logical button with owned text and a server-side callback.
@@ -65,6 +74,57 @@ public:
 		NotifyChanged();
 	}
 
+	/// @brief Reads button emphasis.
+	/// @return Current logical button emphasis.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetVariant() const noexcept -> ButtonVariant { return variant; }
+
+	/// @brief Changes button emphasis without altering appearance or value state.
+	/// @param variant New logical button emphasis.
+	/// @pre Called on the owning loop; enum arguments are defined values.
+	/// @post Changed state is stored and a bound adapter queues its presentation.
+	auto SetVariant( ButtonVariant variant ) -> void
+	{
+		if( this->variant == variant ) return;
+		this->variant = variant;
+		NotifyChanged();
+	}
+
+	/// @brief Reads control size.
+	/// @return Current logical control size.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto GetSize() const noexcept -> ControlSize { return size; }
+
+	/// @brief Changes control size without altering appearance or value state.
+	/// @param size New logical control size.
+	/// @pre Called on the owning loop; enum arguments are defined values.
+	/// @post Changed state is stored and a bound adapter queues its presentation.
+	auto SetSize( ControlSize size ) -> void
+	{
+		if( this->size == size ) return;
+		this->size = size;
+		NotifyChanged();
+	}
+
+	/// @brief Reports whether this button rejects activation.
+	/// @return Whether the button is explicitly disabled.
+	/// @pre None.
+	/// @post State is unchanged.
+	auto IsDisabled() const noexcept -> bool { return disabled; }
+
+	/// @brief Enables or disables button activation.
+	/// @param disabled Whether native and server-side activation are suppressed.
+	/// @pre Called on the owning loop.
+	/// @post State is stored and the adapter synchronizes native disabled state.
+	auto SetDisabled( bool disabled ) -> void
+	{
+		if( this->disabled == disabled ) return;
+		this->disabled = disabled;
+		NotifyChanged();
+	}
+
 	/// @brief Replaces the server-side click callback.
 	/// @param on_click New callback, or empty to make clicks no-ops.
 	/// @pre Called on the owning event loop; captured objects outlive their use.
@@ -77,7 +137,7 @@ public:
 	auto InvokeOnClick() -> void override
 	{
 		auto dispatch = BeginDispatch();
-		if( IsRemoved() || role != ButtonRole::Action ) return;
+		if( IsRemoved() || disabled || role != ButtonRole::Action ) return;
 
 		auto callback = on_click;
 		if( callback )
@@ -97,6 +157,9 @@ private:
 	std::string text;
 	std::function<void()> on_click;
 	ButtonRole role;
+	ButtonVariant variant = ButtonVariant::Primary;
+	ControlSize size = ControlSize::Medium;
+	bool disabled = false;
 };
 
 }

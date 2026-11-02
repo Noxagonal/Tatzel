@@ -1,0 +1,71 @@
+/* Theme tokens inherit, so an application or a single component can override them. */
+:root {
+	--tatzel-font: ui-sans-serif, system-ui, sans-serif;
+	--tatzel-accent: #285d49;
+	--tatzel-accent-text: #fff;
+	--tatzel-text: #27382f;
+	--tatzel-muted: #68756d;
+	--tatzel-surface: #fff;
+	--tatzel-border: #d9dfd7;
+	--tatzel-danger: #a83f33;
+	--tatzel-focus: #a37b25;
+	--tatzel-radius: .5rem;
+	--tatzel-space-small: .5rem;
+	--tatzel-space-medium: 1rem;
+	--tatzel-space-large: 1.5rem;
+}
+/* Local baseline for the default template; application styles load afterwards. */
+:root { color-scheme: light; font-family: var(--tatzel-font); font-size: 16px; line-height: 1.5; color: var(--tatzel-text); background: #f6f7f3; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main.container { width: min(100%, 1200px); margin: 0 auto; padding: 2rem 1.5rem 3rem; }
+h1 { margin: 0 0 .75rem; font-size: clamp(1.8rem, 4vw, 2.4rem); line-height: 1.2; }
+h2 { margin: 0 0 1rem; font-size: 1.25rem; line-height: 1.3; }
+p { margin: 0 0 1rem; }
+a { color: var(--tatzel-accent); }
+button, input, select, textarea { font: inherit; }
+label, legend { display: block; font-weight: 600; margin-bottom: .35rem; }
+input:not([type="checkbox"]):not([type="radio"]), textarea, select { width: 100%; min-width: 0; color: var(--tatzel-text); background: var(--tatzel-surface); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); }
+textarea { resize: vertical; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--tatzel-accent); }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+form > fieldset > div { margin-bottom: var(--tatzel-space-medium); }
+article { margin-block: var(--tatzel-space-large); padding: var(--tatzel-space-large); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); background: var(--tatzel-surface); }
+article footer { margin-top: var(--tatzel-space-medium); padding-top: var(--tatzel-space-medium); border-top: 1px solid var(--tatzel-border); }
+small { display: block; margin-top: .3rem; }
+[hidden] { display: none !important; }
+fieldset:disabled button { opacity: .55; cursor: default; }
+dialog { color: var(--tatzel-text); background: var(--tatzel-surface); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); max-width: min(34rem, calc(100vw - 2rem)); padding: 0; }
+dialog::backdrop { background: #182b2366; }
+dialog article { margin: 0; border: 0; }
+dialog header { display: flex; justify-content: space-between; align-items: start; gap: var(--tatzel-space-medium); }
+[data-ui-component] { min-width: 0; font-family: var(--tatzel-font); color: var(--tatzel-text); }
+button[data-ui-variant] { border: 1px solid var(--tatzel-accent); border-radius: var(--tatzel-radius); font: inherit; font-weight: 600; line-height: 1.4; cursor: pointer; margin-bottom: 0; }
+button[data-ui-variant="primary"] { color: var(--tatzel-accent-text); background: var(--tatzel-accent); }
+button[data-ui-variant="secondary"] { color: var(--tatzel-text); background: var(--tatzel-surface); border-color: var(--tatzel-border); }
+button[data-ui-variant="danger"] { color: var(--tatzel-danger); background: var(--tatzel-surface); border-color: var(--tatzel-danger); }
+button[data-ui-variant]:disabled { opacity: .55; cursor: default; }
+[data-ui-size="small"] { font-size: .85rem; padding: .35rem .6rem; }
+[data-ui-size="medium"] { padding: .6rem 1rem; }
+[data-ui-size="large"] { font-size: 1.1rem; padding: .85rem 1.3rem; }
+input[type="checkbox"][data-ui-size], fieldset[data-ui-size] { padding: 0; }
+[data-ui-component] input:not([type="checkbox"]):not([type="radio"]),
+[data-ui-component] textarea, [data-ui-component] select {
+	box-sizing: border-box; display: block; width: 100%; min-width: 0; margin-bottom: 0;
+	font-family: inherit; color: var(--tatzel-text); background: var(--tatzel-surface);
+	border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius);
+}
+[data-ui-component] [aria-invalid="true"] { border-color: var(--tatzel-danger); }
+[data-ui-component] label { display: block; margin-bottom: .35rem; font-weight: 600; }
+button[data-ui-variant]:focus-visible, [data-ui-component] :is(input, textarea, select, a):focus-visible { outline: 3px solid var(--tatzel-focus); outline-offset: 3px; }
+[data-ui-appearance~="tatzel-filter-bar"] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); align-items: end; gap: var(--tatzel-space-medium); margin-block: var(--tatzel-space-large); }
+[data-ui-appearance~="tatzel-filter-bar"] > * { min-width: 0; margin: 0; }
+[data-ui-appearance~="tatzel-note-editor"] { background: var(--tatzel-surface); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); padding: var(--tatzel-space-large); }
+[data-ui-appearance~="tatzel-note-editor"] form { margin: 0; }
+[data-ui-appearance~="tatzel-note-editor"] fieldset { border: 0; padding: 0; margin: 0; }
+[data-ui-appearance~="tatzel-note-editor"] fieldset > div { margin-block: var(--tatzel-space-medium); }
+[data-ui-appearance~="tatzel-editor-feedback"] { color: var(--tatzel-muted); min-height: 1.5em; }
+[data-ui-appearance~="tatzel-editor-feedback"][data-ui-appearance~="error"] { color: var(--tatzel-danger); }
+[data-ui-appearance~="tatzel-editor-grid"] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--tatzel-space-medium); align-items: start; margin-block: var(--tatzel-space-large); }
+[data-ui-appearance~="tatzel-editor-grid"] > div > button { margin: var(--tatzel-space-small) var(--tatzel-space-small) 0 0; }
+[data-ui-appearance~="alternate-theme"] { --tatzel-accent: #4058a6; --tatzel-text: #27345b; --tatzel-muted: #64709a; --tatzel-surface: #f2f5ff; --tatzel-border: #aebce4; --tatzel-focus: #6b4ec4; --tatzel-radius: 1rem; }

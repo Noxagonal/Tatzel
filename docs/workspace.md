@@ -143,3 +143,9 @@ connection loss or a fatal protocol/page error offers Reload workspace to start
 a fresh page. Ordinary field updates protect newer drafts, while navigation-driven
 filter loads explicitly use the Replace policy. There is no reconnect or replay
 of old browser actions.
+
+Task filters now use the shared SearchFilterBar; confirmation actions use the
+shared ConfirmationDialog. The task editor is a separate application component
+that emits owned task drafts while Workspace retains persistence and optimistic
+version handling. Shared local theme assets provide typed button variants and
+spacing tokens; Workspace overrides its own visual design.

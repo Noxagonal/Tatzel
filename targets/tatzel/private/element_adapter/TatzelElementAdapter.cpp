@@ -18,6 +18,7 @@ import UI.DOM.SelectOption;
 import UI.ClientUpdater;
 import UI.Element.Heading;
 import UI.Element.Button;
+import UI.Element.Component;
 
 namespace {
 
@@ -95,6 +96,48 @@ auto BooleanAttribute( bool enabled ) -> std::optional<std::string_view>
 	return enabled ? std::optional<std::string_view>{ "" } : std::nullopt;
 }
 
+/// @brief Maps semantic control dimensions to stable theme names.
+/// @param size Defined logical size.
+/// @return Static theme name.
+/// @pre size is a defined enumerator.
+/// @post No state changes.
+auto SizeName( tatzel::ui::ControlSize size ) -> std::string_view
+{
+	switch( size )
+	{
+		case tatzel::ui::ControlSize::Small: return "small";
+		case tatzel::ui::ControlSize::Large: return "large";
+		default: return "medium";
+	}
+}
+
+/// @brief Maps semantic button emphasis to a stable theme name.
+/// @param variant Defined logical emphasis.
+/// @return Static theme name.
+/// @pre variant is a defined enumerator.
+/// @post No state changes.
+auto VariantName( tatzel::ui::ButtonVariant variant ) -> std::string_view
+{
+	switch( variant )
+	{
+		case tatzel::ui::ButtonVariant::Secondary: return "secondary";
+		case tatzel::ui::ButtonVariant::Danger: return "danger";
+		default: return "primary";
+	}
+}
+
+/// @brief Maps text announcement policy to an optional live-region value.
+/// @param policy Logical announcement policy.
+/// @return Static ARIA value, or no value for ordinary text.
+/// @pre policy is a defined enumerator.
+/// @post No state changes.
+auto LiveRegionName( tatzel::ui::LiveRegion policy ) -> std::optional<std::string_view>
+{
+	if( policy == tatzel::ui::LiveRegion::Polite ) return "polite";
+	if( policy == tatzel::ui::LiveRegion::Assertive ) return "assertive";
+	return std::nullopt;
+}
+
 /// @brief Maps a plain text control to the adapter's chosen HTML tag.
 /// @param element Logical text owner.
 /// @param tag Inline or paragraph tag.
@@ -112,9 +155,17 @@ auto MapText(
 	};
 	parts.front().SetTextContent( element.GetText() );
 	parts.front().AddAttribute( "style", "white-space: pre-wrap" );
+	if( auto live = LiveRegionName( element.GetLiveRegion() ) )
+	{
+		parts.front().AddAttribute( "aria-live", *live );
+		parts.front().AddAttribute( "aria-atomic", "true" );
+	}
 	element.SetParts( std::move( parts ), 0, 0 );
 	element.SetChangeHandler( [ &element, &updater ] {
 		SyncText( element.GetBasePart(), element.GetText(), updater );
+		SyncAttribute( element.GetBasePart(), "aria-live", LiveRegionName( element.GetLiveRegion() ), updater );
+		SyncAttribute( element.GetBasePart(), "aria-atomic", element.GetLiveRegion() == tatzel::ui::LiveRegion::Off
+			? std::nullopt : std::optional<std::string_view>{ "true" }, updater );
 	} );
 }
 
@@ -135,6 +186,7 @@ auto InitializeFieldState(
 {
 	label.SetTextContent( field.GetLabel() );
 	editor.AddAttribute( "data-ui-form-field", "true" );
+	editor.AddAttribute( "data-ui-size", SizeName( field.GetSize() ) );
 	editor.AddAttribute( "data-ui-on-change", "true" );
 	editor.AddAttribute( "aria-describedby", error.GetPartID() );
 	if( field.IsDisabled() ) editor.AddAttribute( "disabled", "" );
@@ -142,7 +194,7 @@ auto InitializeFieldState(
 	if( !field.GetError().empty() ) editor.AddAttribute( "aria-invalid", "true" );
 
 	error.AddAttribute( "aria-live", "polite" );
-	error.AddAttribute( "style", "color: var(--pico-del-color, #b42318)" );
+	error.AddAttribute( "style", "color: var(--tatzel-danger, #b42318)" );
 	error.SetTextContent( field.GetError() );
 	if( field.GetError().empty() ) error.AddAttribute( "hidden", "" );
 }
@@ -160,6 +212,7 @@ auto SyncFieldState(
 	auto& editor = *field.FindPart( "editor" );
 	auto& error = *field.FindPart( "error" );
 	SyncText( *field.FindPart( "label" ), field.GetLabel(), updater );
+	SyncAttribute( editor, "data-ui-size", SizeName( field.GetSize() ), updater );
 	SyncText( error, field.GetError(), updater );
 	SyncAttribute( editor, "disabled", BooleanAttribute( field.IsDisabled() ), updater );
 	SyncAttribute( editor, "required", BooleanAttribute( field.IsRequired() ), updater );
@@ -250,7 +303,7 @@ auto MapTextEditor(
 /// @post No state is changed.
 auto LayoutToStyle( const tatzel::ui::Layout& layout ) -> std::string
 {
-	const auto gaps = std::array{ "0", "0.5rem", "1rem", "1.5rem" };
+	const auto gaps = std::array{ "0", "var(--tatzel-space-small, 0.5rem)", "var(--tatzel-space-medium, 1rem)", "var(--tatzel-space-large, 1.5rem)" };
 	const auto alignments = std::array{ "flex-start", "center", "flex-end", "stretch" };
 	const auto justifications = std::array{ "flex-start", "center", "flex-end", "space-between", "space-around", "space-evenly" };
 
@@ -349,14 +402,19 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Button& element ) const -
 	auto parts = std::vector<dom::ElementPart>{
 		dom::ElementPart{ MakePartID( element, "base" ), parent_part.GetPartID(), "button" }
 	};
+	parts.front().AddAttribute( "data-ui-variant", VariantName( element.GetVariant() ) );
+	parts.front().AddAttribute( "data-ui-size", SizeName( element.GetSize() ) );
+	if( element.IsDisabled() ) parts.front().AddAttribute( "disabled", "" );
 	parts.front().AddAttribute( "type", element.GetRole() == ui::ButtonRole::Submit ? "submit" : "button" );
 	if( element.GetRole() == ui::ButtonRole::Action ) parts.front().AddAttribute( "data-ui-on-click", "true" );
 	parts.front().SetTextContent( element.GetText() );
 	element.SetParts( std::move( parts ), 0, 0 );
 	element.SetChangeHandler( [ this, &element ] {
 		auto& part = element.GetBasePart();
-		part.SetTextContent( element.GetText() );
-		client_updater->SetText( part.GetPartID(), element.GetText() );
+		SyncText( part, element.GetText(), *client_updater );
+		SyncAttribute( part, "data-ui-variant", VariantName( element.GetVariant() ), *client_updater );
+		SyncAttribute( part, "data-ui-size", SizeName( element.GetSize() ), *client_updater );
+		SyncAttribute( part, "disabled", BooleanAttribute( element.IsDisabled() ), *client_updater );
 	} );
 }
 
@@ -512,6 +570,8 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 
 auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& element ) const -> void
 {
+	if( dynamic_cast<ui::Component*>( &element ) )
+		SyncAttribute( element.GetBasePart(), "data-ui-component", "true", *client_updater );
 	element.SetAppearanceHandler( [ this, &element ]( std::string_view appearance ) {
 		SyncAttribute( element.GetBasePart(), "data-ui-appearance", appearance.empty()
 			? std::nullopt : std::optional<std::string_view>{ appearance }, *client_updater );

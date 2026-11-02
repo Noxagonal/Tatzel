@@ -92,9 +92,17 @@ jobs:
         run: |
           timeout 120s node tests/browser/workspace-ui.mjs ./build/targets/workspace/TatzelWorkspace
           timeout 90s node tests/browser/reliability-ui.mjs ./build/targets/development/TatzelDevelopment
+          timeout 90s node tests/browser/components-ui.mjs ./build/targets/development/TatzelDevelopment
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: tatzel-workspace-preview
           path: build/workspace-preview
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tatzel-components-preview
+          path: build/components-preview
           if-no-files-found: ignore

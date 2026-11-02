@@ -42,3 +42,7 @@ Build `TatzelWorkspace` for a persistent project/task manager with a responsive
 SPA shell, validated editors, SQLite storage, and live updates between browser
 sessions. Run it from the repository root and open `http://localhost:8080/`.
 See the [workspace guide](docs/workspace.md) for setup, behavior, and tests.
+
+Reusable logical components, filter bars, confirmation dialogs, and local themes
+are described in [components and themes](docs/components.md). Run the development
+application and open `/components` for the interactive examples.
