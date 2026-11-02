@@ -76,6 +76,17 @@ try
 			actions.Button( "Preview", [ modal ] { modal->Open(); } );
 		} );
 
+		ui.Card( "Test pages", []( auto content ) {
+			content.Column( []( auto links ) {
+				links.Link( "Forms and validation", "/forms" );
+				links.Link( "Numbers, radio groups, links, and images", "/elements" );
+				links.Link( "Element lifecycle and removal", "/lifecycle" );
+				links.Link( "Background work and dispatcher", "/dispatcher" );
+				links.Link( "Protocol reliability", "/protocol" );
+				links.Link( "Page initialization failure (expected error)", "/failed-page" );
+			} );
+		} );
+
 	} );
 
 	app.RegisterPage( "/forms", []( tatzel::PageBuilder<> ui ) {
