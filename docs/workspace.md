@@ -136,3 +136,10 @@ restarts the real process and checks two-client synchronization. The Chromium
 suite exercises actual controls, focus, history, modal confirmations, persisted
 preferences, disconnect feedback, and narrow layouts. CI uploads desktop/mobile
 screenshots as `tatzel-workspace-preview`.
+
+The shared version-two runtime batches updates and keeps the logical root inert
+until page_ready. Recoverable callback errors use the shared dismissible alert;
+connection loss or a fatal protocol/page error offers Reload workspace to start
+a fresh page. Ordinary field updates protect newer drafts, while navigation-driven
+filter loads explicitly use the Replace policy. There is no reconnect or replay
+of old browser actions.

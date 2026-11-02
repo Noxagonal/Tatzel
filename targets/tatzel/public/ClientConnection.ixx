@@ -50,6 +50,15 @@ public:
 	/// @brief Registered page after the first successful connect message, otherwise nullptr.
 	Page* page = nullptr;
 
+	/// @brief Whether the page factory and initial navigation completed successfully.
+	bool page_built = false;
+
+	/// @brief Whether the initial logical updates were flushed and readiness acknowledged.
+	bool page_ready = false;
+
+	/// @brief Whether the session has stopped accepting application work.
+	bool closed = false;
+
 	/// @brief DOM protocol sender; outlives the adapter and logical controls.
 	std::unique_ptr<ClientUpdater> client_updater;
 

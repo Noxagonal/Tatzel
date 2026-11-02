@@ -24,7 +24,9 @@ than earlier experiments.
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | UI dispatcher | Weak, thread-safe Post handles; move-only callbacks; bounded FIFO queues; fair batch draining; disconnect and event-loop shutdown cancellation; per-callback removal and diagnostic scopes. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
-| DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
+| DOM protocol | Version 2, ordered bounded update batches, whole-frame validation, automatic callback scopes, and initial page readiness. |
+| Field revisions | Newer browser drafts and composition protected; explicit reset generations; checked asynchronous value updates; atomic stale-form rejection. |
+| Connection UX | Shared accessible connecting/initializing/ready/disconnected/failed surface, recoverable errors, and terminal reload recovery. |
 | Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
 | Logging | Runtime-configurable Tatzel API over Drogon's backend, startup/shutdown messages, and existing file/rotation configuration. |
 | Workspace sample | Persistent project/task SPA with SQLite, background work, per-browser navigation, and shared committed snapshots. |
@@ -45,14 +47,14 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 
 ## Remaining limitations
 
-- Explicit server value replacements can supersede newer browser edits; there is no conflict-resolution protocol.
+- Intentional Replace updates override drafts; ordinary updates are revision guarded. Arbitrary application state still needs its own stale-result policy.
 - No automatic reconnect or page-state restoration. Hash navigation is available within a registered page.
 - No rollback of a partially built logical page after a factory throws; reload to retry.
 - Original throw traces require tatzel::Exception; native stack capture and symbol resolution are best effort.
 - Applications embedding the library supply their own outer startup catch; the development example demonstrates it.
-- No DOM diff engine or automatic mutation batching.
+- Batching preserves every command; there is no DOM diff engine, coalescing, per-batch acknowledgment, or retransmission.
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
-- Dispatcher callbacks must remain short; background executors, task cancellation, stale-result policies, and asynchronous validation remain application responsibilities.
+- Dispatcher callbacks must remain short; background executors, task cancellation, non-field stale-result policies, and asynchronous validation remain application responsibilities.
 - No built-in authentication or authorization layer.
 - No table, chart, or reusable component abstraction.
 - Forms validate synchronously; asynchronous validators, file inputs, and multiple selection are not supported.

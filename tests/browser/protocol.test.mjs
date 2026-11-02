@@ -67,6 +67,8 @@ class TestElement {
 	get isConnected() { return nodes.get(this.id) === this; }
 	/** @brief Focuses this surviving node. @pre The node is registered. @post It is the document's active element. */
 	focus() { document.activeElement?.onBlur?.(); document.activeElement = this; }
+	/** @brief Releases native focus. @pre None. @post The document body receives focus. */
+	blur() { document.activeElement = document.body; }
 	/** @brief Records a one-shot blur handler. @param type Event type. @param callback Handler. @pre Only blur is supported. @post The handler runs when focus leaves. */
 	addEventListener(type, callback) { if (type === "blur") this.onBlur = () => { delete this.onBlur; callback(); }; }
 	/** @brief Removes this subtree. @pre None. @post Descendants are disconnected and lost focus returns to body. */
@@ -146,15 +148,28 @@ nodes.set(document.body.id, document.body);
 document.activeElement = document.body;
 
 const runtime = await import(pathToFileURL(join(generated, "websocket.mjs")));
-const dom = await import(pathToFileURL(join(generated, "dom-ops.mjs")));
+const domRuntime = await import(pathToFileURL(join(generated, "dom-ops.mjs")));
+const revisions = await import(pathToFileURL(join(generated, "field-revisions.mjs")));
+const fieldUpdate = { epoch: 0, base_epoch: 0, client_revision: 0, replace: false };
+const dom = { ...domRuntime };
+for (const method of ["setValue", "setSelectOptions", "setRadioOptions"]) {
+	dom[method] = parts => domRuntime[method](parts.map(part => ({ ...fieldUpdate, ...part })));
+}
+const parseOperation = runtime.parseServerOperation;
+const withMetadata = event => {
+	const message = JSON.parse(event.data);
+	if (["set_value", "set_select_options", "set_radio_options"].includes(message.op) && Array.isArray(message.data))
+		message.data = message.data.map(part => ({ ...fieldUpdate, ...part }));
+	return parseOperation({ data: JSON.stringify(message) });
+};
 const events = await import(pathToFileURL(join(generated, "events.mjs")));
 events.registerBrowserEventHandlers();
 
 test("status and error messages use the same op/data envelope", () => {
 	assert.equal(runtime.socket.url, "wss://example.test/ws");
 	for (const message of [
-		{ op: "connected", data: { message: "Connected" } },
-		{ op: "error", data: { code: "invalid_message", message: "Invalid" } }
+		{ op: "connected", data: { message: "Connected", protocol_version: 2 } },
+		{ op: "error", data: { code: "invalid_message", message: "Invalid", fatal: false } }
 	]) assert.deepEqual(runtime.parseServerMessage({ data: JSON.stringify(message) }), message);
 	assert.throws(() => runtime.parseServerMessage({ data: '{"type":"ok","message":"Connected"}' }));
 });
@@ -166,13 +181,13 @@ test("malformed DOM payloads are rejected before DOM mutation", () => {
 		{ op: "set_modal_open", data: [{ part_id: "x", open: "true" }] },
 		{ op: "create_element_part", data: [{ part_id: "x", parent_id: "root|main", tag: "h1", text_content: "", classes: [], attributes: null }] },
 		{ op: "constructor", data: [] }
-	]) assert.throws(() => runtime.parseServerMessage({ data: JSON.stringify(message) }));
+	]) assert.throws(() => withMetadata({ data: JSON.stringify(message) }));
 });
 
 test("creation and text updates target concrete part IDs", () => {
 	const root = new TestElement("root|main");
 	nodes.set(root.id, root);
-	const message = runtime.parseServerMessage({ data: JSON.stringify({
+	const message = withMetadata({ data: JSON.stringify({
 		op: "create_element_part",
 		data: [{ part_id: "logical-heading|base", parent_id: root.id, tag: "h1",
 			classes: [], attributes: { title: "Owned", onclick: "blocked" }, text_content: "Before" }]
@@ -196,7 +211,7 @@ test("input preserves live text, defers composition, and sends the final value b
 	handlers.get("input")(new TestInputEvent(input, true));
 	assert.equal(runtime.socket.messages.length, before);
 	handlers.get("compositionend")({ target: input });
-	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_input", data: { part_id: input.id, value: "editing" } });
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_input", data: { part_id: input.id, value: "editing", epoch: 0, revision: 2 } });
 
 	let prevented = false;
 	handlers.get("keydown")({ target: input, key: "Enter", isComposing: false,
@@ -284,7 +299,7 @@ test("changes preserve nested values and checkbox boolean types", () => {
 	dom.setOnChange([{ part_id: input.id }]);
 	handlers.get("change")({ target: input });
 	assert.deepEqual(runtime.socket.messages.at(-1),
-		{ op: "on_change", data: { part_id: input.id, value: true } });
+		{ op: "on_change", data: { part_id: input.id, value: true, epoch: 0, revision: 1 } });
 	input.type = "text";
 	input.value = "edited";
 	handlers.get("change")({ target: input });
@@ -297,7 +312,7 @@ test("select choices validate IDs and preserve plain text labels", () => {
 		{ value: "b", label: "<b>Same</b>", disabled: false },
 		{ value: "off", label: "Unavailable", disabled: true }
 	] };
-	const parse = part => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_select_options", data: [part] }) });
+	const parse = part => withMetadata({ data: JSON.stringify({ op: "set_select_options", data: [part] }) });
 	for (const malformed of [
 		{ ...payload, options: null },
 		{ ...payload, options: [{ value: "a", label: "A", disabled: "false" }] },
@@ -319,6 +334,8 @@ test("form submission snapshots include latest values and omit disabled controls
 	const form = new TestForm("form|base");
 	form.setAttribute("data-ui-on-submit", "true");
 	const name = new TestInput("name|editor");
+	name.value = "";
+	revisions.registerField(name);
 	name.value = "Latest without an input event";
 	const notes = new HTMLTextAreaElement("notes|editor");
 	notes.value = "first\nsecond";
@@ -336,7 +353,7 @@ test("form submission snapshots include latest values and omit disabled controls
 
 	form.requestSubmit();
 	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_submit", data: { part_id: form.id, fields: [
-		{ part_id: name.id, value: name.value }, { part_id: notes.id, value: notes.value }, { part_id: checkbox.id, value: true }
+		{ part_id: name.id, value: name.value, epoch: 0, revision: 1 }, { part_id: notes.id, value: notes.value, epoch: 0, revision: 0 }, { part_id: checkbox.id, value: true, epoch: 0, revision: 0 }
 	] } });
 
 	name.setAttribute("data-ui-on-submit", "true");
@@ -396,13 +413,13 @@ test("number edits preserve invalid drafts and explicit empty values clear nativ
 		cleared = true;
 		input.validity.badInput = false;
 	} });
-	dom.setValue([{ part_id: input.id, value: "" }]);
+	dom.setValue([{ part_id: input.id, value: "", epoch: 1, base_epoch: 0, client_revision: 2, replace: true }]);
 	assert.ok(cleared);
 	assert.equal(dom.getElementValue(input), "");
 });
 
 test("radio payloads validate choices and forms collect exactly one value per group", () => {
-	const parse = payload => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_radio_options", data: [payload] }) });
+	const parse = payload => withMetadata({ data: JSON.stringify({ op: "set_radio_options", data: [payload] }) });
 	const payload = { part_id: "radio|editor", value: "a", options: [
 		{ value: "a", label: "Same", disabled: false }, { value: "b", label: "Same", disabled: false }
 	] };
@@ -427,16 +444,16 @@ test("radio payloads validate choices and forms collect exactly one value per gr
 	group.querySelectorAll = () => radios;
 	nodes.set(group.id, group);
 	form.elements = [group, ...radios];
-	dom.setValue([{ part_id: group.id, value: "b" }]);
+	dom.setValue([{ part_id: group.id, value: "b", epoch: 0, revision: 1 }]);
 	assert.equal(radios[0].checked, false);
 	assert.equal(radios[1].checked, true);
 	handlers.get("change")({ target: radios[1] });
-	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_change", data: { part_id: group.id, value: "b" } });
+	assert.deepEqual(runtime.socket.messages.at(-1), { op: "on_change", data: { part_id: group.id, value: "b", epoch: 0, revision: 1 } });
 	form.requestSubmit();
-	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "b" }]);
-	dom.setValue([{ part_id: group.id, value: "" }]);
+	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "b", epoch: 0, revision: 1 }]);
+	dom.setValue([{ part_id: group.id, value: "", client_revision: 1 }]);
 	form.requestSubmit();
-	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "" }]);
+	assert.deepEqual(runtime.socket.messages.at(-1).data.fields, [{ part_id: group.id, value: "", epoch: 0, revision: 1 }]);
 	radios[0].disabled = true;
 	const before = runtime.socket.messages.length;
 	handlers.get("change")({ target: radios[0] });
@@ -465,9 +482,80 @@ test("removing the focused control preserves its parent and chooses surviving fo
 test("same-page navigation accepts bounded hash locations and rejects external targets", () => {
 	for (const hash of ["", "#/tasks", "#/task/42"]) {
 		const message = { op: "set_location", data: { hash } };
-		assert.deepEqual(runtime.parseServerMessage({ data: JSON.stringify(message) }), message);
+		assert.deepEqual(withMetadata({ data: JSON.stringify(message) }), message);
 	}
 	for (const hash of ["https://example.com", "/tasks", 42, "#".repeat(2049)]) {
-		assert.throws(() => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_location", data: { hash } }) }));
+		assert.throws(() => withMetadata({ data: JSON.stringify({ op: "set_location", data: { hash } }) }));
 	}
+});
+
+test("whole batches validate bounded sequences, revisions, and all commands before application", () => {
+	const operation = { op: "set_text", data: [{ part_id: "x", text: "hello" }] };
+	const batch = operations => ({ op: "update_batch", data: { sequence: 1, operations } });
+	const parse = message => runtime.parseServerMessage({ data: JSON.stringify(message) });
+	assert.deepEqual(parse(batch([operation])), batch([operation]));
+	for (const message of [
+		batch([]), batch(Array(129).fill(operation)), batch([operation, { op: "unknown", data: [] }]),
+		batch([batch([operation])]), { ...batch([operation]), data: { sequence: 0, operations: [operation] } },
+		{ ...batch([operation]), data: { sequence: Number.MAX_SAFE_INTEGER + 1, operations: [operation] } },
+		{ op: "connected", data: { message: "old", protocol_version: 1 } },
+		{ op: "error", data: { code: "bad", message: "bad" } },
+		batch([{ op: "set_value", data: [{ part_id: "x", value: "bad", ...fieldUpdate, client_revision: -1 }] }]),
+		batch([{ op: "set_text", data: [{ part_id: "x", text: "x".repeat(1024 * 1024) }] }])
+	]) assert.throws(() => parse(message));
+});
+
+test("newer browser drafts survive delayed corrections and matching corrections preserve caret", () => {
+	const input = new TestInput("revision|editor");
+	input.value = "before";
+	nodes.set(input.id, input);
+	revisions.registerField(input);
+	input.value = "first";
+	assert.deepEqual(revisions.captureEdit(input, true), { epoch: 0, revision: 1 });
+	input.value = "newest";
+	revisions.captureEdit(input, true);
+	dom.setValue([{ part_id: input.id, value: "FIRST", client_revision: 1 }]);
+	assert.equal(input.value, "newest");
+	dom.setValue([{ part_id: input.id, value: "NEWEST", client_revision: 2 }]);
+	assert.equal(input.value, "NEWEST");
+	assert.deepEqual(revisions.captureEdit(input), { epoch: 0, revision: 2 });
+});
+
+test("composition protects drafts and an explicit reset cannot resurrect old composing text", () => {
+	const input = new TestInput("composition|editor");
+	input.value = "before";
+	nodes.set(input.id, input);
+	revisions.registerField(input);
+	revisions.beginComposition(input);
+	input.value = "composing";
+	revisions.captureEdit(input, true);
+	dom.setValue([{ part_id: input.id, value: "ordinary", client_revision: 1 }]);
+	assert.equal(input.value, "composing");
+	dom.setValue([{ part_id: input.id, value: "reset", epoch: 1, replace: true }]);
+	assert.equal(input.value, "reset");
+	input.value = "late composition";
+	assert.equal(revisions.captureEdit(input, true), null);
+	assert.equal(revisions.endComposition(input), false);
+	assert.equal(input.value, "reset");
+	assert.deepEqual(revisions.captureEdit(input), { epoch: 1, revision: 0 });
+	dom.setValue([{ part_id: input.id, value: "obsolete", client_revision: 1 }]);
+	assert.equal(input.value, "reset");
+});
+
+test("choice replacement rebases surviving newer selections and invalidates removed selections", () => {
+	const select = new HTMLSelectElement("revision-select|editor");
+	select.value = "a";
+	nodes.set(select.id, select);
+	revisions.registerField(select);
+	select.value = "b";
+	revisions.captureEdit(select, true);
+	const options = [{ value: "a", disabled: false }, { value: "b", disabled: false }];
+	assert.deepEqual(revisions.prepareChoiceUpdate(select,
+		{ ...fieldUpdate, epoch: 1, value: "a" }, options), { value: "b", edit: { epoch: 1, revision: 1 } });
+	assert.deepEqual(revisions.captureEdit(select), { epoch: 1, revision: 1 });
+	assert.equal(revisions.prepareChoiceUpdate(select, { ...fieldUpdate, value: "a" }, options), null);
+	select.value = "a";
+	revisions.captureEdit(select, true);
+	assert.deepEqual(revisions.prepareChoiceUpdate(select,
+		{ ...fieldUpdate, epoch: 2, base_epoch: 1, value: "b" }, [options[1]]), { value: "b" });
 });

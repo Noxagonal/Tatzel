@@ -88,10 +88,25 @@ public:
 
 	/// @brief Replaces the numeric value without invoking edit callbacks.
 	/// @param value Finite number, or nullopt to clear the editor.
+	/// @param policy Guard newer browser edits or deliberately replace them.
 	/// @pre Called on the owning event loop.
 	/// @post The value is stored and a changed explicit value queues browser replacement.
 	/// @throws tatzel::Exception If value is nonfinite; existing state is unchanged.
-	auto SetValue( std::optional<double> value ) -> void { TextInput::SetValue( FormatValue( value ) ); }
+	auto SetValue(
+		std::optional<double> value,
+		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
+	) -> void { TextInput::SetValue( FormatValue( value ), policy ); }
+
+	/// @brief Applies a numeric completion only while its captured field revision is current.
+	/// @param value Finite numeric value, or nullopt for empty.
+	/// @param revision Token captured before asynchronous work began.
+	/// @return Whether the logical field accepted the result.
+	/// @pre Called on the live owning loop.
+	/// @post Stale results change nothing; accepted results queue guarded browser updates.
+	auto TrySetValue(
+		std::optional<double> value,
+		const EditRevision& revision
+	) -> bool { return TextInput::TrySetValue( FormatValue( value ), revision ); }
 
 	/// @brief Reads the inclusive lower bound.
 	/// @return Bound copy, or nullopt for unbounded.

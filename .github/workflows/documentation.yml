@@ -83,12 +83,15 @@ jobs:
           timeout 30s node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
           timeout 30s node tests/browser/dispatcher-smoke.mjs ./build/targets/development/TatzelDevelopment
+          timeout 30s node tests/browser/reliability-smoke.mjs ./build/targets/development/TatzelDevelopment
 
           timeout 45s node tests/browser/workspace-smoke.mjs ./build/targets/workspace/TatzelWorkspace
       - name: Install Chromium for the sample UI journey
         run: npx playwright install --with-deps chromium
       - name: Exercise the sample in a real browser
-        run: timeout 120s node tests/browser/workspace-ui.mjs ./build/targets/workspace/TatzelWorkspace
+        run: |
+          timeout 120s node tests/browser/workspace-ui.mjs ./build/targets/workspace/TatzelWorkspace
+          timeout 90s node tests/browser/reliability-ui.mjs ./build/targets/development/TatzelDevelopment
       - uses: actions/upload-artifact@v4
         if: always()
         with:

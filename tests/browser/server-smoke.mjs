@@ -1,3 +1,4 @@
+import { ProtocolSocket } from "./protocol-client.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -61,7 +62,7 @@ async function checkUpgrade()
  */
 async function connectPage()
 {
-	const socket = new WebSocket("ws://127.0.0.1:8080/ws");
+	const socket = new ProtocolSocket("ws://127.0.0.1:8080/ws");
 	const messages = [];
 	socket.addEventListener("message", event => messages.push(JSON.parse(event.data)));
 	await new Promise((resolve, reject) => {

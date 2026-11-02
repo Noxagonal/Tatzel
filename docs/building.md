@@ -71,6 +71,9 @@ Startup and shutdown messages use the shared INFO logger. See
 [logging and exception traces](diagnostics.md) for verbosity and file-output configuration.
 Open http://localhost:8080/dispatcher for background form completion, removal
 before completion, disconnection cancellation, and dispatched error recovery.
+Open http://localhost:8080/protocol for batched construction, guarded delayed
+normalization, authoritative reset, and recoverable failure; /failed-page
+demonstrates terminal initialization failure.
 See [posting work to a logical page](dispatcher.md) for the API and lifetime rules.
 
 The runtime currently resolves these paths relative to the working directory:
@@ -112,6 +115,9 @@ node tests/browser/elements-smoke.mjs ./build/targets/development/TatzelDevelopm
 node tests/browser/removal-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/errors-smoke.mjs ./build/targets/development/TatzelDevelopment
 node tests/browser/dispatcher-smoke.mjs ./build/targets/development/TatzelDevelopment
+node tests/browser/reliability-smoke.mjs ./build/targets/development/TatzelDevelopment
+npx playwright install chromium
+node tests/browser/reliability-ui.mjs ./build/targets/development/TatzelDevelopment
 ```
 
 These checks include concurrent dispatcher producers, shutdown races, logging/exception reports, and an independently optimized
@@ -142,3 +148,9 @@ Build and run `TatzelWorkspace` to use the project/task manager. It has its own
 local stylesheet and template, persistent SQLite data, and SPA navigation.
 See the [workspace guide](workspace.md). Set `TATZEL_BUILD_WORKSPACE=OFF` to omit
 this executable and its SQLite development dependency.
+
+The reliability checks cover batch limits/order and failure flushing, stale field
+and form identities, delayed server frames with live browser edits/caret,
+composition cancellation, readiness gating, recoverable errors, and fatal reload.
+Legacy control smoke suites flatten batches through a test-only ProtocolSocket;
+reliability-smoke uses unmodified native WebSocket frames to verify framing.

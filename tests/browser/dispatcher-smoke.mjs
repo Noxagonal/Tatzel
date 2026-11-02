@@ -1,3 +1,4 @@
+import { ProtocolSocket } from "./protocol-client.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -30,7 +31,7 @@ async function waitFor(predicate)
  */
 async function connectPage()
 {
-	const socket = new WebSocket("ws://127.0.0.1:8080/ws");
+	const socket = new ProtocolSocket("ws://127.0.0.1:8080/ws");
 	const messages = [];
 	socket.addEventListener("message", event => messages.push(JSON.parse(event.data)));
 	await once(socket, "open", { signal: AbortSignal.timeout(5000) });
@@ -81,7 +82,7 @@ test("background completion respects page ownership, removal, errors, disconnect
 		await waitFor(() => output.includes("Dispatched example failure"));
 		assert.match(output, /Route: \/dispatcher[\s\S]*Operation: dispatch[\s\S]*Submitted at:/);
 		assert.ok(output.includes("Callback: Dispatched callback"));
-		assert.equal(first.messages.filter(message => message.op === "error").length, 0);
+		assert.deepEqual(first.messages.filter(message => message.op === "error").map(message => [message.data.code, message.data.fatal]), [["handler_failed", false]]);
 
 		other.save("Closed page");
 		await waitFor(() => other.text("Saving"));

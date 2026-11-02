@@ -4,6 +4,7 @@ module;
 
 #include <algorithm>
 #include <functional>
+#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -24,6 +25,7 @@ export struct FieldSubmission
 {
 	FormField* field; ///< Borrowed logical field, resolved from an exact registered editor part.
 	FieldValue value; ///< Owned submitted value.
+	std::optional<ClientEdit> edit; ///< Wire metadata; omitted for trusted programmatic snapshots.
 };
 
 /// @brief Page-owned form that validates all fields before invoking its submit callback.
@@ -125,11 +127,16 @@ public:
 		{
 			if( !entry.field || std::ranges::find( fields, entry.field ) == fields.end()
 				|| std::ranges::find( seen, entry.field ) != seen.end()
-				|| !entry.field->CanAcceptFieldValue( entry.value ) ) return false;
+				|| !entry.field->CanAcceptFieldValue( entry.value )
+				|| ( entry.edit && entry.field->CheckClientEdit( *entry.edit, entry.value ) != EditAcceptance::Current ) ) return false;
 			seen.push_back( entry.field );
 		}
 
-		for( const auto& entry : submission ) entry.field->AcceptFieldValue( entry.value );
+		for( const auto& entry : submission )
+		{
+			if( entry.edit ) entry.field->AcceptClientEdit( *entry.edit );
+			entry.field->AcceptFieldValue( entry.value );
+		}
 		return true;
 	}
 

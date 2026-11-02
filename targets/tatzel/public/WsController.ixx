@@ -8,6 +8,8 @@ module;
 #include <algorithm>
 #include <exception>
 #include <memory>
+#include <optional>
+#include <cstdint>
 #include <mutex>
 #include <source_location>
 #include <string>
@@ -18,6 +20,7 @@ module;
 export module UI.WSController;
 
 import UI.Utility;
+import UI.Protocol;
 import UI.ClientConnection;
 import UI.PageBuilder;
 import UI.App;
@@ -50,7 +53,7 @@ public:
 		try
 		{
 			CreateClientConnection( ws_connection );
-			ws_connection->send( R"({"op":"connected","data":{"message":"Connected"}})" );
+			ws_connection->send( R"({"op":"connected","data":{"message":"Connected","protocol_version":2}})" );
 		}
 		catch( ... )
 		{
@@ -93,16 +96,18 @@ public:
 		auto operation = std::string{};
 		auto part_id = std::string{};
 		auto element_id = std::string{};
+		auto connection = std::shared_ptr<tatzel::ClientConnection>{};
 		try
 		{
 			operation = "receive_message";
 			if( type != drogon::WebSocketMessageType::Text ) return;
-			auto connection = FindClientConnection( ws_connection );
+			connection = FindClientConnection( ws_connection );
 			if( !connection )
 			{
 				SendError( ws_connection, "session_expired", "Session expired; reload the page" );
 				return;
 			}
+			if( connection->closed ) return;
 			if( connection->page ) route = connection->page->route_path;
 			operation = "parse_json";
 			Json::Value json;
@@ -127,13 +132,23 @@ public:
 				if( auto* owner = connection->element_tree->FindElementByPartID<tatzel::ui::LogicalElement>( part_id ) )
 					element_id = owner->GetID();
 			}
-			auto dispatch = connection->element_tree->root.BeginDispatch();
-			DispatchMessage( *connection, json );
+			{
+				auto updates = connection->client_updater->BeginBatch();
+				auto dispatch = connection->element_tree->root.BeginDispatch();
+				DispatchMessage( *connection, json );
+			}
+			if( connection->page_built && !connection->page_ready && !connection->closed )
+			{
+				connection->client_updater->SendReady();
+				connection->page_ready = true;
+			}
 		}
 		catch( ... )
 		{
+			const auto fatal = connection && connection->page && !connection->page_ready;
 			ReportFailure( ws_connection, std::current_exception(), { route, operation, element_id, part_id },
-				"handler_failed", "Page handler failed" );
+				fatal ? "page_failed" : "handler_failed",
+				fatal ? "The page could not be prepared. Reload to try again." : "A page operation failed. You can continue or retry.", fatal );
 		}
 	}
 
@@ -168,6 +183,7 @@ private:
 	/// @param context Event metadata captured before the failure.
 	/// @param code Browser-visible error code.
 	/// @param message Generic browser-visible description.
+	/// @param fatal Whether this page requires a fresh session.
 	/// @param location Report site, distinct from the original throw location.
 	/// @pre transport is nonnull; context views remain valid during this call.
 	/// @post The failure is logged; response failures are also logged and request transport closure.
@@ -177,11 +193,12 @@ private:
 		const tatzel::ErrorContext& context,
 		std::string_view code,
 		std::string_view message,
+		bool fatal = false,
 		std::source_location location = std::source_location::current()
 	) noexcept -> void
 	{
 		tatzel::LogException( exception, context, location );
-		try { SendError( transport, code, message ); }
+		try { SendError( transport, code, message, fatal ); }
 		catch( ... )
 		{
 			tatzel::LogException( std::current_exception(), { context.route, "error_response", context.element_id, context.part_id } );
@@ -260,54 +277,82 @@ private:
 	/// @param ws_connection Recipient transport.
 	/// @param code Machine-readable error code.
 	/// @param message Human-readable error description.
+	/// @param fatal Whether the connection must stop accepting page work.
 	/// @pre ws_connection is nonnull.
 	/// @post An error op/data message is queued.
 	static auto SendError(
 		const drogon::WebSocketConnectionPtr& ws_connection,
 		std::string_view code,
-		std::string_view message
+		std::string_view message,
+		bool fatal = false
 	) -> void
 	{
+		if( auto connection = FindClientConnection( ws_connection ) )
+		{
+			connection->client_updater->SendError( code, message, fatal );
+			if( fatal ) connection->Close();
+			return;
+		}
 		Json::Value json{ Json::objectValue };
 		json[ "op" ] = "error";
 		json[ "data" ][ "code" ] = std::string{ code };
 		json[ "data" ][ "message" ] = std::string{ message };
+		json[ "data" ][ "fatal" ] = fatal;
 		ws_connection->send( tatzel::JsonToString( json ) );
+	}
+
+	/// @brief Validates browser counters without lossy integer conversion.
+	/// @param data Field payload containing epoch and revision.
+	/// @return Safe counters, or nullopt for malformed or out-of-range metadata.
+	/// @pre None.
+	/// @post No logical state changes.
+	static auto ReadEdit( const Json::Value& data ) -> std::optional<tatzel::ui::ClientEdit>
+	{
+		if( !data[ "epoch" ].isUInt64() || !data[ "revision" ].isUInt64()
+			|| data[ "epoch" ].asUInt64() > tatzel::MaximumWireRevision
+			|| data[ "revision" ].asUInt64() > tatzel::MaximumWireRevision ) return std::nullopt;
+
+		return tatzel::ui::ClientEdit{ data[ "epoch" ].asUInt64(), data[ "revision" ].asUInt64() };
 	}
 
 	/// @brief Resolves a complete browser field snapshot before applying any submitted values.
 	/// @param connection Owning client page and identity registry.
 	/// @param form Logical form receiving the snapshot.
 	/// @param data Validated event envelope containing a fields array.
-	/// @return Whether every source, member, value type, and choice was accepted.
+	/// @return Empty on acceptance, stale_form for obsolete generations, or invalid_message for other invalid snapshots.
 	/// @pre Called on the owning event loop after the form's source marker is checked.
 	/// @post Invalid snapshots change no fields; valid snapshots update editable values without edit callbacks.
 	static auto ApplyFormSubmission(
 		tatzel::ClientConnection& connection,
 		tatzel::ui::Form& form,
 		const Json::Value& data
-	) -> bool
+	) -> std::string_view
 	{
-		if( !data[ "fields" ].isArray() ) return false;
+		if( !data[ "fields" ].isArray() ) return "invalid_message";
 
 		auto values = std::vector<tatzel::ui::FieldSubmission>{};
 		for( const auto& entry : data[ "fields" ] )
 		{
 			if( !entry.isObject() || !entry[ "part_id" ].isString()
-				|| ( !entry[ "value" ].isString() && !entry[ "value" ].isBool() ) ) return false;
+				|| ( !entry[ "value" ].isString() && !entry[ "value" ].isBool() ) ) return "invalid_message";
 
 			const auto part_id = entry[ "part_id" ].asString();
 			auto* field = connection.element_tree->FindElementByPartID<tatzel::ui::FormField>( part_id );
 			if( !field || !std::ranges::any_of( field->GetParts(), [ &part_id ]( const auto& part ) {
 				return part.GetPartID() == part_id && part.GetAttribute( "data-ui-form-field" ).has_value();
-			} ) ) return false;
+			} ) ) return "invalid_message";
 
 			auto value = entry[ "value" ].isBool()
 				? tatzel::ui::FieldValue{ entry[ "value" ].asBool() }
 				: tatzel::ui::FieldValue{ entry[ "value" ].asString() };
-			values.push_back( { field, std::move( value ) } );
+			auto edit = ReadEdit( entry );
+			if( !edit ) return "invalid_message";
+			const auto accepted = field->CheckClientEdit( *edit, value );
+			if( accepted == tatzel::ui::EditAcceptance::Stale ) return "stale_form";
+			if( accepted == tatzel::ui::EditAcceptance::Invalid ) return "invalid_message";
+			values.push_back( { field, std::move( value ), edit } );
 		}
-		return form.ApplySubmission( values );
+		return form.ApplySubmission( values ) ? "" : "invalid_message";
 	}
 
 	/// @brief Handles a validated envelope using logical IDs only after resolving DOM parts.
@@ -326,6 +371,11 @@ private:
 
 		if( operation == "connect" )
 		{
+			if( !data[ "protocol_version" ].isUInt() || data[ "protocol_version" ].asUInt() != tatzel::ProtocolVersion )
+			{
+				SendError( transport, "protocol_mismatch", "The page and server use different versions. Reload the page.", true );
+				return;
+			}
 			if( connection.page )
 			{
 				SendError( transport, "already_connected", "A page has already been built for this session" );
@@ -353,6 +403,13 @@ private:
 			auto scope = tatzel::CallbackScope{ "Page builder" };
 			page->page_builder_fn( builder );
 			connection.page_builder_core->Navigate( data[ "hash" ].asString(), false );
+			connection.page_built = true;
+			return;
+		}
+
+		if( !connection.page_ready )
+		{
+			SendError( transport, "page_not_ready", "The page is not ready for interaction." );
 			return;
 		}
 
@@ -397,6 +454,31 @@ private:
 		// The adapter registers the exact parts that can emit each event.
 		if( !source->GetAttribute( marker ) ) return;
 
+		if( operation == "on_input" || operation == "on_change" )
+		{
+			if( auto* field = dynamic_cast<tatzel::ui::FormField*>( owner ) )
+			{
+				if( field->IsDisabled() || field->IsReadOnly() ) return;
+				auto edit = ReadEdit( data );
+				if( !edit || ( !data[ "value" ].isString() && !data[ "value" ].isBool() ) )
+				{
+					SendError( transport, "invalid_message", "Field edits require safe epoch and revision counters." );
+					return;
+				}
+				auto value = data[ "value" ].isBool() ? tatzel::ui::FieldValue{ data[ "value" ].asBool() }
+					: tatzel::ui::FieldValue{ data[ "value" ].asString() };
+				const auto accepted = field->CheckClientEdit( *edit, value );
+				if( accepted == tatzel::ui::EditAcceptance::Stale ) return;
+				if( accepted == tatzel::ui::EditAcceptance::Invalid || !field->CanAcceptFieldValue( value ) )
+				{
+					SendError( transport, "invalid_message", "Field value or revision is invalid." );
+					return;
+				}
+				if( edit->revision == field->GetClientRevision() ) return;
+				field->AcceptClientEdit( *edit );
+			}
+		}
+
 		if( operation == "on_click" )
 		{
 			auto* control = dynamic_cast<tatzel::ui::interface::Clickable*>( owner );
@@ -429,10 +511,16 @@ private:
 				SendError( transport, "invalid_message", "Submit the enclosing form with its complete field snapshot" );
 				return;
 			}
-			if( auto* form = dynamic_cast<tatzel::ui::Form*>( owner ); form && !ApplyFormSubmission( connection, *form, data ) )
+			if( auto* form = dynamic_cast<tatzel::ui::Form*>( owner ) )
 			{
-				SendError( transport, "invalid_message", "Form snapshot has missing, duplicate, foreign, or invalid field values" );
-				return;
+				const auto error = ApplyFormSubmission( connection, *form, data );
+				if( !error.empty() )
+				{
+					SendError( transport, error, error == "stale_form"
+						? "Some fields changed before submission. Review the current values and submit again."
+						: "Form snapshot has missing, duplicate, foreign, or invalid field values" );
+					return;
+				}
 			}
 			auto* control = dynamic_cast<tatzel::ui::interface::Submittable*>( owner );
 			if( control ) control->InvokeOnSubmit();

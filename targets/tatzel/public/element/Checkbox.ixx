@@ -51,16 +51,39 @@ public:
 
 	/// @brief Replaces the checked state and notifies the adapter.
 	/// @param checked New checked state.
+	/// @param policy Guard newer drafts, or deliberately replace them with a fresh generation.
 	/// @pre Called on the owning event loop.
 	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetChecked( bool checked ) -> void
+	auto SetChecked(
+		bool checked,
+		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
+	) -> void
 	{
-		if( this->checked == checked ) return;
+		if( this->checked == checked && policy != ValueUpdatePolicy::Replace ) return;
+
+		RecordServerValueChange( policy );
 
 		this->checked = checked;
 		++value_revision;
 		NotifyValueChanged();
 	}
+
+	/// @brief Applies an asynchronous result only while the captured logical revision is current.
+	/// @param checked New value, owned by the field after acceptance.
+	/// @param revision Token captured before starting the asynchronous operation.
+	/// @return Whether logical state accepted the result; newer in-flight browser edits are still protected.
+	/// @pre Called on the owning loop while this field is alive.
+	/// @post A matching token queues a guarded value update; stale tokens change nothing.
+	auto TrySetChecked(
+		bool checked,
+		const EditRevision& revision
+	) -> bool
+	{
+		if( !IsEditRevisionCurrent( revision ) ) return false;
+		SetChecked( checked );
+		return true;
+	}
+
 
 	/// @brief Reads the explicit server-value revision for the adapter.
 	/// @return Revision incremented only by a changed SetChecked call.

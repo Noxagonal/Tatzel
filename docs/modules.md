@@ -31,3 +31,7 @@ Implementations live under the corresponding target's private directory.
 CMake helpers collect ordinary sources, headers, and module interfaces from
 public and private. Browser builds use the source path above, and assets are
 emitted into the ignored www/app directory.
+
+UI.Protocol defines shared batch limits, version 2, ClientEdit, EditRevision,
+ValueUpdate, and ValueUpdatePolicy. UI.ClientUpdater owns nested update scopes
+and ordered control-frame barriers.
