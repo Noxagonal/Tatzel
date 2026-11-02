@@ -58,8 +58,9 @@ Keep the working directory at the repository root:
 ./build/targets/development/TatzelDevelopment
 ```
 
-Open http://localhost:8080/. The example builds a per-client counter with a
-logical heading, nested container, and button, plus a profile card demonstrating
+Open http://localhost:8080/ for a list of links to all showcases.
+Open http://localhost:8080/controls for a per-client counter with a logical
+heading, nested container, and button, plus a profile card demonstrating
 text edits, checkbox changes, explicit reset values, and a modal preview.
 Open http://localhost:8080/forms for the row/column layout and validated form
 example, including choice updates and multiline editing.
@@ -75,6 +76,9 @@ Open http://localhost:8080/protocol for batched construction, guarded delayed
 normalization, authoritative reset, and recoverable failure; /failed-page
 demonstrates terminal initialization failure.
 See [posting work to a logical page](dispatcher.md) for the API and lifetime rules.
+
+Main.cpp handles startup and shutdown; individual showcase builders and their
+shared route/index list live under targets/development/private/showcases.
 
 The runtime currently resolves these paths relative to the working directory:
 
