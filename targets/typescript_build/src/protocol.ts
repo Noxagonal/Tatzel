@@ -1,13 +1,20 @@
+/** @brief Browser edit identity within one explicit value generation. */
+export type ClientEdit = { epoch: number; revision: number; };
+/** @brief Causal baseline for a guarded value or native-choice replacement. */
+export type FieldUpdate = { epoch: number; base_epoch: number; client_revision: number; replace: boolean; };
+
 
 /** @brief ReceiveData Connected wire-format type; DOM identifiers are part IDs. */
 export type ReceiveData_Connected = {
 	message: string;
+	protocol_version: number;
 };
 
 /** @brief ReceiveData Error wire-format type; DOM identifiers are part IDs. */
 export type ReceiveData_Error = {
 	code: string;
 	message: string;
+	fatal: boolean;
 };
 
 /** @brief ReceiveData CreateElementPart wire-format type; DOM identifiers are part IDs. */
@@ -57,7 +64,7 @@ export type ReceiveData_SetText = {
 }
 
 /** @brief ReceiveData SetValue wire-format type; DOM identifiers are part IDs. */
-export type ReceiveData_SetValue = {
+export type ReceiveData_SetValue = FieldUpdate & {
 	part_id: string;
 	value: string;
 }
@@ -69,7 +76,7 @@ export type ReceiveData_SetModalOpen = {
 }
 
 /** @brief Native-select options and selected state replaced as one operation. */
-export type ReceiveData_SetSelectOptions = {
+export type ReceiveData_SetSelectOptions = FieldUpdate & {
 	part_id: string;
 	placeholder: string;
 	value: string;
@@ -95,10 +102,8 @@ export type ReceiveData_SetOnSubmit = {
 }
 
 /** @brief ReceiveServerMessage wire-format type; DOM identifiers are part IDs. */
-export type ReceiveServerMessage =
+export type ReceiveOperation =
 	| { op: "set_location"; data: { hash: string; }; }
-	| { op: "connected"; data: ReceiveData_Connected; }
-	| { op: "error"; data: ReceiveData_Error; }
 	| { op: "create_element_part"; data: Array<ReceiveData_CreateElementPart>; }
 	| { op: "remove_element_part"; data: Array<ReceiveData_RemoveElementPart>; }
 	| { op: "set_attribute"; data: Array<ReceiveData_SetAttribute>; }
@@ -116,8 +121,16 @@ export type ReceiveServerMessage =
 
 
 
+/** @brief Complete protocol-v2 server frame; DOM commands travel only inside batches. */
+export type ReceiveServerMessage =
+	| { op: "connected"; data: ReceiveData_Connected; }
+	| { op: "error"; data: ReceiveData_Error; }
+	| { op: "page_ready"; data: { sequence: number; }; }
+	| { op: "update_batch"; data: { sequence: number; operations: Array<ReceiveOperation>; }; };
+
 /** @brief SendData Connect wire-format type; DOM identifiers are part IDs. */
 export type SendData_Connect = {
+	protocol_version: number;
 	route_path: string;
 	query: string;
 	hash: string;
@@ -129,7 +142,7 @@ export type SendData_OnClick = {
 };
 
 /** @brief SendData OnChange wire-format type; DOM identifiers are part IDs. */
-export type SendData_OnChange = {
+export type SendData_OnChange = ClientEdit & {
 	part_id: string;
 	value: string | boolean;
 };
@@ -137,7 +150,7 @@ export type SendData_OnChange = {
 /** @brief SendData OnSubmit wire-format type; DOM identifiers are part IDs. */
 export type SendData_OnSubmit = {
 	part_id: string;
-	fields?: Array<{ part_id: string; value: string | boolean; }>;
+	fields?: Array<ClientEdit & { part_id: string; value: string | boolean; }>;
 };
 
 /** @brief SendServerMessage wire-format type; DOM identifiers are part IDs. */
@@ -147,5 +160,5 @@ export type SendServerMessage =
 	| { op: "on_click"; data: SendData_OnClick; }
 	| { op: "on_change"; data: SendData_OnChange; }
 	| { op: "on_submit"; data: SendData_OnSubmit; }
-	| { op: "on_input"; data: { part_id: string; value: string; }; }
+	| { op: "on_input"; data: ClientEdit & { part_id: string; value: string; }; }
 	| { op: "on_dismiss"; data: { part_id: string; }; };

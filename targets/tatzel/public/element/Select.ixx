@@ -76,6 +76,7 @@ public:
 	auto SetOptions( std::vector<SelectOption> options ) -> void
 	{
 		ValidateOptions( options );
+		RecordChoiceChange();
 		this->options = std::move( options );
 		if( !AcceptsChangeValue( value ) ) value.clear();
 		++options_revision;
@@ -90,18 +91,41 @@ public:
 
 	/// @brief Explicitly selects an available ID in the browser.
 	/// @param value Enabled choice ID, or empty for no selection.
+	/// @param policy Guard newer drafts, or deliberately replace them with a fresh generation.
 	/// @pre Called on the owning event loop.
 	/// @post Changed selection is stored and the adapter queues a value replacement.
 	/// @throws tatzel::Exception If value is not an enabled choice; existing state is unchanged.
-	auto SetValue( std::string_view value ) -> void
+	auto SetValue(
+		std::string_view value,
+		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
+	) -> void
 	{
 		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
-		if( this->value == value ) return;
+		if( this->value == value && policy != ValueUpdatePolicy::Replace ) return;
+
+		RecordServerValueChange( policy );
 
 		this->value = value;
 		++value_revision;
 		NotifyValueChanged();
 	}
+
+	/// @brief Applies an asynchronous result only while the captured logical revision is current.
+	/// @param value New value, owned by the field after acceptance.
+	/// @param revision Token captured before starting the asynchronous operation.
+	/// @return Whether logical state accepted the result; newer in-flight browser edits are still protected.
+	/// @pre Called on the owning loop while this field is alive.
+	/// @post A matching token queues a guarded value update; stale tokens change nothing.
+	auto TrySetValue(
+		std::string_view value,
+		const EditRevision& revision
+	) -> bool
+	{
+		if( !IsEditRevisionCurrent( revision ) ) return false;
+		SetValue( value );
+		return true;
+	}
+
 
 	/// @brief Reads the visible no-selection prompt.
 	/// @return Borrowed prompt, invalidated by placeholder mutation or destruction.
@@ -117,6 +141,7 @@ public:
 	{
 		if( this->placeholder == placeholder ) return;
 
+		RecordChoiceChange();
 		this->placeholder = placeholder;
 		++options_revision;
 		NotifyChanged();

@@ -542,7 +542,7 @@ private:
 				project_filter = "all";
 
 			selector->SetOptions( std::move( options ) );
-			selector->SetValue( project_filter );
+			selector->SetValue( project_filter, tatzel::ui::ValueUpdatePolicy::Replace );
 		}
 		if( auto* parent = content.Get() )
 			parent->SetAppearance( snapshot->compact ? "page-content compact" : "page-content" );

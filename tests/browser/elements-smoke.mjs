@@ -1,3 +1,4 @@
+import { ProtocolSocket } from "./protocol-client.mjs";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -53,7 +54,7 @@ test("numeric and radio fields validate complete snapshots and synchronize resou
 		assert.ok(ready, diagnostics);
 		const asset = await fetch("http://127.0.0.1:8080/framework/example-image.svg", { headers: { Connection: "close" } });
 		assert.equal(asset.status, 200);
-		socket = new WebSocket("ws://127.0.0.1:8080/ws");
+		socket = new ProtocolSocket("ws://127.0.0.1:8080/ws");
 		const messages = [];
 		socket.addEventListener("message", event => messages.push(JSON.parse(event.data)));
 		await once(socket, "open", { signal: AbortSignal.timeout(5000) });
