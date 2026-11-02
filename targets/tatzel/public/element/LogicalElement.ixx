@@ -326,6 +326,34 @@ public:
 		change_handler = handler ? std::make_shared<std::function<void()>>( std::move( handler ) ) : nullptr;
 	}
 
+	/// @brief Assigns adapter-defined appearance names without exposing DOM parts.
+	/// @param appearance Space-separated names owned by the control.
+	/// @pre Called on the owning event loop.
+	/// @post Active controls retain the names and queue adapter presentation updates.
+	auto SetAppearance( std::string_view appearance ) -> void
+	{
+		auto dispatch = BeginDispatch();
+		if( removed || this->appearance == appearance ) return;
+		this->appearance = appearance;
+		auto handler = appearance_handler;
+		if( handler ) ( *handler )( this->appearance );
+	}
+
+	/// @brief Reads the adapter-defined appearance names.
+	/// @return Borrowed names, valid until the next appearance change or destruction.
+	/// @pre Called on the owning event loop.
+	/// @post State is unchanged.
+	auto GetAppearance() const noexcept -> std::string_view { return appearance; }
+
+	/// @brief Binds the adapter's independent presentation synchronizer.
+	/// @param handler Adapter callback whose captures outlive this control, or empty.
+	/// @pre Called by the adapter on the owning event loop.
+	/// @post Future appearance changes invoke this handler without replacing value handlers.
+	auto SetAppearanceHandler( std::function<void( std::string_view )> handler ) -> void
+	{
+		appearance_handler = handler ? std::make_shared<std::function<void( std::string_view )>>( std::move( handler ) ) : nullptr;
+	}
+
 protected:
 	/// @brief Notifies the adapter after a logical setter changes state.
 	/// @pre Called on the owning event loop after the logical state is valid.
@@ -352,6 +380,8 @@ private:
 		return removal_services->clear( *this, slot );
 	}
 
+	std::string appearance;
+	std::shared_ptr<std::function<void( std::string_view )>> appearance_handler;
 	std::string id;
 	LogicalElement* parent = nullptr;
 	std::shared_ptr<ElementLifetimeState> lifetime_state = std::make_shared<ElementLifetimeState>();

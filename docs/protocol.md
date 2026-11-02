@@ -27,8 +27,10 @@ The browser independently sends its location after the socket opens:
 {"op":"connect","data":{"route_path":"/","query":"","hash":""}}
 ```
 
-route_path selects the registered page factory. query and hash are currently
-reserved browser context and are not passed to the factory. Only one successful
+route_path selects the registered page factory. query remains reserved. Optional
+hash must be empty or hash-prefixed and at most 2048 bytes; it is delivered to
+the page navigation handler after the factory returns. Invalid initial hashes
+are rejected before creating the logical page. Only one successful
 page initialization is allowed per connection. connected acknowledges the
 transport, not completion of the logical page build.
 
@@ -195,3 +197,17 @@ page factory can leave a partial page and requires a reload.
 The browser validates server envelopes and operation payloads before applying
 DOM changes. It logs structured server errors. This protocol is experimental
 and currently has no version-negotiation mechanism.
+
+## Same-page navigation
+
+Browser hash changes send `{"op":"on_navigate","data":{"hash":"#/tasks"}}`.
+This requires an initialized page and an empty or hash-prefixed string of at
+most 2048 bytes. Invalid values receive invalid_message. The page's current
+navigation handler runs under callback/removal scopes.
+
+Programmatic PageBuilder navigation sends
+`{"op":"set_location","data":{"hash":"#/tasks"}}` and invokes the handler on
+the server. The browser uses history.pushState only for a changed hash, without
+echoing an event. Native hash links and Back/Forward generate the browser event.
+An empty hash retains the registered path and query. This operation cannot select
+another server route or navigate to another origin.

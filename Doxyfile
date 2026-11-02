@@ -12,6 +12,7 @@ FILTER_SOURCE_FILES    = NO
 INCLUDE_PATH           = targets/development/private
 EXAMPLE_PATH           = targets/development/private
 EXAMPLE_PATTERNS       = *.cpp
+IMAGE_PATH             = docs/images
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = YES

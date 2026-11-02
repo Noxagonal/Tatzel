@@ -217,3 +217,8 @@ for deliberately unfinished controls.
 
 Before submitting, run the documentation contract check, Doxygen, relevant
 browser tests, and the full application build when its toolchain is available.
+
+Application-specific presentation can use LogicalElement::SetAppearance with
+adapter-defined names. The default adapter maps these to data-ui-appearance
+without replacing its own classes or event attributes. Application code should
+continue to use logical setters instead of mutating DOM parts.

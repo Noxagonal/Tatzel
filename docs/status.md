@@ -27,6 +27,9 @@ than earlier experiments.
 | DOM protocol | Validated op/data envelopes; DOM commands carry arrays of part payloads. |
 | Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
 | Logging | Runtime-configurable Tatzel API over Drogon's backend, startup/shutdown messages, and existing file/rotation configuration. |
+| Workspace sample | Persistent project/task SPA with SQLite, background work, per-browser navigation, and shared committed snapshots. |
+| Appearance | Adapter-defined appearance names through logical SetAppearance; the default adapter preserves built-in classes. |
+| Hash navigation | Initial-location callback, same-page history updates, and native hash/Back/Forward events. |
 | Documentation | Authored Markdown guides, Doxygen contracts, and a static HTML build. |
 
 ## Planned controls
@@ -37,13 +40,13 @@ Add each logical type, adapter mapping, builder method, documentation, and
 behavior check together.
 
 The browser also understands lower-level class operations; these do not imply
-an additional application-facing styling API. ClientUpdater's raw DOM removal
+an arbitrary application-facing DOM API. Logical appearance names are mapped separately by the adapter. ClientUpdater's raw DOM removal
 remains a low-level DOM operation; application code uses logical Remove or ClearChildren.
 
 ## Remaining limitations
 
 - Explicit server value replacements can supersede newer browser edits; there is no conflict-resolution protocol.
-- No automatic reconnect, page-state restoration, or client-side navigation.
+- No automatic reconnect or page-state restoration. Hash navigation is available within a registered page.
 - No rollback of a partially built logical page after a factory throws; reload to retry.
 - Original throw traces require tatzel::Exception; native stack capture and symbol resolution are best effort.
 - Applications embedding the library supply their own outer startup catch; the development example demonstrates it.

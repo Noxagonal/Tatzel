@@ -460,3 +460,14 @@ test("removing the focused control preserves its parent and chooses surviving fo
 	document.body.focus();
 	assert.equal(parent.hasAttribute("tabindex"), false);
 });
+
+
+test("same-page navigation accepts bounded hash locations and rejects external targets", () => {
+	for (const hash of ["", "#/tasks", "#/task/42"]) {
+		const message = { op: "set_location", data: { hash } };
+		assert.deepEqual(runtime.parseServerMessage({ data: JSON.stringify(message) }), message);
+	}
+	for (const hash of ["https://example.com", "/tasks", 42, "#".repeat(2049)]) {
+		assert.throws(() => runtime.parseServerMessage({ data: JSON.stringify({ op: "set_location", data: { hash } }) }));
+	}
+});

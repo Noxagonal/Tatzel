@@ -4,6 +4,7 @@ module;
 
 #include <deque>
 #include <functional>
+#include <string>
 #include <string_view>
 
 export module UI.App;
@@ -20,10 +21,15 @@ export class App
 {
 public:
 	/// @brief Loads runtime configuration and establishes the global application.
-	/// @pre No other App exists; the working directory contains data/drogon_config.json.
+	/// @param configuration_path Drogon JSON configuration path, copied during construction.
+	/// @param template_path HTML document path, owned for registered route responses.
+	/// @pre No other App exists; the configuration file is readable.
 	/// @post This object is returned by GetGlobalApp().
 	/// @throws tatzel::Exception If another App already exists.
-	App();
+	App(
+		std::string_view configuration_path = "./data/drogon_config.json",
+		std::string_view template_path = "./data/template.html"
+	);
 
 	/// @brief Prevents a second application owner.
 	/// @param other Source application.
@@ -82,6 +88,7 @@ public:
 	auto Run() -> void;
 
 private:
+	std::string template_path;
 	std::deque<Page> registered_page_list;
 	bool has_run = false;
 };

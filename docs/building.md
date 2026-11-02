@@ -9,6 +9,7 @@ The project declares these build requirements:
 - A CMake generator supporting module dependency scanning; use Ninja.
 - Node.js 24 or newer and npm.
 - Git and network access for CMake's pinned Drogon dependency and npm packages.
+- SQLite development files for the default-enabled workspace sample (`libsqlite3-dev` on Ubuntu).
 - JsonCpp development files and the platform dependencies required by Drogon.
   OpenSSL and zlib development packages enable the corresponding optional support.
 - A working std::stacktrace implementation, including its link support library.
@@ -134,3 +135,10 @@ while omitting leak scanning; that does not replace the CI leak check.
 
 There is no installable CMake package yet. The current executable and source
 layout are intended for working within this checkout.
+
+## Persistent application sample
+
+Build and run `TatzelWorkspace` to use the project/task manager. It has its own
+local stylesheet and template, persistent SQLite data, and SPA navigation.
+See the [workspace guide](workspace.md). Set `TATZEL_BUILD_WORKSPACE=OFF` to omit
+this executable and its SQLite development dependency.

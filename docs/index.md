@@ -25,3 +25,5 @@ The repository is the documentation source of truth. API contracts are maintaine
 next to the code and the guides explain how those APIs fit together. The static
 output is prepared for eventual hosting at docs.tatzel.dev; deployment and DNS
 are not configured by the documentation build.
+
+- [Workspace sample application](workspace.md) — build and use the persistent project/task manager.

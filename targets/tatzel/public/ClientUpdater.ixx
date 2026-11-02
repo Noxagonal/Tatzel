@@ -132,6 +132,12 @@ public:
 		std::string_view value
 	) -> void;
 
+	/// @brief Queues a same-page browser history update without echoing navigation.
+	/// @param hash Validated empty or hash-prefixed location.
+	/// @pre Called on the owning event loop with a live transport.
+	/// @post The browser has been offered a history update; application navigation is separate.
+	auto SetLocation( std::string_view hash ) -> void;
+
 private:
 	/// @brief Serializes and queues a JSON message on the bound transport.
 	/// @param json Complete op/data message.

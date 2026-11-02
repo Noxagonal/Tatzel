@@ -35,3 +35,10 @@ The documentation sources and Doxygen configuration are maintained here for a
 future site at docs.tatzel.dev. See [documentation maintenance and publication](docs/documentation.md).
 
 Tatzel uses the MIT license; see [LICENSE](LICENSE).
+
+## Working sample application
+
+Build `TatzelWorkspace` for a persistent project/task manager with a responsive
+SPA shell, validated editors, SQLite storage, and live updates between browser
+sessions. Run it from the repository root and open `http://localhost:8080/`.
+See the [workspace guide](docs/workspace.md) for setup, behavior, and tests.
