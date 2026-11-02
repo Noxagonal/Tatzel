@@ -104,7 +104,9 @@ reports one snapshot. Empty reset_label omits the built-in reset button.
 
 SetChoices(key, choices, fallback) updates one selector in place, preserves an
 available selection, and uses fallback when it disappears. The configured reset
-value must remain available; invalid definitions leave the existing selector
+value must remain available. The fallback travels in the same choices operation,
+so it does not override a newer available browser selection with a second reset.
+Invalid definitions leave the existing selector
 unchanged. Programmatic refreshes do not invoke the application callback. The
 wire revision contract can still preserve and rebase a newer available browser
 selection, which subsequently reports a normal change. GetValues reads current
@@ -175,6 +177,11 @@ loads the same foundation and overrides its application presentation.
 | Dynamic feedback | `Text::SetLiveRegion` (also inherited by Paragraph): Off, Polite, Assertive. |
 | Spacing and wrapping | Existing Row/Column/Layout options, using shared spacing variables. |
 | Theme | Inherited --tatzel-* CSS variables, overridden globally or on a component ancestor. |
+
+A component can pass a stable name as the third Component base-constructor
+argument. Its immutable GetComponentName maps to data-ui-component; built-in
+component layout uses this identity, so SetAppearance cannot remove essential
+component styling. Application-specific appearances remain independent.
 
 Variant/size changes preserve appearance, field revisions, native values, and
 editor identity. The default adapter reflects them as data-ui-variant/data-ui-size.

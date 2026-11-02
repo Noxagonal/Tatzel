@@ -58,12 +58,12 @@ input[type="checkbox"][data-ui-size], fieldset[data-ui-size] { padding: 0; }
 [data-ui-component] [aria-invalid="true"] { border-color: var(--tatzel-danger); }
 [data-ui-component] label { display: block; margin-bottom: .35rem; font-weight: 600; }
 button[data-ui-variant]:focus-visible, [data-ui-component] :is(input, textarea, select, a):focus-visible { outline: 3px solid var(--tatzel-focus); outline-offset: 3px; }
-[data-ui-appearance~="tatzel-filter-bar"] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); align-items: end; gap: var(--tatzel-space-medium); margin-block: var(--tatzel-space-large); }
-[data-ui-appearance~="tatzel-filter-bar"] > * { min-width: 0; margin: 0; }
-[data-ui-appearance~="tatzel-note-editor"] { background: var(--tatzel-surface); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); padding: var(--tatzel-space-large); }
-[data-ui-appearance~="tatzel-note-editor"] form { margin: 0; }
-[data-ui-appearance~="tatzel-note-editor"] fieldset { border: 0; padding: 0; margin: 0; }
-[data-ui-appearance~="tatzel-note-editor"] fieldset > div { margin-block: var(--tatzel-space-medium); }
+[data-ui-component="search-filter-bar"] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); align-items: end; gap: var(--tatzel-space-medium); margin-block: var(--tatzel-space-large); }
+[data-ui-component="search-filter-bar"] > * { min-width: 0; margin: 0; }
+[data-ui-component="note-editor"] { background: var(--tatzel-surface); border: 1px solid var(--tatzel-border); border-radius: var(--tatzel-radius); padding: var(--tatzel-space-large); }
+[data-ui-component="note-editor"] form { margin: 0; }
+[data-ui-component="note-editor"] fieldset { border: 0; padding: 0; margin: 0; }
+[data-ui-component="note-editor"] fieldset > div { margin-block: var(--tatzel-space-medium); }
 [data-ui-appearance~="tatzel-editor-feedback"] { color: var(--tatzel-muted); min-height: 1.5em; }
 [data-ui-appearance~="tatzel-editor-feedback"][data-ui-appearance~="error"] { color: var(--tatzel-danger); }
 [data-ui-appearance~="tatzel-editor-grid"] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--tatzel-space-medium); align-items: start; margin-block: var(--tatzel-space-large); }

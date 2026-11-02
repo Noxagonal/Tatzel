@@ -43,7 +43,7 @@ public:
 		LogicalElement* parent,
 		ConfirmationOptions options = {}
 	) :
-		Component{ id, parent },
+		Component{ id, parent, "confirmation-dialog" },
 		options{ std::move( options ) }
 	{}
 

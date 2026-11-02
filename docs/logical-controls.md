@@ -231,7 +231,8 @@ empty-choice prompt.
 
 SetValue selects an enabled ID or empty and rejects unavailable values.
 SetOptions replaces the choices, preserving an enabled selected ID when it
-still exists and returning to no selection otherwise. Duplicate or empty IDs
+still exists and returning to no selection otherwise. An optional enabled fallback
+ID can replace no selection in the same revisioned choices operation. Duplicate or empty IDs
 are rejected before existing state changes. Choice replacement and selected
 state reach the native selector as one operation, preserving editor identity.
 Labels remain literal text. Options are native control internals without

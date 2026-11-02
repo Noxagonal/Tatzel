@@ -120,6 +120,8 @@ auto main() -> int
 	options.filters = { { "status", "Status", { { "all", "All" }, { "open", "Open" } }, "all", "all" } };
 	auto* first = ui.Component<tatzel::ui::SearchFilterBar>( options );
 	auto* second = ui.Component<tatzel::ui::SearchFilterBar>( options );
+	first->SetAppearance( "application-filters" );
+	assert( first->GetBasePart().GetAttribute( "data-ui-component" ) == "search-filter-bar" );
 	auto changes = 0;
 	auto snapshot = tatzel::ui::FilterValues{};
 	first->SetOnChange( [ &changes, &snapshot ]( tatzel::ui::FilterValues values ) { ++changes; snapshot = std::move( values ); } );
@@ -131,6 +133,10 @@ auto main() -> int
 	assert( search->GetValueUpdate().replace );
 	assert( first->SetChoices( "status", { { "all", "Everything" }, { "done", "Done" } }, "all" ) == "all" );
 	assert( changes == 2 );
+	auto* selection = Find<tatzel::ui::Select>( *first, []( auto& field ) { return true; } );
+	selection->InvokeOnChange( "done" );
+	assert( first->SetChoices( "status", { { "all", "All" }, { "new", "New" } }, "all" ) == "all" );
+	assert( !selection->GetValueUpdate().replace );
 	try
 	{
 		first->SetChoices( "status", { { "done", "Done" } }, "done" );

@@ -36,7 +36,7 @@ try {
 	await page.goto("http://127.0.0.1:8080/");
 	await page.getByRole("link", { name: "Reusable components and themes", exact: true }).click();
 	await page.waitForFunction(() => document.documentElement.dataset.tatzelConnection === "ready");
-	assert.equal(await page.locator('[data-ui-component="true"]').count(), 5);
+	assert.equal(await page.locator('[data-ui-component]').count(), 5);
 	await page.getByLabel("Search first list", { exact: true }).fill("draft filter");
 	await page.getByText("List 1: draft filter | all", { exact: true }).waitFor();
 	assert.equal(await page.getByLabel("Search second list", { exact: true }).inputValue(), "");
@@ -56,7 +56,7 @@ try {
 	await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
 	await page.getByText("Confirmed once", { exact: true }).waitFor();
 	assert.equal(await dialog.isVisible(), false);
-	const editors = page.locator('[data-ui-appearance~="tatzel-note-editor"]');
+	const editors = page.locator('[data-ui-component="note-editor"]');
 	const first = editors.nth(0);
 	const second = editors.nth(1);
 	await first.getByLabel("Title", { exact: true }).fill("");

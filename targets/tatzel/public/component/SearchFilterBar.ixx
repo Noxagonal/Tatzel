@@ -62,7 +62,7 @@ public:
 		LogicalElement* parent,
 		SearchFilterOptions options = {}
 	) :
-		Component{ id, parent },
+		Component{ id, parent, "search-filter-bar" },
 		options{ std::move( options ) }
 	{
 		auto keys = std::vector<std::string>{};
@@ -154,9 +154,7 @@ public:
 		if( !Available( choices, fallback ) || !Available( choices, found->reset_value ) )
 			throw tatzel::Exception{ "Filter fallback or reset value is unavailable" };
 		auto* select = found->editor.Get();
-		const auto preserve = Available( choices, select->GetValue() );
-		select->SetOptions( std::move( choices ) );
-		if( !preserve ) select->SetValue( fallback, ValueUpdatePolicy::Replace );
+		select->SetOptions( std::move( choices ), fallback );
 		return std::string{ select->GetValue() };
 	}
 

@@ -45,7 +45,7 @@ public:
 		std::string label,
 		NoteDraft draft
 	) :
-		Component{ id, parent },
+		Component{ id, parent, "note-editor" },
 		label{ std::move( label ) },
 		draft{ std::move( draft ) }
 	{

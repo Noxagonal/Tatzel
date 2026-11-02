@@ -70,15 +70,22 @@ public:
 
 	/// @brief Replaces choices while preserving an available selected ID.
 	/// @param options New choices with unique nonempty IDs.
+	/// @param fallback Enabled fallback ID, or empty for no selection.
 	/// @pre Called on the owning event loop.
-	/// @post Choices are owned; a removed/disabled selection becomes empty; the adapter queues one options update.
-	/// @throws tatzel::Exception If an ID is empty or duplicated; existing state is unchanged.
-	auto SetOptions( std::vector<SelectOption> options ) -> void
+	/// @post Choices are owned; a removed/disabled selection uses fallback in the same revisioned options update.
+	/// @throws tatzel::Exception If an ID is empty/duplicated or fallback is unavailable; existing state is unchanged.
+	auto SetOptions(
+		std::vector<SelectOption> options,
+		std::string_view fallback = {}
+	) -> void
 	{
 		ValidateOptions( options );
+		if( !fallback.empty() && !std::ranges::any_of( options, [ fallback ]( const auto& option ) { return option.id == fallback && !option.disabled; } ) )
+			throw tatzel::Exception{ "Select fallback is not an enabled option" };
+		auto owned_fallback = std::string{ fallback };
 		RecordChoiceChange();
 		this->options = std::move( options );
-		if( !AcceptsChangeValue( value ) ) value.clear();
+		if( !AcceptsChangeValue( value ) ) value = std::move( owned_fallback );
 		++options_revision;
 		NotifyValueChanged();
 	}

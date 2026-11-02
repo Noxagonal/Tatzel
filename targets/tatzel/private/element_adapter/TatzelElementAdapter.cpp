@@ -512,6 +512,8 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Modal& element ) const ->
 	parts[ 3 ].SetTextContent( element.GetTitle() );
 	parts[ 4 ].AddAttribute( "type", "button" );
 	parts[ 4 ].AddAttribute( "aria-label", "Close" );
+	parts[ 4 ].AddAttribute( "data-ui-variant", "secondary" );
+	parts[ 4 ].AddAttribute( "data-ui-size", "small" );
 	parts[ 4 ].AddAttribute( "data-ui-on-dismiss", "true" );
 	parts[ 4 ].SetTextContent( "×" );
 	element.SetParts( std::move( parts ), 0, 5 );
@@ -570,8 +572,8 @@ auto tatzel::TatzelElementAdapter::CreatePartsFor( ui::Select& element ) const -
 
 auto tatzel::TatzelElementAdapter::InitializePartsFor( ui::LogicalElement& element ) const -> void
 {
-	if( dynamic_cast<ui::Component*>( &element ) )
-		SyncAttribute( element.GetBasePart(), "data-ui-component", "true", *client_updater );
+	if( auto* component = dynamic_cast<ui::Component*>( &element ) )
+		SyncAttribute( element.GetBasePart(), "data-ui-component", component->GetComponentName(), *client_updater );
 	element.SetAppearanceHandler( [ this, &element ]( std::string_view appearance ) {
 		SyncAttribute( element.GetBasePart(), "data-ui-appearance", appearance.empty()
 			? std::nullopt : std::optional<std::string_view>{ appearance }, *client_updater );

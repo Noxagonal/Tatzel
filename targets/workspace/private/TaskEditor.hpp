@@ -33,7 +33,7 @@ public:
 		Task task,
 		std::vector<tatzel::ui::SelectOption> projects
 	) :
-		Component{ id, parent },
+		Component{ id, parent, "task-editor" },
 		task{ std::move( task ) },
 		projects{ std::move( projects ) }
 	{}
