@@ -78,7 +78,7 @@ private:
 auto CheckOrdering() -> void
 {
 	auto loop = trantor::EventLoop{};
-	auto owner = tatzel::DispatcherOwner{ loop, Invoke, { .capacity = 16, .batch_size = 2 } };
+	auto owner = tatzel::DispatcherOwner{ Invoke, { .capacity = 16, .batch_size = 2 } };
 	auto dispatcher = owner.GetDispatcher();
 	auto order = std::vector<int>{};
 	auto yielded = false;
@@ -116,14 +116,14 @@ auto CheckOrdering() -> void
 auto CheckValidation() -> void
 {
 	auto loop = trantor::EventLoop{};
-	try { tatzel::DispatcherOwner owner{ loop, Invoke, { .capacity = 0 } }; std::abort(); }
+	try { tatzel::DispatcherOwner owner{ Invoke, { .capacity = 0 } }; std::abort(); }
 	catch( const tatzel::Exception& ) {}
-	try { tatzel::DispatcherOwner owner{ loop, Invoke, { .batch_size = 0 } }; std::abort(); }
+	try { tatzel::DispatcherOwner owner{ Invoke, { .batch_size = 0 } }; std::abort(); }
 	catch( const tatzel::Exception& ) {}
-	try { tatzel::DispatcherOwner owner{ loop, {} }; std::abort(); }
+	try { tatzel::DispatcherOwner owner{ {} }; std::abort(); }
 	catch( const tatzel::Exception& ) {}
 	auto worker = std::thread{ [ &loop ] {
-		try { tatzel::DispatcherOwner owner{ loop, Invoke }; std::abort(); }
+		try { tatzel::DispatcherOwner owner{ Invoke }; std::abort(); }
 		catch( const tatzel::Exception& ) {}
 	} };
 	worker.join();
@@ -137,7 +137,7 @@ auto CheckValidation() -> void
 auto CheckCancellation() -> void
 {
 	auto loop = trantor::EventLoop{};
-	auto owner = tatzel::DispatcherOwner{ loop, Invoke, { .capacity = 2 } };
+	auto owner = tatzel::DispatcherOwner{ Invoke, { .capacity = 2 } };
 	auto dispatcher = owner.GetDispatcher();
 	auto released = 0;
 	for( int index = 0; index < 2; ++index )
@@ -172,7 +172,7 @@ auto CheckFailures( std::string& output ) -> void
 	auto destroyed = 0;
 	auto* text = tree->root.InsertChild( std::make_unique<TrackedText>( &tree->root, destroyed ) );
 	auto handle = text->GetHandle();
-	auto owner = tatzel::DispatcherOwner{ loop, [ weak = std::weak_ptr{ tree } ](
+	auto owner = tatzel::DispatcherOwner{ [ weak = std::weak_ptr{ tree } ](
 		std::move_only_function<void()>& callback,
 		std::source_location origin
 	) {
@@ -208,7 +208,7 @@ auto CheckFailures( std::string& output ) -> void
 auto CheckConcurrentProducers() -> void
 {
 	auto loop = trantor::EventLoop{};
-	auto owner = tatzel::DispatcherOwner{ loop, Invoke };
+	auto owner = tatzel::DispatcherOwner{ Invoke };
 	auto dispatcher = owner.GetDispatcher();
 	auto seen = std::array<int, 4>{};
 	auto completed = 0;
@@ -237,7 +237,7 @@ auto CheckConcurrentProducers() -> void
 auto CheckLoopShutdown() -> void
 {
 	auto loop = std::make_unique<trantor::EventLoop>();
-	auto owner = std::make_unique<tatzel::DispatcherOwner>( *loop, Invoke );
+	auto owner = std::make_unique<tatzel::DispatcherOwner>( Invoke );
 	auto dispatcher = owner->GetDispatcher();
 	auto completed = 0;
 	auto stop = std::atomic<bool>{ false };
@@ -251,7 +251,7 @@ auto CheckLoopShutdown() -> void
 	} };
 	loop->runAfter( 5.0, [] { std::abort(); } );
 	loop->loop();
-	try { tatzel::DispatcherOwner invalid{ *loop, Invoke }; std::abort(); }
+	try { tatzel::DispatcherOwner invalid{ Invoke }; std::abort(); }
 	catch( const tatzel::Exception& ) {}
 	loop.reset();
 	for( int index = 0; index < 100; ++index ) assert( dispatcher.Post( [] {} ) == DispatchResult::Closed );
@@ -271,7 +271,7 @@ auto CheckWeakOwnership() -> void
 	auto loop = trantor::EventLoop{};
 	auto page = std::make_shared<int>( 1 );
 	auto weak_page = std::weak_ptr{ page };
-	auto owner = std::make_unique<tatzel::DispatcherOwner>( loop, [ weak_page ](
+	auto owner = std::make_unique<tatzel::DispatcherOwner>( [ weak_page ](
 		std::move_only_function<void()>& callback,
 		std::source_location origin
 	) { if( auto retained = weak_page.lock() ) callback(); } );
@@ -290,7 +290,7 @@ auto CheckWeakOwnership() -> void
 auto CheckCloseDuringExecution() -> void
 {
 	auto loop = trantor::EventLoop{};
-	auto owner = tatzel::DispatcherOwner{ loop, Invoke };
+	auto owner = tatzel::DispatcherOwner{ Invoke };
 	auto dispatcher = owner.GetDispatcher();
 	auto released = false;
 	auto capture = std::make_unique<CaptureProbe>();

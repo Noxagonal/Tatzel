@@ -1,0 +1,7 @@
+@PACKAGE_INIT@
+
+set_and_check(Tatzel_RUNTIME_DIRECTORY "@PACKAGE_TATZEL_INSTALL_RUNTIME_DIRECTORY@")
+include("${CMAKE_CURRENT_LIST_DIR}/TatzelTargets.cmake")
+set_property(TARGET Tatzel::Tatzel PROPERTY TATZEL_RUNTIME_DIRECTORY "${Tatzel_RUNTIME_DIRECTORY}")
+include("${CMAKE_CURRENT_LIST_DIR}/TatzelRuntime.cmake")
+check_required_components(Tatzel)

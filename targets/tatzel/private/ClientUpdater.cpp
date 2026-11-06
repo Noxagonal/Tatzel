@@ -2,12 +2,13 @@ module;
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <cstdint>
 #include <json/json.h>
-#include <drogon/WebSocketController.h>
-#include <json/value.h>
+#include <memory>
+#include <span>
 #include <string_view>
 
 #include <string>
@@ -21,6 +22,7 @@ import UI.Logging;
 import UI.DOM.ElementPart;
 import UI.DOM.SelectOption;
 import UI.Utility;
+import UI.Internal.JSON;
 
 
 
@@ -28,12 +30,44 @@ import UI.Utility;
 
 
 
-tatzel::ClientUpdater::ClientUpdater(
-	drogon::WebSocketConnectionPtr ws_connection
-) :
-	ws_connection( ws_connection )
-{}
+/// @brief Owns JSON protocol state behind the installed sender interface.
+struct [[gnu::visibility( "hidden" )]] tatzel::ClientUpdater::Implementation
+{
+	std::function<void( std::string_view )> sink;
+	std::function<void()> close_transport;
+	Json::Value pending{ Json::arrayValue };
+	std::size_t pending_bytes = 128;
+	std::size_t batch_depth = 0;
+	std::uint64_t sequence = 0;
+	bool closed = false;
 
+	/// @brief Serializes a complete control or batch frame.
+	/// @param frame Borrowed complete frame.
+	/// @pre The sink is usable on the owning loop.
+	/// @post The sink has consumed or copied the serialized frame.
+	auto SendFrame( const Json::Value& frame ) -> void { sink( JsonToString( frame ) ); }
+
+	/// @brief Partitions oversized array operations before queuing them.
+	/// @param updater Owning sender used to flush and close.
+	/// @param json Borrowed op/data command.
+	/// @pre Called on the owning loop.
+	/// @post Operations have been queued or the sender was already closed.
+	auto SendJSON(
+		ClientUpdater& updater,
+		const Json::Value& json
+	) -> void;
+
+	/// @brief Adds one complete operation and flushes at protocol limits.
+	/// @param updater Owning sender used to flush and close.
+	/// @param operation Owned command.
+	/// @pre Called on the owning loop.
+	/// @post The command is queued or delivered; an oversized command closes the stream.
+	/// @throws tatzel::Exception If one command exceeds the byte limit.
+	auto QueueOperation(
+		ClientUpdater& updater,
+		Json::Value operation
+	) -> void;
+};
 
 auto tatzel::ClientUpdater::CreateElementParts(
 	std::span<const dom::ElementPart> parts
@@ -80,7 +114,7 @@ auto tatzel::ClientUpdater::CreateElementParts(
 	json[ "op" ] = "create_element_part";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -111,7 +145,7 @@ auto tatzel::ClientUpdater::RemoveElementParts(
 	json[ "op" ] = "remove_element_part";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -145,7 +179,7 @@ auto tatzel::ClientUpdater::SetAttribute(
 	json[ "op" ] = "set_attribute";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -176,7 +210,7 @@ auto tatzel::ClientUpdater::RemoveAttribute(
 	json[ "op" ] = "remove_attribute";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -207,7 +241,7 @@ auto tatzel::ClientUpdater::SetText(
 	json[ "op" ] = "set_text";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -228,7 +262,7 @@ auto tatzel::ClientUpdater::SetValue(
 	part[ "replace" ] = update.replace;
 	json[ "data" ] = Json::Value{ Json::arrayValue };
 	json[ "data" ].append( std::move( part ) );
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -259,7 +293,7 @@ auto tatzel::ClientUpdater::SetModalOpen(
 	json[ "op" ] = "set_modal_open";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -285,7 +319,7 @@ auto tatzel::ClientUpdater::SetOnClick(
 	json[ "op" ] = "set_on_click";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -311,7 +345,7 @@ auto tatzel::ClientUpdater::SetOnChange(
 	json[ "op" ] = "set_on_change";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -337,18 +371,19 @@ auto tatzel::ClientUpdater::SetOnSubmit(
 	json[ "op" ] = "set_on_submit";
 	json[ "data" ] = MakeJson_Data();
 
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
-auto tatzel::ClientUpdater::SendJSON(
+auto tatzel::ClientUpdater::Implementation::SendJSON(
+	ClientUpdater& updater,
 	const Json::Value& json
 ) -> void
 {
 	if( closed ) return;
 	if( !json[ "data" ].isArray() || JsonToString( json ).size() + 128 <= MaximumBatchBytes )
 	{
-		QueueOperation( json );
+		QueueOperation( updater, json );
 		return;
 	}
 
@@ -360,14 +395,14 @@ auto tatzel::ClientUpdater::SendJSON(
 		const auto part_bytes = JsonToString( part ).size() + 1;
 		if( bytes + part_bytes + 128 > MaximumBatchBytes && !operation[ "data" ].empty() )
 		{
-			QueueOperation( operation );
+			QueueOperation( updater, operation );
 			operation[ "data" ].clear();
 			bytes = JsonToString( operation ).size();
 		}
 		operation[ "data" ].append( part );
 		bytes += part_bytes;
 	}
-	if( !operation[ "data" ].empty() ) QueueOperation( std::move( operation ) );
+	if( !operation[ "data" ].empty() ) QueueOperation( updater, std::move( operation ) );
 }
 
 
@@ -401,7 +436,7 @@ auto tatzel::ClientUpdater::SetSelectOptions(
 	json[ "op" ] = "set_select_options";
 	json[ "data" ] = Json::Value{ Json::arrayValue };
 	json[ "data" ].append( std::move( part ) );
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 auto tatzel::ClientUpdater::SetRadioOptions(
@@ -432,7 +467,7 @@ auto tatzel::ClientUpdater::SetRadioOptions(
 	json[ "op" ] = "set_radio_options";
 	json[ "data" ] = Json::Value{ Json::arrayValue };
 	json[ "data" ].append( std::move( part ) );
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
@@ -441,90 +476,96 @@ auto tatzel::ClientUpdater::SetLocation( std::string_view hash ) -> void
 	auto json = Json::Value{ Json::objectValue };
 	json[ "op" ] = "set_location";
 	json[ "data" ][ "hash" ] = std::string{ hash };
-	SendJSON( json );
+	implementation->SendJSON( *this, json );
 }
 
 
-tatzel::ClientUpdater::ClientUpdater( std::function<void( const Json::Value& )> sink ) :
-	sink{ std::move( sink ) }
+tatzel::ClientUpdater::ClientUpdater(
+	std::function<void( std::string_view )> sink,
+	std::function<void()> close_transport
+) :
+	implementation{ std::make_unique<Implementation>() }
 {
-	if( !this->sink ) throw Exception{ "An update sender requires a frame sink" };
+	if( !sink ) throw Exception{ "An update sender requires a frame sink" };
+	implementation->sink = std::move( sink );
+	implementation->close_transport = std::move( close_transport );
 }
+
+tatzel::ClientUpdater::~ClientUpdater() = default;
+
+auto tatzel::ClientUpdater::GetLastSequence() const noexcept -> std::uint64_t { return implementation->sequence; }
 
 tatzel::ClientUpdateScope::ClientUpdateScope( ClientUpdater& updater ) :
 	updater{ &updater }
 {
-	++updater.batch_depth;
+	++updater.implementation->batch_depth;
 }
 
 tatzel::ClientUpdateScope::~ClientUpdateScope() noexcept { updater->EndBatch(); }
 
-auto tatzel::ClientUpdater::SendFrame( const Json::Value& frame ) -> void
-{
-	if( sink ) sink( frame );
-	else ws_connection->send( JsonToString( frame ) );
-}
-
-auto tatzel::ClientUpdater::QueueOperation( Json::Value operation ) -> void
+auto tatzel::ClientUpdater::Implementation::QueueOperation(
+	ClientUpdater& updater,
+	Json::Value operation
+) -> void
 {
 	const auto bytes = JsonToString( operation ).size() + 1;
 	if( bytes + 128 > MaximumBatchBytes )
 	{
-		Close();
-		if( ws_connection ) ws_connection->forceClose();
+		updater.Close();
+		if( close_transport ) close_transport();
 		throw Exception{ "One UI operation exceeds the 1 MiB batch limit" };
 	}
-	if( pending.size() >= MaximumBatchOperations || pending_bytes + bytes > MaximumBatchBytes ) Flush();
+	if( pending.size() >= MaximumBatchOperations || pending_bytes + bytes > MaximumBatchBytes ) updater.Flush();
 	pending.append( std::move( operation ) );
 	pending_bytes += bytes;
-	if( batch_depth == 0 ) Flush();
+	if( batch_depth == 0 ) updater.Flush();
 }
 
 auto tatzel::ClientUpdater::Flush() -> void
 {
-	if( closed || pending.empty() ) return;
-	if( sequence == MaximumWireRevision ) throw Exception{ "UI batch sequence exhausted" };
+	if( implementation->closed || implementation->pending.empty() ) return;
+	if( implementation->sequence == MaximumWireRevision ) throw Exception{ "UI batch sequence exhausted" };
 
 	auto frame = Json::Value{ Json::objectValue };
 	frame[ "op" ] = "update_batch";
-	frame[ "data" ][ "sequence" ] = Json::UInt64{ sequence + 1 };
-	frame[ "data" ][ "operations" ] = std::move( pending );
-	pending = Json::Value{ Json::arrayValue };
-	pending_bytes = 128;
+	frame[ "data" ][ "sequence" ] = Json::UInt64{ implementation->sequence + 1 };
+	frame[ "data" ][ "operations" ] = std::move( implementation->pending );
+	implementation->pending = Json::Value{ Json::arrayValue };
+	implementation->pending_bytes = 128;
 
 	try
 	{
-		SendFrame( frame );
-		++sequence;
+		implementation->SendFrame( frame );
+		++implementation->sequence;
 	}
 	catch( ... )
 	{
 		Close();
-		if( ws_connection ) ws_connection->forceClose();
+		if( implementation->close_transport ) implementation->close_transport();
 		throw;
 	}
 }
 
 auto tatzel::ClientUpdater::EndBatch() noexcept -> void
 {
-	assert( batch_depth > 0 );
-	--batch_depth;
-	if( batch_depth != 0 || closed ) return;
+	assert( implementation->batch_depth > 0 );
+	--implementation->batch_depth;
+	if( implementation->batch_depth != 0 || implementation->closed ) return;
 	try { Flush(); }
 	catch( ... )
 	{
 		LogException( std::current_exception(), { {}, "flush_updates" } );
 		Close();
-		try { if( ws_connection ) ws_connection->forceClose(); }
+		try { if( implementation->close_transport ) implementation->close_transport(); }
 		catch( ... ) { LogException( std::current_exception(), { {}, "close_failed_transport" } ); }
 	}
 }
 
 auto tatzel::ClientUpdater::Close() noexcept -> void
 {
-	closed = true;
-	pending.clear();
-	pending_bytes = 128;
+	implementation->closed = true;
+	implementation->pending.clear();
+	implementation->pending_bytes = 128;
 }
 
 auto tatzel::ClientUpdater::SendError(
@@ -533,25 +574,25 @@ auto tatzel::ClientUpdater::SendError(
 	bool fatal
 ) -> void
 {
-	if( closed ) return;
+	if( implementation->closed ) return;
 	Flush();
 	auto frame = Json::Value{ Json::objectValue };
 	frame[ "op" ] = "error";
 	frame[ "data" ][ "code" ] = std::string{ code };
 	frame[ "data" ][ "message" ] = std::string{ message };
 	frame[ "data" ][ "fatal" ] = fatal;
-	SendFrame( frame );
+	implementation->SendFrame( frame );
 	if( fatal ) Close();
 }
 
 auto tatzel::ClientUpdater::SendReady() -> void
 {
-	if( closed ) throw Exception{ "Cannot acknowledge a closed page" };
+	if( implementation->closed ) throw Exception{ "Cannot acknowledge a closed page" };
 	Flush();
 	auto frame = Json::Value{ Json::objectValue };
 	frame[ "op" ] = "page_ready";
-	frame[ "data" ][ "sequence" ] = Json::UInt64{ sequence };
-	SendFrame( frame );
+	frame[ "data" ][ "sequence" ] = Json::UInt64{ implementation->sequence };
+	implementation->SendFrame( frame );
 }
 
 
@@ -568,5 +609,5 @@ auto tatzel::ClientUpdater::SetChildOrder(
 	part[ "child_ids" ] = Json::Value{ Json::arrayValue };
 	for( const auto& id : child_ids ) part[ "child_ids" ].append( id );
 	operation[ "data" ].append( std::move( part ) );
-	SendJSON( operation );
+	implementation->SendJSON( *this, operation );
 }

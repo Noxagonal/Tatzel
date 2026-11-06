@@ -1,6 +1,6 @@
 #include <cassert>
 #include <functional>
-#include <json/json.h>
+#include "JsonFrames.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,7 +21,7 @@ import UI.Diagnostics;
 auto main() -> int
 {
 	auto frames = std::vector<Json::Value>{};
-	auto updater = tatzel::ClientUpdater{ [ &frames ]( const Json::Value& frame ) { frames.push_back( frame ); } };
+	auto updater = tatzel::ClientUpdater{ [ &frames ]( std::string_view frame ) { frames.push_back( ParseFrame( frame ) ); } };
 	{
 		auto outer = updater.BeginBatch();
 		updater.SetText( "heading", "first" );
@@ -94,7 +94,7 @@ auto main() -> int
 	updater.SetText( "ignored", "closed" );
 	assert( frames.size() == closed_count );
 
-	auto oversized = tatzel::ClientUpdater{ [ &frames ]( const Json::Value& frame ) { frames.push_back( frame ); } };
+	auto oversized = tatzel::ClientUpdater{ [ &frames ]( std::string_view frame ) { frames.push_back( ParseFrame( frame ) ); } };
 	try
 	{
 		oversized.SetText( "huge", std::string( tatzel::MaximumBatchBytes, 'x' ) );
@@ -104,7 +104,7 @@ auto main() -> int
 	oversized.SetText( "ignored", "closed" );
 	assert( frames.size() == closed_count );
 	auto attempts = 0;
-	auto broken = tatzel::ClientUpdater{ [ &attempts ]( const Json::Value& frame ) {
+	auto broken = tatzel::ClientUpdater{ [ &attempts ]( std::string_view frame ) {
 		++attempts;
 		throw tatzel::Exception{ "Expected transport failure" };
 	} };

@@ -10,7 +10,7 @@ namespace example {
 
 auto BuildProtocolShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void
 {
 	ui.Heading( "Protocol reliability" );
@@ -27,7 +27,7 @@ auto BuildProtocolShowcase(
 		if( !input ) return;
 		auto revision = input->GetEditRevision();
 		auto value = std::string{ input->GetValue() };
-		background.runTaskInQueue( [ input_handle, status, dispatcher, revision, value = std::move( value ) ] {
+		const auto submitted = background.Post( [ input_handle, status, dispatcher, revision, value = std::move( value ) ] {
 			std::this_thread::sleep_for( std::chrono::milliseconds{ 150 } );
 			dispatcher.Post( [ input_handle, status, revision, value ] {
 				auto* input = input_handle.Get();
@@ -35,7 +35,8 @@ auto BuildProtocolShowcase(
 				if( auto* text = status.Get() ) text->SetText( applied ? "Normalization applied" : "Stale result ignored" );
 			} );
 		} );
-		if( auto* text = status.Get() ) text->SetText( "Normalizing" );
+		if( auto* text = status.Get() ) text->SetText( submitted == tatzel::TaskQueueResult::Accepted
+			? "Normalizing" : "Background queue busy; retry" );
 	} );
 	ui.Button( "Reset draft", [ input_handle ] {
 		if( auto* input = input_handle.Get() ) input->SetValue( "initial", tatzel::ui::ValueUpdatePolicy::Replace );

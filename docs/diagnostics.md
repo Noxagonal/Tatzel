@@ -10,7 +10,7 @@ tatzel::Log( tatzel::LogLevel::Info, "Application initialized" );
 
 Log preserves the application's logging source location. Configure the shared
 threshold after constructing App and before Run with SetLogLevel, or use app.log in
-data/drogon_config.json. The example config uses INFO and an empty log_path for
+data/drogon_config.json under the selected runtime directory. The example config uses INFO and an empty log_path for
 console output. DEBUG adds registered-route details. Tatzel emits starting,
 listening, and stopped messages; the listening message is queued after Drogon's
 listener-start phase. These messages remain enabled in release builds when the

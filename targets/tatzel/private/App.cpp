@@ -1,12 +1,17 @@
 module;
 
 #include <drogon/drogon.h>
+#include "RuntimeConfiguration.hpp"
 #include <algorithm>
+#include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <system_error>
+#include <utility>
 
 module UI.App;
 
@@ -21,18 +26,81 @@ import UI.Logging;
 
 namespace {
 	tatzel::App* global_app = nullptr;
+
+	/// @brief Chooses an owned absolute runtime root with explicit paths taking precedence.
+	/// @param requested Explicit application resource directory, or empty for discovery.
+	/// @return Absolute resource directory; no file ownership is retained.
+	/// @pre Environment variables are not concurrently modified.
+	/// @post Filesystem state is unchanged.
+	/// @throws tatzel::Exception If the chosen runtime directory does not exist.
+	auto ResolveResourceDirectory( std::string_view requested ) -> std::string
+	{
+		auto directory = std::filesystem::path{ requested };
+		if( directory.empty() )
+		{
+			if( const auto* configured = std::getenv( "TATZEL_RESOURCE_DIRECTORY" ); configured && *configured ) directory = configured;
+		}
+#if defined( __linux__ )
+		if( directory.empty() )
+		{
+			auto error = std::error_code{};
+			auto executable = std::filesystem::read_symlink( "/proc/self/exe", error );
+			if( !error )
+			{
+				auto adjacent = executable.parent_path() / "tatzel-runtime";
+				if( std::filesystem::is_directory( adjacent, error ) ) directory = std::move( adjacent );
+			}
+		}
+#endif
+		if( directory.empty() ) directory = TATZEL_DEFAULT_RUNTIME_DIRECTORY;
+		directory = std::filesystem::absolute( directory ).lexically_normal();
+		if( !std::filesystem::is_directory( directory ) ) throw tatzel::Exception{ "Tatzel runtime directory does not exist: " + directory.string() };
+		return directory.string();
+	}
+
+	/// @brief Resolves one owned resource path against an absolute runtime directory.
+	/// @param directory Absolute runtime root.
+	/// @param path Absolute path or resource-relative path.
+	/// @return Owned absolute normalized path.
+	/// @pre directory is absolute.
+	/// @post No files are opened or changed.
+	auto ResolveResourcePath(
+		std::string_view directory,
+		std::string_view path
+	) -> std::string
+	{
+		return ( std::filesystem::path{ directory } / std::filesystem::path{ path } ).lexically_normal().string();
+	}
+}
+
+tatzel::App::App( AppOptions options ) :
+	resource_directory{ ResolveResourceDirectory( options.resource_directory ) },
+	template_path{ ResolveResourcePath( resource_directory, options.template_path ) },
+	listen_address{ std::move( options.listen_address ) },
+	port{ options.port }
+{
+	if( global_app ) throw tatzel::Exception{ "Global app already exists" };
+	if( options.template_path.empty() ) throw tatzel::Exception{ "Tatzel template path must not be empty" };
+	if( listen_address.empty() || !port || !options.thread_count ) throw tatzel::Exception{ "Server address, port, and thread count must be nonempty" };
+
+	if( !options.configuration_path.empty() ) drogon::app().loadConfigFile( ResolveResourcePath( resource_directory, options.configuration_path ) );
+	if( !options.document_root.empty() ) drogon::app().setDocumentRoot( ResolveResourcePath( resource_directory, options.document_root ) );
+	drogon::app().setThreadNum( options.thread_count );
+	SetLogLevel( options.log_level );
+	global_app = this;
 }
 
 tatzel::App::App(
 	std::string_view configuration_path,
 	std::string_view template_path
 ) :
-	template_path{ template_path }
-{
-	if( global_app ) throw tatzel::Exception{ "Global app already exists" };
-	drogon::app().loadConfigFile( std::string{ configuration_path } );
-	global_app = this;
-}
+	App{ AppOptions{
+		.resource_directory = std::filesystem::current_path().string(),
+		.configuration_path = std::string{ configuration_path },
+		.template_path = std::string{ template_path },
+		.document_root = ""
+	} }
+{}
 
 tatzel::App::~App()
 {
@@ -111,7 +179,7 @@ auto tatzel::App::Run() -> void
 #else
 					const auto mode = "Debug";
 #endif
-					Log( LogLevel::Info, std::string{ "Tatzel listening at http://0.0.0.0:8080 (" } + mode
+					Log( LogLevel::Info, "Tatzel listening at http://" + listen_address + ":" + std::to_string( port ) + " (" + mode
 						+ ", " + std::to_string( registered_page_list.size() ) + " routes)" );
 					for( const auto& page : registered_page_list )
 						Log( LogLevel::Debug, "Registered route: " + page.route_path );
@@ -121,8 +189,8 @@ auto tatzel::App::Run() -> void
 		}
 		catch( ... ) { LogException( std::current_exception(), { {}, "startup_report" } ); }
 	} );
-	Log( LogLevel::Info, "Starting Tatzel on 0.0.0.0:8080" );
-	drogon::app().addListener( "0.0.0.0", 8080 ).run();
+	Log( LogLevel::Info, "Starting Tatzel on " + listen_address + ":" + std::to_string( port ) );
+	drogon::app().addListener( listen_address, port ).run();
 	Log( LogLevel::Info, "Tatzel stopped" );
 }
 

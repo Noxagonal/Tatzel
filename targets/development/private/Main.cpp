@@ -9,7 +9,7 @@
 auto main() -> int
 try
 {
-	auto background = trantor::ConcurrentTaskQueue{ 2, "Tatzel example" };
+	auto background = tatzel::TaskQueue{ { .worker_count = 2 } };
 	auto app = tatzel::App{};
 
 	example::RegisterShowcases( app, background );

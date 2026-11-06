@@ -2,8 +2,7 @@
 /// @brief Internal sender for concrete browser DOM operations.
 module;
 
-#include <drogon/WebSocketConnection.h>
-#include <json/json.h>
+#include <memory>
 #include <span>
 #include <cstddef>
 #include <cstdint>
@@ -61,17 +60,34 @@ private:
 export class ClientUpdater
 {
 public:
-	/// @brief Binds the sender to one browser transport.
-	/// @param ws_connection Live browser WebSocket.
-	/// @pre ws_connection is nonnull and belongs to the owning client page.
-	/// @post Subsequent DOM operations use that transport.
-	explicit ClientUpdater( drogon::WebSocketConnectionPtr ws_connection );
+	/// @brief Binds owned transport callbacks without exposing a networking or JSON backend.
+	/// @param sink Callback consuming or copying a borrowed complete JSON frame synchronously.
+	/// @param close_transport Optional callback closing a failed browser transport.
+	/// @pre sink is nonempty; callbacks and their captures remain usable until destruction.
+	/// @post Frames use the sink; only the implementation retains protocol state.
+	/// @throws tatzel::Exception If sink is empty.
+	explicit ClientUpdater(
+		std::function<void( std::string_view )> sink,
+		std::function<void()> close_transport = {}
+	);
 
-	/// @brief Binds an owned frame sink for embedding and deterministic protocol checks.
-	/// @param sink Callback that consumes or copies each complete frame synchronously.
-	/// @pre sink is nonempty and its captures outlive sender calls.
-	/// @post Frames use sink without retaining any borrowed payload storage.
-	explicit ClientUpdater( std::function<void( const Json::Value& )> sink );
+	/// @brief Releases protocol state without sending more frames.
+	/// @pre All update scopes have ended; called on the owning loop.
+	/// @post Transport callbacks and queued operations are released.
+	~ClientUpdater();
+
+	/// @brief Prevents duplicate ownership of one protocol stream.
+	/// @param other Source sender.
+	/// @pre None.
+	/// @post Copy construction is unavailable.
+	ClientUpdater( const ClientUpdater& other ) = delete;
+
+	/// @brief Prevents rebinding a live protocol stream.
+	/// @param other Source sender.
+	/// @return No value; assignment is unavailable.
+	/// @pre None.
+	/// @post Copy assignment is unavailable.
+	auto operator=( const ClientUpdater& other ) -> ClientUpdater& = delete;
 
 	/// @brief Enters a nested automatic batching boundary.
 	/// @return Noncopyable guard borrowing this sender.
@@ -94,7 +110,7 @@ public:
 	/// @return Zero before the first batch, otherwise a JavaScript-safe integer.
 	/// @pre Called on the owning loop.
 	/// @post State is unchanged.
-	auto GetLastSequence() const noexcept -> std::uint64_t { return sequence; }
+	auto GetLastSequence() const noexcept -> std::uint64_t;
 
 	/// @brief Flushes prior updates before reporting an application or protocol failure.
 	/// @param code Stable public failure code.
@@ -252,31 +268,10 @@ private:
 	/// @post Outermost updates are flushed, or the sender is closed and the failure logged.
 	auto EndBatch() noexcept -> void;
 
-	/// @brief Adds one complete operation, flushing before either batch limit is exceeded.
-	/// @param operation Owned command whose array payload has already been partitioned.
-	/// @pre The command fits the byte limit on its own.
-	/// @post The operation is queued or, outside a scope, immediately flushed.
-	auto QueueOperation( Json::Value operation ) -> void;
+	/// @brief Owns private wire values and transport callbacks.
+	struct Implementation;
+	std::unique_ptr<Implementation> implementation;
 
-	/// @brief Sends one control or batch frame through the bound transport/sink.
-	/// @param frame Complete frame whose storage is borrowed only during this call.
-	/// @pre Called on the owning loop; the sender is open.
-	/// @post The sink has consumed the frame or thrown.
-	auto SendFrame( const Json::Value& frame ) -> void;
-
-	/// @brief Serializes and queues a JSON message on the bound transport.
-	/// @param json Complete op/data message.
-	/// @pre The transport is alive; json matches the documented wire protocol.
-	/// @post An owned serialized message has been passed to Drogon.
-	auto SendJSON( const Json::Value& json ) -> void;
-
-	drogon::WebSocketConnectionPtr ws_connection;
-	std::function<void( const Json::Value& )> sink;
-	Json::Value pending{ Json::arrayValue };
-	std::size_t pending_bytes = 128;
-	std::size_t batch_depth = 0;
-	std::uint64_t sequence = 0;
-	bool closed = false;
 };
 
 }

@@ -21,7 +21,7 @@ struct Showcase
 
 auto RegisterShowcases(
 	tatzel::App& app,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void
 {
 	auto showcases = std::vector<Showcase>{

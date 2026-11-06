@@ -15,7 +15,7 @@ files (`libsqlite3-dev` on Ubuntu). The sample is enabled by default; set
 From the repository root:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-18
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --target TatzelWorkspace
 ./build/targets/workspace/TatzelWorkspace
 ```

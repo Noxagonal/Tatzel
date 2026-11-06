@@ -1,0 +1,4 @@
+#pragma once
+
+// Fallback for applications that have not deployed an adjacent runtime.
+#define TATZEL_DEFAULT_RUNTIME_DIRECTORY "@TATZEL_RUNTIME_DIRECTORY_LITERAL@"
