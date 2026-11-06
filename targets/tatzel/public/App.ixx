@@ -35,7 +35,7 @@ public:
 	/// @brief Resolves runtime resources, loads configuration, and establishes the global application.
 	/// @param options Owned paths; relative file paths use the selected runtime root.
 	/// @pre No other App exists; runtime resources and any configuration file are available.
-	/// @post This object is returned by GetGlobalApp(); paths are independent of later working-directory changes.
+	/// @post This object is returned by GetGlobalApp(); nonempty option paths are resolved at construction.
 	/// @throws tatzel::Exception If another App exists or the runtime/template location is invalid.
 	App( AppOptions options = {} );
 

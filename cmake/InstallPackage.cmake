@@ -28,3 +28,15 @@ install(DIRECTORY "${Tatzel_RUNTIME_DIRECTORY}/" DESTINATION "${TATZEL_INSTALL_R
 install(DIRECTORY "${Tatzel_SOURCE_DIR}/examples/installed" DESTINATION "${CMAKE_INSTALL_DATADIR}/tatzel/examples")
 install(FILES "${Tatzel_SOURCE_DIR}/LICENSE" "${Tatzel_SOURCE_DIR}/docs/package.md"
 	DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/Tatzel")
+
+# Preserve notices for native dependencies installed from the fetched sources.
+if(DEFINED drogon_SOURCE_DIR)
+	install(FILES "${drogon_SOURCE_DIR}/LICENSE"
+		DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/Tatzel/licenses" RENAME Drogon.LICENSE)
+	install(FILES "${drogon_SOURCE_DIR}/orm_lib/COPYING"
+		DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/Tatzel/licenses" RENAME Drogon-ORM.COPYING)
+	if(EXISTS "${drogon_SOURCE_DIR}/trantor/License")
+		install(FILES "${drogon_SOURCE_DIR}/trantor/License"
+			DESTINATION "${CMAKE_INSTALL_DATADIR}/doc/Tatzel/licenses" RENAME Trantor.LICENSE)
+	endif()
+endif()

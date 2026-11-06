@@ -68,7 +68,7 @@ The installation includes:
 | share/tatzel/source | Public module interfaces and private implementation sources. |
 | share/tatzel/runtime | Matching data/template/configuration, www/app, and www/framework assets. |
 | share/tatzel/examples/installed | Standalone sample project, with its own README. |
-| share/doc/Tatzel | This guide and the license. |
+| share/doc/Tatzel | This guide, the framework license, and fetched dependency notices under licenses. |
 
 The package configuration uses its installation location rather than the original
 checkout/build paths. You may relocate the whole prefix before configuring a
