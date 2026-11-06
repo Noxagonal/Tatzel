@@ -25,7 +25,7 @@ struct CaptureProbe
 
 /// @brief Checks ownership, draining, bounded rejection, failures, and concurrent shutdown.
 /// @return Zero when the queue's application-facing lifetime contract holds.
-/// @pre Assertions are enabled and the actual shared library is linked.
+/// @pre Assertions are enabled and the actual queue implementation is linked.
 /// @post Every test worker is joined and all accepted captures have been released.
 auto main() -> int
 {

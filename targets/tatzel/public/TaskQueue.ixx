@@ -39,6 +39,8 @@ public:
 	/// @pre None.
 	/// @post The queue accepts callbacks; no application work has run yet.
 	/// @throws tatzel::Exception If either limit is zero.
+	/// @throws std::system_error If a worker thread cannot be started.
+	/// @throws std::bad_alloc If worker or queue storage cannot be allocated.
 	TaskQueue( TaskQueueOptions options = {} );
 
 	/// @brief Drains accepted callbacks and releases joined worker threads.
@@ -79,6 +81,7 @@ public:
 	/// @pre Capture destructors do not throw; this queue remains alive throughout the call.
 	/// @post Accepted work runs once on a worker; failures are logged and other work continues.
 	/// @throws tatzel::Exception If callback is empty.
+	/// @throws std::bad_alloc If pending task storage cannot be allocated.
 	auto Post(
 		std::move_only_function<void()> callback,
 		std::source_location origin = std::source_location::current()

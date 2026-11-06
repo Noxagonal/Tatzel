@@ -17,7 +17,7 @@ import UI.Logging;
 
 namespace tatzel {
 
-/// @brief Owns runtime resource locations for a server application.
+/// @brief Owns server settings and runtime resource locations for an application.
 /// @details Relative file paths use resource_directory. An empty resource directory
 /// selects TATZEL_RESOURCE_DIRECTORY, an adjacent tatzel-runtime directory on Linux,
 /// then the configured package/build runtime.
@@ -43,7 +43,7 @@ public:
 	/// @param options Owned paths; relative file paths use the selected runtime root.
 	/// @pre No other App exists; runtime resources and any configuration file are available.
 	/// @post This object is returned by GetGlobalApp(); nonempty option paths are resolved at construction.
-	/// @throws tatzel::Exception If another App exists or the runtime/template location is invalid.
+	/// @throws tatzel::Exception If another App exists, resources are invalid, or server limits are empty.
 	App( AppOptions options = {} );
 
 	/// @brief Loads explicit legacy file paths relative to the current working directory.
@@ -113,7 +113,7 @@ public:
 	/// @post Runtime configuration is unchanged.
 	auto GetResourceDirectory() const noexcept -> std::string_view { return resource_directory; }
 
-	/// @brief Registers the WebSocket controller and runs the server on port 8080.
+	/// @brief Registers the WebSocket controller and runs the configured server listener.
 	/// @pre Called once after all pages are registered; runtime assets are available.
 	/// @post Returns after Drogon stops; the application cannot be run again.
 	/// @throws tatzel::Exception If Run() has already been called.
