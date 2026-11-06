@@ -2,10 +2,13 @@ module;
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <exception>
 #include <functional>
 #include <cstdint>
 #include <json/json.h>
+#include <memory>
+#include <span>
 #include <string_view>
 
 #include <string>

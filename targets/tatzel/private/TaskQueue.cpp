@@ -1,6 +1,7 @@
 module;
 
 #include <condition_variable>
+#include <cstddef>
 #include <deque>
 #include <exception>
 #include <functional>

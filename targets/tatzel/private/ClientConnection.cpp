@@ -9,6 +9,8 @@ module;
 #include <exception>
 #include <functional>
 #include <source_location>
+#include <string>
+#include <string_view>
 #include <thread>
 
 module UI.ClientConnection;
