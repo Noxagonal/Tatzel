@@ -1,5 +1,5 @@
 /**
- * @brief Protocol-v2 transport adapter for the existing control behavior suites.
+ * @brief Protocol-v3 transport adapter for the existing control behavior suites.
  * @details Exposes operations individually to their existing DOM observers while
  * retaining raw frames for batch assertions. Native-wire tests use WebSocket directly.
  */
@@ -47,7 +47,7 @@ export class ProtocolSocket extends EventTarget {
 	send(text) {
 		let message;
 		try { message = JSON.parse(text); } catch { this.socket.send(text); return; }
-		if (message.op === "connect") message.data.protocol_version ??= 2;
+		if (message.op === "connect") message.data.protocol_version ??= 3;
 		const stamp = field => {
 			if (field.epoch !== undefined || field.revision !== undefined) return;
 			const state = this.fields.get(field.part_id) ?? { epoch: 0, revision: 0 };

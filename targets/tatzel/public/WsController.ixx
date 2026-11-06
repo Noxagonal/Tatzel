@@ -53,7 +53,11 @@ public:
 		try
 		{
 			CreateClientConnection( ws_connection );
-			ws_connection->send( R"({"op":"connected","data":{"message":"Connected","protocol_version":2}})" );
+			auto acknowledgment = Json::Value{ Json::objectValue };
+			acknowledgment[ "op" ] = "connected";
+			acknowledgment[ "data" ][ "message" ] = "Connected";
+			acknowledgment[ "data" ][ "protocol_version" ] = tatzel::ProtocolVersion;
+			ws_connection->send( tatzel::JsonToString( acknowledgment ) );
 		}
 		catch( ... )
 		{

@@ -132,7 +132,7 @@ try {
 	// A malformed later command must prevent even the first command from applying.
 	const malformed = await context.newPage();
 	await malformed.routeWebSocket("**/ws", socket => socket.onMessage(() => {
-		socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 2 } }));
+		socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 3 } }));
 		socket.send(JSON.stringify({ op: "update_batch", data: { sequence: 1, operations: [
 			{ op: "create_element_part", data: [{ part_id: "must-not-exist", parent_id: "root|main", tag: "p", text_content: "invalid partial update", attributes: {}, classes: [] }] },
 			{ op: "unknown", data: [] }
@@ -147,7 +147,7 @@ try {
 	]) {
 		const invalid = await context.newPage();
 		await invalid.routeWebSocket("**/ws", socket => socket.onMessage(() => {
-			socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 2 } }));
+			socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 3 } }));
 			socket.send(JSON.stringify({ op: "update_batch", data: { sequence, operations } }));
 		}));
 		await invalid.goto("http://127.0.0.1:8080/protocol");
@@ -157,7 +157,7 @@ try {
 	const timedOut = await context.newPage();
 	await timedOut.clock.install();
 	await timedOut.routeWebSocket("**/ws", socket => socket.onMessage(() => {
-		socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 2 } }));
+		socket.send(JSON.stringify({ op: "connected", data: { message: "Connected", protocol_version: 3 } }));
 	}));
 	await timedOut.goto("http://127.0.0.1:8080/protocol");
 	await timedOut.waitForFunction(() => document.documentElement.dataset.tatzelConnection === "initializing");

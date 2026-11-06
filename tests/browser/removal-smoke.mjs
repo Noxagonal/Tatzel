@@ -134,7 +134,7 @@ test("logical removal invalidates identities, preserves parents, and survives ca
 		await waitFor(() => diagnostics.includes("Lifecycle example callback failed after removal"));
 		assert.match(diagnostics, /Route: \/lifecycle\n  Operation: on_click\n  Element: ui-/);
 		assert.match(diagnostics, /Exception: tatzel::Exception\n  Message: Lifecycle example callback failed after removal/);
-		assert.match(diagnostics, /Thrown at: .*Main\.cpp:\d+\n  Function: void FailLifecycleAction/);
+		assert.match(diagnostics, /Thrown at: .*LifecycleShowcase\.cpp:\d+\n  Function: void [^\n]*FailLifecycleAction\(\)/);
 		assert.match(diagnostics, /Callback: Button click/);
 		assert.ok(!diagnostics.includes("__libc_start_main") && !diagnostics.includes("WsController::DispatchMessage"));
 		assert.ok(!diagnostics.includes("/bits/invoke.h") && !diagnostics.includes("/bits/std_function.h"));

@@ -16,7 +16,7 @@ async function waitFor(predicate)
 }
 
 /** @brief Opens an unmodified native wire client. @param path Registered route. @param version Explicit protocol version. @returns Socket, frames, send, and operation accessors. @pre Server is listening. @post Transport acknowledgment is received; initialization has been sent. */
-async function connect(path, version = 2)
+async function connect(path, version = 3)
 {
 	const socket = new WebSocket("ws://127.0.0.1:8080/ws");
 	const frames = [];

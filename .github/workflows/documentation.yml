@@ -93,6 +93,7 @@ jobs:
           timeout 120s node tests/browser/workspace-ui.mjs ./build/targets/workspace/TatzelWorkspace
           timeout 90s node tests/browser/reliability-ui.mjs ./build/targets/development/TatzelDevelopment
           timeout 90s node tests/browser/components-ui.mjs ./build/targets/development/TatzelDevelopment
+          timeout 90s node tests/browser/tables-ui.mjs ./build/targets/development/TatzelDevelopment
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -105,4 +106,11 @@ jobs:
         with:
           name: tatzel-components-preview
           path: build/components-preview
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tatzel-table-preview
+          path: build/table-preview
           if-no-files-found: ignore

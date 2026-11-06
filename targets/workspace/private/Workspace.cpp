@@ -18,6 +18,7 @@
 #include <system_error>
 #include <thread>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 import UI;
@@ -507,7 +508,7 @@ private:
 			.filters = {
 				{ "status", "Status", { { "all", "All statuses" }, { "todo", "To do" }, { "doing", "In progress" }, { "done", "Done" } }, status_filter, "all" },
 				{ "project", "Project", std::move( projects ), project_filter, "all" },
-				{ "sort", "Sort", { { "newest", "Newest first" }, { "title", "Title A–Z" }, { "priority", "Priority" } }, sort, "newest" }
+				{ "sort", "Sort", { { "newest", "Newest first" }, { "title", "Title A–Z" }, { "title-desc", "Title Z–A" }, { "priority", "Priority high first" }, { "priority-desc", "Priority low first" } }, sort, "newest" }
 			}, .reset_label = ""
 		};
 		auto* filters = ui.Component<tatzel::ui::SearchFilterBar>( std::move( options ) );
@@ -532,7 +533,36 @@ private:
 				self->root.Navigate( "#/tasks" );
 			} )->SetVariant( tatzel::ui::ButtonVariant::Secondary );
 		} )->SetAppearance( "list-controls" );
-		results = ui.Container( []( auto ) {} )->GetHandle();
+		result_count = ui.Paragraph( "0 tasks" )->GetHandle();
+		result_count.Get()->SetAppearance( "result-count" );
+		selected_task = 0;
+		selection_feedback = ui.Paragraph( "No task selected" )->GetHandle();
+		selection_feedback.Get()->SetLiveRegion( tatzel::ui::LiveRegion::Polite );
+		selection_feedback.Get()->SetAppearance( "muted" );
+		auto* open = ui.Button( "Open selected task", [ self ] {
+			if( self->selected_task ) self->root.Navigate( "#/task/" + std::to_string( self->selected_task ) );
+		} );
+		open->SetVariant( tatzel::ui::ButtonVariant::Secondary );
+		open->SetDisabled( true );
+		open_selected = open->GetHandle();
+		auto* table = ui.Table( "Workspace tasks", {
+			{ "status", "Status" }, { "task", "Task", true }, { "priority", "Priority", true }, { "actions", "Actions" }
+		}, tatzel::ui::TableSelection::Single );
+		table->SetEmptyText( "No tasks match this view. Adjust the filters or create something new." );
+		table->SetAppearance( "workspace-task-table" );
+		results = table->GetHandle();
+		task_row_views.clear();
+		table->SetOnSort( [ self ]( tatzel::ui::TableSort request ) {
+			self->sort = request.column == "task" ? "title" : "priority";
+			if( request.direction == tatzel::ui::TableSortDirection::Descending ) self->sort += "-desc";
+			if( auto* filters = self->filter_bar.Get() ) filters->SetFilterValue( "sort", self->sort );
+			self->RenderTaskRows();
+		} );
+		table->SetOnSelectionChanged( [ self ]( std::vector<std::string> keys ) {
+			self->selected_task = keys.empty() ? 0 : ParseID( keys.front() );
+			if( auto* text = self->selection_feedback.Get() ) text->SetText( self->selected_task ? "One task selected" : "No task selected" );
+			if( auto* button = self->open_selected.Get() ) button->SetDisabled( !self->selected_task );
+		} );
 		RenderTaskRows();
 	}
 
@@ -561,7 +591,7 @@ private:
 	{
 		auto* parent = results.Get();
 		if( !parent ) return;
-		parent->ClearChildren();
+		auto dispatch = parent->BeginDispatch();
 		auto ui = root.Scope( *parent );
 		auto tasks = std::vector<Task>{};
 		auto search = SearchKey( query );
@@ -574,26 +604,68 @@ private:
 			if( !search.empty() && SearchKey( task.title + " " + task.description ).find( search ) == std::string::npos ) continue;
 			tasks.push_back( task );
 		}
-		if( sort == "title" ) std::ranges::stable_sort( tasks, {}, []( const auto& task ) { return SearchKey( task.title ); } );
-		if( sort == "priority" ) std::ranges::stable_sort( tasks, {}, []( const auto& task ) { return task.priority == "high" ? 0 : task.priority == "normal" ? 1 : 2; } );
-		ui.Paragraph( std::to_string( tasks.size() ) + ( tasks.size() == 1 ? " task" : " tasks" ) )->SetAppearance( "result-count" );
-		if( tasks.empty() )
-		{
-			ui.Card( "A little breathing room.", []( auto card ) { card.Paragraph( "No tasks match this view. Adjust the filters or create something new." ); } );
-			return;
-		}
+		if( sort == "title" || sort == "title-desc" ) std::ranges::stable_sort( tasks, [ this ](
+			const auto& left,
+			const auto& right
+		) { return sort == "title" ? SearchKey( left.title ) < SearchKey( right.title ) : SearchKey( right.title ) < SearchKey( left.title ); } );
+		if( sort == "priority" || sort == "priority-desc" ) std::ranges::stable_sort( tasks, [ this ](
+			const auto& left,
+			const auto& right
+		) {
+			auto rank = []( const auto& task ) { return task.priority == "high" ? 0 : task.priority == "normal" ? 1 : 2; };
+			return sort == "priority" ? rank( left ) < rank( right ) : rank( right ) < rank( left );
+		} );
+		parent->SetSort( sort == "newest" ? tatzel::ui::TableSort{} : tatzel::ui::TableSort{
+			sort.starts_with( "title" ) ? "task" : "priority",
+			sort.ends_with( "-desc" ) ? tatzel::ui::TableSortDirection::Descending : tatzel::ui::TableSortDirection::Ascending } );
+		if( auto* count = result_count.Get() ) count->SetText( std::to_string( tasks.size() ) + ( tasks.size() == 1 ? " task" : " tasks" ) );
+		for( auto* row : parent->GetRows() )
+			if( std::ranges::none_of( tasks, [ row ]( const auto& task ) { return std::to_string( task.id ) == row->GetKey(); } ) ) parent->RemoveRow( row->GetKey() );
+		std::erase_if( task_row_views, []( const auto& entry ) { return !entry.second.row.Get(); } );
+		auto order = std::vector<std::string>{};
 		for( const auto& task : tasks )
 		{
-			ui.Container( [ this, &task ]( auto row ) {
-				row.Text( StatusLabel( task.status ) )->SetAppearance( "status " + task.status );
-				row.Container( [ this, &task ]( auto details ) {
-					details.Link( task.title, "#/task/" + std::to_string( task.id ) )->SetAppearance( "task-title" );
-					details.Text( ProjectName( task.project_id ) + ( task.archived ? " · Archived" : "" ) )->SetAppearance( "muted" );
-				} )->SetAppearance( "task-summary" );
-				row.Text( task.priority == "high" ? "High priority" : task.priority == "low" ? "Low priority" : "Normal priority" )->SetAppearance( "priority " + task.priority );
-				row.Link( "Open →", "#/task/" + std::to_string( task.id ) )->SetAppearance( "row-action" );
-			} )->SetAppearance( "task-row" );
+			auto key = std::to_string( task.id );
+			order.push_back( key );
+			if( auto found = task_row_views.find( task.id ); found != task_row_views.end() )
+			{
+				auto& view = found->second;
+				view.row.Get()->SetLabel( task.title );
+				view.status.Get()->SetText( StatusLabel( task.status ) );
+				view.status.Get()->SetAppearance( "status " + task.status );
+				view.title.Get()->SetText( task.title );
+				view.project.Get()->SetText( ProjectName( task.project_id ) + ( task.archived ? " · Archived" : "" ) );
+				view.priority.Get()->SetText( task.priority == "high" ? "High priority" : task.priority == "low" ? "Low priority" : "Normal priority" );
+				view.priority.Get()->SetAppearance( "priority " + task.priority );
+				continue;
+			}
+			auto view = TaskRowView{};
+			auto* row = ui.TableRow( key, [ this, &task, &view ]( auto cells ) {
+				cells.TableCell( "status", [ &task, &view ]( auto content ) {
+					auto* status = content.Text( StatusLabel( task.status ) );
+					status->SetAppearance( "status " + task.status );
+					view.status = status->GetHandle();
+				} );
+				cells.TableCell( "task", [ this, &task, &view ]( auto content ) {
+					auto* title = content.Link( task.title, "#/task/" + std::to_string( task.id ) );
+					title->SetAppearance( "task-title" );
+					view.title = title->GetHandle();
+					auto* project = content.Text( ProjectName( task.project_id ) + ( task.archived ? " · Archived" : "" ) );
+					project->SetAppearance( "muted" );
+					view.project = project->GetHandle();
+				} );
+				cells.TableCell( "priority", [ &task, &view ]( auto content ) {
+					auto* priority = content.Text( task.priority == "high" ? "High priority" : task.priority == "low" ? "Low priority" : "Normal priority" );
+					priority->SetAppearance( "priority " + task.priority );
+					view.priority = priority->GetHandle();
+				} );
+				cells.TableCell( "actions", [ &task ]( auto content ) {
+					content.Link( "Open →", "#/task/" + std::to_string( task.id ) )->SetAppearance( "row-action" );
+				} );
+			}, task.title );
+			if( row ) { view.row = row->GetHandle(); task_row_views.emplace( task.id, std::move( view ) ); }
 		}
+		parent->SetRowOrder( std::move( order ) );
 	}
 
 	/// @brief Builds an editable task form with owned optimistic-version captures.
@@ -773,7 +845,21 @@ private:
 	tatzel::Dispatcher dispatcher;
 	std::shared_ptr<const Snapshot> snapshot;
 	tatzel::ui::ElementHandle<tatzel::ui::Container> content;
-	tatzel::ui::ElementHandle<tatzel::ui::Container> results;
+	/// @brief Checked references to one persistent task row's independently updated cells.
+	struct TaskRowView
+	{
+		tatzel::ui::ElementHandle<tatzel::ui::TableRow> row; ///< Stable row subtree.
+		tatzel::ui::ElementHandle<tatzel::ui::Text> status; ///< Status chip.
+		tatzel::ui::ElementHandle<tatzel::ui::Link> title; ///< Task editor link.
+		tatzel::ui::ElementHandle<tatzel::ui::Text> project; ///< Project description.
+		tatzel::ui::ElementHandle<tatzel::ui::Text> priority; ///< Priority wording.
+	};
+	tatzel::ui::ElementHandle<tatzel::ui::Table> results;
+	tatzel::ui::ElementHandle<tatzel::ui::Paragraph> result_count;
+	tatzel::ui::ElementHandle<tatzel::ui::Paragraph> selection_feedback;
+	tatzel::ui::ElementHandle<tatzel::ui::Button> open_selected;
+	std::unordered_map<std::int64_t, TaskRowView> task_row_views;
+	std::int64_t selected_task = 0;
 	tatzel::ui::ElementHandle<tatzel::ui::Paragraph> notice;
 	tatzel::ui::ElementHandle<tatzel::ui::SearchFilterBar> filter_bar;
 	tatzel::ui::ElementHandle<tatzel::ui::Form> active_form;

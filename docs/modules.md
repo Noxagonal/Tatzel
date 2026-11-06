@@ -32,10 +32,14 @@ CMake helpers collect ordinary sources, headers, and module interfaces from
 public and private. Browser builds use the source path above, and assets are
 emitted into the ignored www/app directory.
 
-UI.Protocol defines shared batch limits, version 2, ClientEdit, EditRevision,
+UI.Protocol defines shared batch limits, version 3, ClientEdit, EditRevision,
 ValueUpdate, and ValueUpdatePolicy. UI.ClientUpdater owns nested update scopes
 and ordered control-frame barriers.
 
 UI.Element.Component provides the logical composition base. UI.Component.SearchFilterBar
 and UI.Component.ConfirmationDialog provide reusable compositions and are exported
 by UI. UI.Element.Style defines ControlSize and LiveRegion.
+
+UI.Element.Table exports Table, TableRow, TableCell, TableColumn, TableSort,
+TableSortDirection, and TableSelection. The default adapter maps these logical
+objects to native caption/table/thead/tbody/tr/th/td parts. See [tables](tables.md).

@@ -553,3 +553,20 @@ auto tatzel::ClientUpdater::SendReady() -> void
 	frame[ "data" ][ "sequence" ] = Json::UInt64{ sequence };
 	SendFrame( frame );
 }
+
+
+auto tatzel::ClientUpdater::SetChildOrder(
+	std::string_view parent_id,
+	std::span<const std::string> child_ids
+) -> void
+{
+	auto operation = Json::Value{ Json::objectValue };
+	operation[ "op" ] = "set_child_order";
+	operation[ "data" ] = Json::Value{ Json::arrayValue };
+	auto part = Json::Value{ Json::objectValue };
+	part[ "parent_id" ] = std::string{ parent_id };
+	part[ "child_ids" ] = Json::Value{ Json::arrayValue };
+	for( const auto& id : child_ids ) part[ "child_ids" ].append( id );
+	operation[ "data" ].append( std::move( part ) );
+	SendJSON( operation );
+}

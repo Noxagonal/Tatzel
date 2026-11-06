@@ -4,6 +4,7 @@ import { sendToServer } from "./websocket.js";
 export { getElementValue } from "./field-revisions.js";
 import type {
 	ReceiveData_CreateElementPart,
+	ReceiveData_SetChildOrder,
 	ReceiveData_RemoveElementPart,
 	ReceiveData_SetAttribute,
 	ReceiveData_RemoveAttribute,
@@ -399,6 +400,43 @@ export function setRadioOptions(parts: Array<ReceiveData_SetRadioOptions>): void
 			const next = radios.find(radio => radio.value === focusedValue && !radio.disabled)
 				?? radios.find(radio => !radio.disabled);
 			(next ?? group).focus({ preventScroll: true });
+		}
+	}
+}
+
+
+/**
+ * @brief Moves a complete child list while preserving surviving native controls.
+ * @param parts Validated parents and unique child identities in final order.
+ * @pre Every referenced child exists directly under its parent.
+ * @post Nodes retain identity; modern state-preserving moves retain focus, with a caret-restoring fallback.
+ */
+export function setChildOrder(parts: Array<ReceiveData_SetChildOrder>): void
+{
+	for (const part of parts) {
+		const parent = requirePart(part.parent_id);
+		const children = part.child_ids.map(id => requirePart(id));
+		if (parent.children.length !== children.length || children.some(child => child.parentElement !== parent))
+			throw new Error("Child order does not match the parent's complete children");
+		const focused = document.activeElement;
+		const editor = focused instanceof HTMLInputElement || focused instanceof HTMLTextAreaElement ? focused : null;
+		const start = editor?.selectionStart ?? null;
+		const end = editor?.selectionEnd ?? null;
+		const direction = editor?.selectionDirection ?? null;
+		let next: Element | null = null;
+		for (let index = children.length - 1; index >= 0; --index) {
+			const child = children[index];
+			if (child.nextElementSibling !== next) {
+				if (typeof parent.moveBefore === "function") parent.moveBefore(child, next);
+				else parent.insertBefore(child, next);
+			}
+			next = child;
+		}
+		if (focused instanceof HTMLElement && parent.contains(focused)) {
+			if (document.activeElement !== focused) focused.focus({ preventScroll: true });
+			if (editor && start !== null && end !== null &&
+				(editor.selectionStart !== start || editor.selectionEnd !== end || editor.selectionDirection !== direction))
+				editor.setSelectionRange(start, end, direction ?? undefined);
 		}
 	}
 }

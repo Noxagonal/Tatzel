@@ -228,6 +228,16 @@ public:
 		ui::ValueUpdate update = {}
 	) -> void;
 
+	/// @brief Reorders a parent's complete set of existing element children.
+	/// @param parent_id Concrete parent part identity.
+	/// @param child_ids Complete unique child identities in final DOM order.
+	/// @pre Children exist under parent_id when this operation reaches the browser.
+	/// @post One set_child_order operation preserves existing nodes and their logical ownership.
+	auto SetChildOrder(
+		std::string_view parent_id,
+		std::span<const std::string> child_ids
+	) -> void;
+
 	/// @brief Queues a same-page browser history update without echoing navigation.
 	/// @param hash Validated empty or hash-prefixed location.
 	/// @pre Called on the owning event loop with a live transport.

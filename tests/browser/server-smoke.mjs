@@ -73,7 +73,7 @@ async function connectPage()
 			reject(new Error("WebSocket connection failed: " + (event.message ?? "unknown error")));
 		}, { once: true });
 	});
-	socket.send(JSON.stringify({ op: "connect", data: { route_path: "/", query: "", hash: "" } }));
+	socket.send(JSON.stringify({ op: "connect", data: { route_path: "/controls", query: "", hash: "" } }));
 	await waitFor(() => {
 		const preview = messages.filter(message => message.op === "create_element_part")
 			.flatMap(message => message.data).find(part => part.text_content === "Preview" && part.tag === "button");
@@ -98,6 +98,7 @@ test("the running example maps logical updates and events across real WebSockets
 	let diagnostics = "";
 	server.stdout.on("data", chunk => { diagnostics += chunk; });
 	server.stderr.on("data", chunk => { diagnostics += chunk; });
+	let index;
 	let first;
 	let second;
 	try {
@@ -121,6 +122,26 @@ test("the running example maps logical updates and events across real WebSockets
 
 		console.log("HTTP template and browser asset served");
 		assert.equal(await checkUpgrade(), 101);
+		index = new ProtocolSocket("ws://127.0.0.1:8080/ws");
+		const indexMessages = [];
+		index.addEventListener("message", event => indexMessages.push(JSON.parse(event.data)));
+		await waitFor(() => index.readyState === WebSocket.OPEN);
+		index.send(JSON.stringify({ op: "connect", data: { route_path: "/", query: "", hash: "" } }));
+		await waitFor(() => indexMessages.some(message => message.op === "page_ready"));
+		const indexParts = indexMessages.filter(message => message.op === "create_element_part").flatMap(message => message.data);
+		assert.ok(indexParts.every(part => ["div", "a"].includes(part.tag)), "the index contains only the links and their layout container");
+		const links = indexParts.filter(part => part.tag === "a");
+		assert.deepEqual(links.map(link => link.attributes.href), [
+			"/controls", "/forms", "/elements", "/lifecycle", "/dispatcher", "/protocol", "/components", "/tables", "/failed-page"
+		]);
+		for (const link of links) {
+			assert.ok(link.text_content.length > 0, "each showcase has a labelled index link");
+			const destination = await fetch("http://127.0.0.1:8080" + link.attributes.href, { headers: { Connection: "close" } });
+			assert.equal(destination.status, 200, "showcase route is registered: " + link.attributes.href);
+			await destination.arrayBuffer();
+		}
+		index.close();
+		console.log("Links-only index and all nine showcase routes verified");
 		first = await connectPage();
 		console.log("First logical page connected");
 		second = await connectPage();
@@ -196,6 +217,7 @@ test("the running example maps logical updates and events across real WebSockets
 		throw error;
 	}
 	finally {
+		index?.close();
 		first?.socket.close();
 		second?.socket.close();
 		if (server.exitCode === null && server.signalCode === null) {

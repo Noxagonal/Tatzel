@@ -27,6 +27,9 @@ export type ReceiveData_CreateElementPart = {
 	text_content: string;
 };
 
+/** @brief Complete order of existing children; no DOM nodes are recreated. */
+export type ReceiveData_SetChildOrder = { parent_id: string; child_ids: Array<string>; };
+
 /** @brief ReceiveData RemoveElementPart wire-format type; DOM identifiers are part IDs. */
 export type ReceiveData_RemoveElementPart = {
 	part_id: string;
@@ -105,6 +108,7 @@ export type ReceiveData_SetOnSubmit = {
 export type ReceiveOperation =
 	| { op: "set_location"; data: { hash: string; }; }
 	| { op: "create_element_part"; data: Array<ReceiveData_CreateElementPart>; }
+	| { op: "set_child_order"; data: Array<ReceiveData_SetChildOrder>; }
 	| { op: "remove_element_part"; data: Array<ReceiveData_RemoveElementPart>; }
 	| { op: "set_attribute"; data: Array<ReceiveData_SetAttribute>; }
 	| { op: "remove_attribute"; data: Array<ReceiveData_RemoveAttribute>; }
@@ -121,7 +125,7 @@ export type ReceiveOperation =
 
 
 
-/** @brief Complete protocol-v2 server frame; DOM commands travel only inside batches. */
+/** @brief Complete protocol-v3 server frame; DOM commands travel only inside batches. */
 export type ReceiveServerMessage =
 	| { op: "connected"; data: ReceiveData_Connected; }
 	| { op: "error"; data: ReceiveData_Error; }

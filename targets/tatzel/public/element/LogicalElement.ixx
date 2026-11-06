@@ -317,6 +317,12 @@ public:
 	/// @post State is unchanged.
 	auto GetChildren() const noexcept -> const std::vector<std::unique_ptr<LogicalElement>>& { return child_list; }
 
+	/// @brief Observes completed framework insertion/removal of direct logical children.
+	/// @pre Called on the owning loop after DOM creation or removal has been queued.
+	/// @post Default controls are unchanged; aggregate controls may synchronize derived state.
+	/// @note Framework integration hook; application events remain separate callbacks.
+	virtual auto NotifyChildrenChanged() -> void {}
+
 	/// @brief Installs the framework callback that synchronizes logical changes.
 	/// @param handler Adapter callback, or an empty function to clear it.
 	/// @pre Captured adapter state outlives this control.

@@ -21,10 +21,11 @@ than earlier experiments.
 | Form | Complete typed field snapshots, required/custom validation and field errors, submit buttons, callbacks, read-only/disabled policies, and nested-form rejection. |
 | Modal | Closed-by-default scoped content, native modal focus handling, Open/Close, and Escape/backdrop/close-button/native-close synchronization. |
 | Element lifecycle | Remove, all/slot-specific ClearChildren, immediate handle invalidation, scoped deferred destruction, expired-builder rejection, and browser dialog/focus cleanup. |
+| Table | Immutable column schema, stable row keys, text/control cells, incremental row updates/removal/reordering, application-owned sort requests, native selection, and loading/empty states. |
 | Per-client state | A separate logical tree and page-factory invocation for each connection. |
 | UI dispatcher | Weak, thread-safe Post handles; move-only callbacks; bounded FIFO queues; fair batch draining; disconnect and event-loop shutdown cancellation; per-callback removal and diagnostic scopes. |
 | Static assets | HTML template plus compiled browser modules served through Drogon. |
-| DOM protocol | Version 2, ordered bounded update batches, whole-frame validation, automatic callback scopes, and initial page readiness. |
+| DOM protocol | Version 3, ordered bounded update batches, whole-frame validation, automatic callback scopes, and initial page readiness. |
 | Field revisions | Newer browser drafts and composition protected; explicit reset generations; checked asynchronous value updates; atomic stale-form rejection. |
 | Connection UX | Shared accessible connecting/initializing/ready/disconnected/failed surface, recoverable errors, and terminal reload recovery. |
 | Error reporting | Uniform explicit tatzel::Exception throws; standard/third-party exception reports; HTTP/WebSocket boundaries; contextual report blocks and traces trimmed at application callback invocations. |
@@ -57,8 +58,8 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
 - Dispatcher callbacks must remain short; background executors, task cancellation, non-field stale-result policies, and asynchronous validation remain application responsibilities.
 - No built-in authentication or authorization layer.
-- No table or chart abstraction; component composition uses the existing logical controls.
-- Forms validate synchronously; asynchronous validators, file inputs, and multiple selection are not supported.
+- Tables target small in-memory views; no pagination, virtualization, automatic queries, spreadsheet editing, or chart abstraction.
+- Forms validate synchronously; asynchronous validators, file inputs, and multi-select form fields are not supported.
 - Runtime paths depend on the repository working directory.
 - No install/export package; compatibility coverage is currently one CI toolchain.
 - CI covers Ubuntu 24.04 with Clang 18.1.3, plus docs and browser checks;

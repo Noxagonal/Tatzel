@@ -37,6 +37,17 @@ class TestElement {
 	}
 	/** @brief Appends a test node. @param child Concrete child node. @pre None. @post The child is registered by its part ID. */
 	appendChild(child) { this.children.push(child); child.parentElement = this; nodes.set(child.id, child); }
+	/** @brief Reads the next sibling. @returns Following node or null. @pre None. @post State is unchanged. */
+	get nextElementSibling() { return this.parentElement?.children[this.parentElement.children.indexOf(this) + 1] ?? null; }
+	/** @brief Moves an existing child using the legacy DOM path. @param child Existing node. @param before Anchor or null. @pre Anchor belongs to this parent. @post Native-like focus loss can be restored by the runtime. */
+	insertBefore(child, before) {
+		if (child.contains(document.activeElement)) document.activeElement = document.body;
+		if (child.parentElement) child.parentElement.children = child.parentElement.children.filter(node => node !== child);
+		const index = before ? this.children.indexOf(before) : this.children.length;
+		this.children.splice(index, 0, child);
+		child.parentElement = this;
+		return child;
+	}
 	/** @brief Records an attribute. @param name Attribute name. @param value Attribute value. @pre None. @post The attribute is stored. */
 	setAttribute(name, value) {
 		this.attributes[name] = value;
@@ -88,7 +99,10 @@ class TestElement {
 }
 
 /** @brief Minimal form input for checkbox and text event checks. */
-class TestInput extends TestElement {}
+class TestInput extends TestElement {
+	/** @brief Records caret restoration. @param start Start offset. @param end End offset. @param direction Selection direction. @pre None. @post Selection offsets are stored. */
+	setSelectionRange(start, end, direction) { this.selectionStart = start; this.selectionEnd = end; this.selectionDirection = direction; }
+}
 
 /** @brief Native-form double collecting its current controls. */
 class TestForm extends TestElement {
@@ -168,7 +182,7 @@ events.registerBrowserEventHandlers();
 test("status and error messages use the same op/data envelope", () => {
 	assert.equal(runtime.socket.url, "wss://example.test/ws");
 	for (const message of [
-		{ op: "connected", data: { message: "Connected", protocol_version: 2 } },
+		{ op: "connected", data: { message: "Connected", protocol_version: 3 } },
 		{ op: "error", data: { code: "invalid_message", message: "Invalid", fatal: false } }
 	]) assert.deepEqual(runtime.parseServerMessage({ data: JSON.stringify(message) }), message);
 	assert.throws(() => runtime.parseServerMessage({ data: '{"type":"ok","message":"Connected"}' }));
@@ -558,4 +572,42 @@ test("choice replacement rebases surviving newer selections and invalidates remo
 	revisions.captureEdit(select, true);
 	assert.deepEqual(revisions.prepareChoiceUpdate(select,
 		{ ...fieldUpdate, epoch: 2, base_epoch: 1, value: "b" }, [options[1]]), { value: "b" });
+});
+
+
+test("child ordering validates complete membership and preserves controls and caret", () => {
+	const parent = new TestElement("ordered-parent");
+	const first = new TestElement("ordered-first");
+	const second = new TestElement("ordered-second");
+	const input = new TestInput("ordered-input");
+	input.value = "A retained draft";
+	input.selectionStart = 2;
+	input.selectionEnd = 5;
+	input.selectionDirection = "forward";
+	document.body.appendChild(parent);
+	parent.appendChild(first);
+	parent.appendChild(second);
+	first.appendChild(input);
+	input.focus();
+	domRuntime.setChildOrder([{ parent_id: parent.id, child_ids: [second.id, first.id] }]);
+	assert.deepEqual(parent.children, [second, first]);
+	assert.equal(document.activeElement, input);
+	assert.equal(input.value, "A retained draft");
+	assert.equal(input.selectionStart, 2);
+	assert.equal(input.selectionEnd, 5);
+	assert.throws(() => domRuntime.setChildOrder([{ parent_id: parent.id, child_ids: [first.id] }]));
+	assert.deepEqual(parent.children, [second, first]);
+	parent.moveBefore = (child, next) => {
+		parent.insertBefore(child, next);
+		input.focus();
+		input.setSelectionRange(0, 0);
+	};
+	domRuntime.setChildOrder([{ parent_id: parent.id, child_ids: [first.id, second.id] }]);
+	assert.equal(document.activeElement, input);
+	assert.equal(input.selectionStart, 2, "state-preserving moves also retain a changed native caret");
+	assert.equal(input.selectionEnd, 5);
+	for (const child_ids of [[first.id, first.id], [4], "invalid"]) {
+		assert.throws(() => runtime.parseServerOperation({ data: JSON.stringify({ op: "set_child_order", data: [{ parent_id: parent.id, child_ids }] }) }));
+	}
+	assert.throws(() => runtime.parseServerMessage({ data: JSON.stringify({ op: "connected", data: { message: "Old server", protocol_version: 2 } }) }));
 });

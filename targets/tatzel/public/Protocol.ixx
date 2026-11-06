@@ -10,7 +10,7 @@ export module UI.Protocol;
 
 namespace tatzel {
 
-export inline constexpr unsigned ProtocolVersion = 2; ///< Incompatible clients must start a fresh page with matching assets.
+export inline constexpr unsigned ProtocolVersion = 3; ///< Incompatible clients must start a fresh page with matching assets.
 export inline constexpr std::uint64_t MaximumWireRevision = 9007199254740991ULL; ///< Largest exactly representable JavaScript integer.
 export inline constexpr std::size_t MaximumBatchOperations = 128; ///< Maximum operations in one update batch.
 export inline constexpr std::size_t MaximumBatchBytes = 1024 * 1024; ///< Serialized batch size limit, including framing.

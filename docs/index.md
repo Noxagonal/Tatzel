@@ -12,7 +12,8 @@ Start with the model, then build the example:
 4. [Logging and exception traces](diagnostics.md)
 5. [Posting work to a logical page](dispatcher.md)
 6. [Reusable components and themes](components.md)
-7. [Workspace sample application](workspace.md)
+7. [Tables and stable rows](tables.md)
+8. [Workspace sample application](workspace.md)
 
 For framework development:
 
