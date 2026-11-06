@@ -1,5 +1,5 @@
-/* Linux Itanium ABI: Tatzel members, RTTI, adjustment thunks, local statics,
-   and module initializers. Private implementation types also have hidden visibility. */
+/* Linux Itanium ABI: Tatzel members, RTTI, adjustment thunks, and module
+   initializers. Function-local types and statics are implementation details. */
 {
 	global:
 		_ZN6tatzel*;
@@ -16,8 +16,6 @@
 		_ZTh*6tatzel*;
 		_ZTv*6tatzel*;
 		_ZTc*6tatzel*;
-		_ZGV*6tatzel*;
-		_ZZ*6tatzel*;
 		_ZTHN6tatzel*;
 		_ZTWN6tatzel*;
 		_ZGIW*;

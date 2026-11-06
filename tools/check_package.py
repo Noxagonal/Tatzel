@@ -83,8 +83,9 @@ def main() -> None:
     if re.search(r"Shared library: \[lib(?:drogon|trantor|jsoncpp|uuid|z)\.so", needed):
         raise SystemExit("A private native dependency escaped the shared library:\n" + needed)
     symbols = subprocess.check_output(["nm", "-DC", "--defined-only", str(library)], text=True)
-    if re.search(r"\b(?:drogon|trantor|Json)::", symbols):
-        raise SystemExit("Backend symbols escaped the Tatzel shared-library boundary")
+    escaped = [line for line in symbols.splitlines() if re.search(r"\b(?:drogon|trantor|Json)::", line)]
+    if escaped:
+        raise SystemExit("Backend symbols escaped the Tatzel shared-library boundary:\n" + "\n".join(escaped))
     shutil.copytree(examples[0].parent, source)
     package_paths = ";".join([str(prefix), *options.dependency_prefix])
     run([cmake, "-S", str(source), "-B", str(consumer_build), "-G", "Ninja",
