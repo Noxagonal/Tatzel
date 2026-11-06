@@ -14,3 +14,5 @@ target_link_libraries(TatzelDevelopment
 		Drogon::Drogon
 		Tatzel
 )
+
+tatzel_deploy_runtime(TatzelDevelopment)

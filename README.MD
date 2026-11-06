@@ -46,3 +46,10 @@ See the [workspace guide](docs/workspace.md) for setup, behavior, and tests.
 Reusable logical components, filter bars, confirmation dialogs, and local themes
 are described in [components and themes](docs/components.md). Run the development
 application and open `/components` for the interactive examples.
+
+## Installed package
+
+Tatzel installs a source-based CMake package exposing `Tatzel::Tatzel`, with
+matching browser/theme/template assets and a runtime deployment helper.
+See [installation and usage](docs/package.md) and the separate
+[installed-package sample](examples/installed/README.md).

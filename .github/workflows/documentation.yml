@@ -42,7 +42,7 @@ jobs:
 
   cpp:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -64,7 +64,7 @@ jobs:
           mkdir -p build/smoke-bundle/lib
           cp build/targets/development/TatzelDevelopment build/smoke-bundle/
           ldd build/targets/development/TatzelDevelopment | awk '/=> \// {print $3}' | xargs -r cp -t build/smoke-bundle/lib/
-          cp -r data www build/smoke-bundle/
+          cp -r build/targets/development/tatzel-runtime build/smoke-bundle/
       - uses: actions/upload-artifact@v4
         with:
           name: tatzel-example-linux
@@ -86,6 +86,9 @@ jobs:
           timeout 30s node tests/browser/reliability-smoke.mjs ./build/targets/development/TatzelDevelopment
 
           timeout 45s node tests/browser/workspace-smoke.mjs ./build/targets/workspace/TatzelWorkspace
+      - name: Install and relocate the package, then build a separate consumer
+        run: |
+          python3 tools/check_package.py --build-directory build --work-directory "$RUNNER_TEMP/tatzel-package-check" --compiler clang++-18 --parallel 2
       - name: Install Chromium for the sample UI journey
         run: npx playwright install --with-deps chromium
       - name: Exercise the sample in a real browser

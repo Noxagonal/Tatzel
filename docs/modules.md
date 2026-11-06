@@ -43,3 +43,7 @@ by UI. UI.Element.Style defines ControlSize and LiveRegion.
 UI.Element.Table exports Table, TableRow, TableCell, TableColumn, TableSort,
 TableSortDirection, and TableSelection. The default adapter maps these logical
 objects to native caption/table/thead/tbody/tr/th/td parts. See [tables](tables.md).
+
+AppOptions defines owned resource locations. The installed CMake configuration
+rebuilds the same UI modules through Tatzel::Tatzel and exposes
+tatzel_deploy_runtime. See [package installation and usage](package.md).

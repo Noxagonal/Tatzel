@@ -52,7 +52,7 @@ npm run watch
 
 ## Run
 
-Keep the working directory at the repository root:
+From the repository root:
 
 ```sh
 ./build/targets/development/TatzelDevelopment
@@ -80,7 +80,7 @@ See [posting work to a logical page](dispatcher.md) for the API and lifetime rul
 Main.cpp handles startup and shutdown; individual showcase builders and their
 shared route/index list live under targets/development/private/showcases.
 
-The runtime currently resolves these paths relative to the working directory:
+The checkout contains these source assets and browser build outputs:
 
 | Path | Purpose |
 | --- | --- |
@@ -93,7 +93,10 @@ The runtime currently resolves these paths relative to the working directory:
 
 The default listener binds 0.0.0.0:8080. The default template loads local layout, component-theme, and connection styles;
 it does not need an external stylesheet service.
-Runtime asset packaging and configurable resource roots remain future work.
+Framework runtime assets are staged under build/runtime. App defaults also discover
+an adjacent tatzel-runtime directory on Linux; tatzel_deploy_runtime creates this
+for the development executable. See [package installation and usage](package.md)
+for independent applications, resource configuration, and deployment.
 
 ## Checks
 
@@ -144,8 +147,8 @@ runs with leak detection enabled. In restricted executors where LeakSanitizer
 cannot inspect /proc, ASAN_OPTIONS=detect_leaks=0 can run address/undefined checks
 while omitting leak scanning; that does not replace the CI leak check.
 
-There is no installable CMake package yet. The current executable and source
-layout are intended for working within this checkout.
+Use the [CMake package guide](package.md) to install Tatzel and build a separate
+application with find_package(Tatzel). Its sample is also installed with the package.
 
 ## Persistent application sample
 

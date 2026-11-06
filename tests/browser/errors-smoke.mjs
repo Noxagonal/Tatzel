@@ -32,7 +32,11 @@ test("HTTP failures report Tatzel and genuine STL exceptions without stopping th
 	await copyFile("data/drogon_config.json", join(fixture, "data/drogon_config.json"));
 	const template = await readFile("data/template.html", "utf8");
 	const templatePath = join(fixture, "data/template.html");
-	const server = spawn(resolve(process.argv[2]), [], { cwd: fixture, stdio: ["ignore", "pipe", "pipe"] });
+	const server = spawn(resolve(process.argv[2]), [], {
+		cwd: fixture,
+		env: { ...process.env, TATZEL_RESOURCE_DIRECTORY: fixture },
+		stdio: ["ignore", "pipe", "pipe"]
+	});
 	let diagnostics = "";
 	server.stdout.on("data", chunk => { diagnostics += chunk; });
 	server.stderr.on("data", chunk => { diagnostics += chunk; });

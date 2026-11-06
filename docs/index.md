@@ -8,12 +8,13 @@ Start with the model, then build the example:
 
 1. [Architecture and ownership](architecture.md)
 2. [Build and run](building.md)
-3. [Working with logical controls](logical-controls.md)
-4. [Logging and exception traces](diagnostics.md)
-5. [Posting work to a logical page](dispatcher.md)
-6. [Reusable components and themes](components.md)
-7. [Tables and stable rows](tables.md)
-8. [Workspace sample application](workspace.md)
+3. [Install and use the CMake package](package.md)
+4. [Working with logical controls](logical-controls.md)
+5. [Logging and exception traces](diagnostics.md)
+6. [Posting work to a logical page](dispatcher.md)
+7. [Reusable components and themes](components.md)
+8. [Tables and stable rows](tables.md)
+9. [Workspace sample application](workspace.md)
 
 For framework development:
 

@@ -34,6 +34,7 @@ than earlier experiments.
 | Components | Typed builder construction, logical subtree ownership, failed-build cleanup, reusable filter/confirmation controls, and application editor examples. |
 | Appearance | Named appearances, typed button variants/control sizes, accessible live feedback, local CSS variables, and responsive component styles. |
 | Hash navigation | Initial-location callback, same-page history updates, and native hash/Back/Forward events. |
+| Package | Source-based CMake package with Tatzel::Tatzel, matching runtime assets, deployment helper, standalone installed consumer, and relocation checks. |
 | Documentation | Authored Markdown guides, Doxygen contracts, and a static HTML build. |
 
 ## Planned controls
@@ -60,8 +61,8 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - No built-in authentication or authorization layer.
 - Tables target small in-memory views; no pagination, virtualization, automatic queries, spreadsheet editing, or chart abstraction.
 - Forms validate synchronously; asynchronous validators, file inputs, and multi-select form fields are not supported.
-- Runtime paths depend on the repository working directory.
-- No install/export package; compatibility coverage is currently one CI toolchain.
+- Default framework resources are discovered from an explicit root, environment override, executable-adjacent deployment on Linux, or configured runtime. Explicit legacy App file arguments and application-owned database paths retain their documented working-directory behavior.
+- The package rebuilds Tatzel module sources in the consuming project; Drogon/Trantor and system dependencies must use a compatible toolchain/ABI. Compiler/platform compatibility remains limited to the documented validated toolchains.
 - CI covers Ubuntu 24.04 with Clang 18.1.3, plus docs and browser checks;
   other compiler/platform combinations remain unverified.
 
