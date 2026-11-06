@@ -4,6 +4,7 @@
 import argparse
 import hashlib
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -66,6 +67,24 @@ def main() -> None:
     if len(examples) != 1 or len(runtimes) != 1:
         raise SystemExit("The installed package must include exactly one sample and runtime")
     runtime = runtimes[0].parents[1]
+    libraries = list(prefix.glob("**/libTatzel.so.0.1.0"))
+    if len(libraries) != 1:
+        raise SystemExit("The installation must contain one versioned Tatzel shared library")
+    library = libraries[0]
+    for backend in ("drogon", "trantor", "json"):
+        if (prefix / "include" / backend).exists():
+            raise SystemExit("Private backend headers were installed: " + backend)
+    modules = list((prefix / "include" / "tatzel").rglob("*.ixx"))
+    if not modules or any(re.search(r"#\s*include\s*[<\"](?:drogon|trantor|json)/", path.read_text()) for path in modules):
+        raise SystemExit("Installed module interfaces must not include backend headers")
+    if (prefix / "share/tatzel/source").exists():
+        raise SystemExit("A binary package must not install private implementation sources")
+    needed = subprocess.check_output(["readelf", "-d", str(library)], text=True)
+    if re.search(r"Shared library: \[lib(?:drogon|trantor|jsoncpp|uuid|z)\.so", needed):
+        raise SystemExit("A private native dependency escaped the shared library:\n" + needed)
+    symbols = subprocess.check_output(["nm", "-DC", "--defined-only", str(library)], text=True)
+    if re.search(r"\b(?:drogon|trantor|Json)::", symbols):
+        raise SystemExit("Backend symbols escaped the Tatzel shared-library boundary")
     shutil.copytree(examples[0].parent, source)
     package_paths = ";".join([str(prefix), *options.dependency_prefix])
     run([cmake, "-S", str(source), "-B", str(consumer_build), "-G", "Ninja",
@@ -78,6 +97,12 @@ def main() -> None:
     if "NPM_EXECUTABLE" in (consumer_build / "CMakeCache.txt").read_text():
         raise SystemExit("An installed-package consumer must not configure the browser toolchain")
     run([cmake, "--build", str(consumer_build), "--parallel", options.parallel])
+    commands = (consumer_build / "compile_commands.json").read_text()
+    if "targets/tatzel/private" in commands or "ClientUpdater.cpp" in commands:
+        raise SystemExit("The consumer rebuilt Tatzel's implementation")
+    executable_needed = subprocess.check_output(["readelf", "-d", str(consumer_build / "TatzelInstalledExample")], text=True)
+    if "libTatzel.so.0" not in executable_needed:
+        raise SystemExit("The installed consumer must dynamically link Tatzel")
     deployed_runtime = consumer_build / "tatzel-runtime"
     if hashes(runtime) != hashes(deployed_runtime):
         raise SystemExit("Deployed browser/template assets differ from the installed package")
@@ -93,15 +118,18 @@ def main() -> None:
     deployed.mkdir()
     executable = deployed / "TatzelInstalledExample"
     shutil.copy2(consumer_build / "TatzelInstalledExample", executable)
+    shutil.copy2(consumer_build / "libTatzel.so.0", deployed / "libTatzel.so.0")
     shutil.copytree(deployed_runtime, deployed / "tatzel-runtime")
     # The executable-adjacent copy must suffice even if the installed runtime goes away.
     runtime.rename(work / "unavailable installed runtime")
+    # The complete installed library directory is unavailable during deployment checks.
+    library.parent.rename(work / "unavailable installed libraries")
     empty = work / "empty working directory"
     empty.mkdir()
     environment = os.environ.copy()
     environment.pop("TATZEL_RESOURCE_DIRECTORY", None)
     run(["node", str(repository / "tests/browser/package-smoke.mjs"), str(executable), str(empty)], env=environment)
-    print("Installed package passed: relocation, separate consumer, matching assets, independent runtime, and path overrides")
+    print("Installed shared package passed: hidden backends, separate consumer, deployed library/assets, relocation, background tasks, and path overrides")
 
 
 if __name__ == "__main__":

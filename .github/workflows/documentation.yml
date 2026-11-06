@@ -51,12 +51,16 @@ jobs:
           cache: npm
       - name: Install module build dependencies
         run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /usr/share/keyrings/llvm.asc >/dev/null
+          echo 'deb [signed-by=/usr/share/keyrings/llvm.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' | sudo tee /etc/apt/sources.list.d/llvm-23.list
           sudo apt-get update
-          sudo apt-get install -y clang-18 clang-tools-18 libclang-rt-18-dev libstdc++-13-dev ninja-build libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev libsqlite3-dev
-          python3 -m pip install 'cmake==4.4.4'
+          sudo apt-get install -y clang-23 clang-tools-23 libclang-rt-23-dev libstdc++-13-dev ninja-build libssl-dev zlib1g-dev uuid-dev libsqlite3-dev
+          curl -fL https://github.com/Kitware/CMake/releases/download/v4.0.7/cmake-4.0.7-linux-x86_64.tar.gz -o "$RUNNER_TEMP/cmake.tar.gz"
+          tar -xzf "$RUNNER_TEMP/cmake.tar.gz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/cmake-4.0.7-linux-x86_64/bin" >> "$GITHUB_PATH"
       - name: Build application and core behavior checks
         run: |
-          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON -DTATZEL_BUILD_SANITIZER_TESTS=ON
+          cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-23 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON -DTATZEL_BUILD_SANITIZER_TESTS=ON
           cmake --build build --parallel 2
           ctest --test-dir build --output-on-failure
       - name: Preserve runnable example for integration diagnostics
@@ -88,7 +92,7 @@ jobs:
           timeout 45s node tests/browser/workspace-smoke.mjs ./build/targets/workspace/TatzelWorkspace
       - name: Install and relocate the package, then build a separate consumer
         run: |
-          python3 tools/check_package.py --build-directory build --work-directory "$RUNNER_TEMP/tatzel-package-check" --compiler clang++-18 --parallel 2
+          python3 tools/check_package.py --build-directory build --work-directory "$RUNNER_TEMP/tatzel-package-check" --compiler clang++-23 --parallel 2
       - name: Install Chromium for the sample UI journey
         run: npx playwright install --with-deps chromium
       - name: Exercise the sample in a real browser

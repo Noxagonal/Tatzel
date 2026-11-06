@@ -20,8 +20,9 @@ try
 	if( argc > 2 ) throw tatzel::Exception{ "Usage: TatzelInstalledExample [runtime-directory]" };
 	auto options = tatzel::AppOptions{};
 	if( argc == 2 ) options.resource_directory = argv[ 1 ];
+	auto background = tatzel::TaskQueue{};
 	auto app = tatzel::App{ std::move( options ) };
-	app.RegisterPage( "/", []( tatzel::PageBuilder<> ui ) {
+	app.RegisterPage( "/", [ &background ]( tatzel::PageBuilder<> ui ) {
 		ui.Heading( "Tatzel package sample" );
 		auto count = std::make_shared<int>( 0 );
 		auto counter = ui.Paragraph( "Count: 0" )->GetHandle();
@@ -35,6 +36,18 @@ try
 			auto* input = name.Get();
 			auto* output = greeting.Get();
 			if( input && output ) output->SetText( "Hello, " + std::string{ input->GetValue() } + "!" );
+		} );
+
+		auto status = ui.Paragraph( "Background queue ready." )->GetHandle();
+		auto dispatcher = ui.GetDispatcher();
+		ui.Button( "Run background task", [ &background, status, dispatcher ] {
+			const auto submitted = background.Post( [ status, dispatcher ] {
+				dispatcher.Post( [ status ] {
+					if( auto* output = status.Get() ) output->SetText( "Background task complete." );
+				} );
+			} );
+			if( submitted != tatzel::TaskQueueResult::Accepted )
+				if( auto* output = status.Get() ) output->SetText( "Background queue busy; retry." );
 		} );
 	} );
 	app.Run();

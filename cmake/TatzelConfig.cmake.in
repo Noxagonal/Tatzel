@@ -1,18 +1,7 @@
 @PACKAGE_INIT@
 
-if(CMAKE_VERSION VERSION_LESS 4.0)
-	message(FATAL_ERROR "Tatzel requires CMake 4.0 or newer and a module-capable Ninja toolchain")
-endif()
-
-set_and_check(Tatzel_SOURCE_DIRECTORY "@PACKAGE_TATZEL_INSTALL_SOURCE_DIRECTORY@")
 set_and_check(Tatzel_RUNTIME_DIRECTORY "@PACKAGE_TATZEL_INSTALL_RUNTIME_DIRECTORY@")
-include(CMakeFindDependencyMacro)
-find_dependency(Drogon 1.9.13 CONFIG)
-
-if(NOT TARGET Tatzel::Tatzel)
-	include("${CMAKE_CURRENT_LIST_DIR}/TatzelLibrary.cmake")
-	# The installed package is source-based: no compiler-specific BMI is imported.
-	tatzel_add_library("${Tatzel_SOURCE_DIRECTORY}" "${Tatzel_RUNTIME_DIRECTORY}")
-endif()
+include("${CMAKE_CURRENT_LIST_DIR}/TatzelTargets.cmake")
+set_property(TARGET Tatzel::Tatzel PROPERTY TATZEL_RUNTIME_DIRECTORY "${Tatzel_RUNTIME_DIRECTORY}")
 include("${CMAKE_CURRENT_LIST_DIR}/TatzelRuntime.cmake")
 check_required_components(Tatzel)

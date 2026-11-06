@@ -5,37 +5,39 @@
 The project declares these build requirements:
 
 - CMake 4.0 or newer.
-- A compiler accepting C++26 mode and usable named C++ modules.
+- A compiler accepting C++26 mode and usable named C++ modules; Clang 23+ is the documented baseline.
+  The caller selects the compiler; there is no compiler-version gate or tool bootstrap.
 - A CMake generator supporting module dependency scanning; use Ninja.
 - Node.js 24 or newer and npm.
 - Git and network access for CMake's pinned Drogon dependency and npm packages.
 - SQLite development files for the default-enabled workspace sample (`libsqlite3-dev` on Ubuntu).
-- JsonCpp development files and the platform dependencies required by Drogon.
-  OpenSSL and zlib development packages enable the corresponding optional support.
+- OpenSSL development files, a PIC static zlib library, UUID development
+  files for configure-time probes, and make for the private upstream UUID build.
+  JsonCpp is fetched and built privately; consumers do not need backend development packages.
 - A working std::stacktrace implementation, including its link support library.
-  The CI toolchain installs libstdc++-13-dev; CMake probes native linkage,
+  CMake probes native linkage,
   stdc++exp, and stdc++_libbacktrace and reports unsupported toolchains at configure time.
 
-Drogon is fetched at v1.9.13. TypeScript is installed from package-lock.json.
+Drogon is fetched at v1.9.13 and JsonCpp at 1.9.6. TypeScript is installed from package-lock.json.
 The Node package exists to build browser assets and is private.
 
-The complete application and core checks pass in CI on Ubuntu 24.04 with
-Clang 18.1.3, CMake 4.4.4, Ninja, and libstdc++. Select the compiler explicitly when configuring;
-other platforms and compiler combinations still need verification. The build
+Use a compatible compiler/standard-library ABI for the package and consumer.
+Compiler versions alone do not establish binary compatibility.
+Other platforms and compiler combinations still need verification. The build
 uses explicit includes rather than a shared precompiled header, avoiding the
 PCH/module definition conflicts found with this toolchain.
 
 ## Configure and build
 
-Run from the repository root. Replace clang++-18 with your selected compiler:
+Run from the repository root with your selected compiler:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++-18
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build --target TatzelDevelopment
 ```
 
 CMake installs the locked npm dependencies, compiles browser code from
-targets/typescript_build/src into www/app, and builds the static Tatzel library
+targets/typescript_build/src into www/app, and builds the shared Tatzel library
 and development executable.
 
 TypeScript files and generated JavaScript outputs are build dependencies.
@@ -142,7 +144,7 @@ ctest --test-dir build -R 'Tatzel(Removal|Dispatcher)SanitizerTests' --output-on
 These targets compile the actual logical and dispatcher C++ modules with
 AddressSanitizer and UndefinedBehaviorSanitizer. The dispatcher check links the
 real Trantor event loop through Drogon. The instrumentation requires
-the compiler's sanitizer runtime (libclang-rt-18-dev for the CI toolchain). CI
+the compiler's sanitizer runtime from the selected compiler toolchain. CI
 runs with leak detection enabled. In restricted executors where LeakSanitizer
 cannot inspect /proc, ASAN_OPTIONS=detect_leaks=0 can run address/undefined checks
 while omitting leak scanning; that does not replace the CI leak check.

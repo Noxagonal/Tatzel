@@ -1,6 +1,5 @@
 #pragma once
 
-#include <trantor/utils/ConcurrentTaskQueue.h>
 
 import UI;
 
@@ -13,7 +12,7 @@ namespace example {
 /// @post The index links to every registered showcase, including the expected failure example.
 auto RegisterShowcases(
 	tatzel::App& app,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void;
 
 /// @brief Builds the controls showcase for one browser connection.
@@ -47,7 +46,7 @@ auto BuildLifecycleShowcase( tatzel::PageBuilder<> ui ) -> void;
 /// @post The page owns its showcase controls and per-client state.
 auto BuildDispatcherShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void;
 
 /// @brief Builds the protocol showcase for one browser connection.
@@ -57,7 +56,7 @@ auto BuildDispatcherShowcase(
 /// @post The page owns its showcase controls and per-client state.
 auto BuildProtocolShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void;
 
 /// @brief Builds the components showcase for one browser connection.
@@ -67,7 +66,7 @@ auto BuildProtocolShowcase(
 /// @post The page owns its showcase controls and per-client state.
 auto BuildComponentsShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void;
 
 /// @brief Builds the tables showcase for one browser connection.

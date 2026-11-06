@@ -30,7 +30,7 @@ struct DispatchTask
 /// @details The quit hook closes the gate under the same lock used to schedule,
 /// so a submitting worker cannot dereference a destroyed EventLoop. Queue
 /// locks are acquired after this gate, and user captures are destroyed outside both.
-class DispatcherRuntime
+class [[gnu::visibility( "hidden" )]] DispatcherRuntime
 {
 public:
 	/// @brief Associates the scheduling gate with its owning loop and immutable thread identity.
@@ -54,7 +54,7 @@ public:
 };
 
 /// @brief Private queue state retained by its owner, never by application handles.
-class DispatcherState : public std::enable_shared_from_this<DispatcherState>
+class [[gnu::visibility( "hidden" )]] DispatcherState : public std::enable_shared_from_this<DispatcherState>
 {
 public:
 	/// @brief Allocates fixed queue slots before any concurrent submissions are possible.
@@ -221,7 +221,7 @@ auto DispatcherRuntime::Close() noexcept -> void
 /// @return Shared gate whose quit hook runs before the loop can be destroyed.
 /// @pre Called on loop's thread.
 /// @post The loop has exactly one dispatcher shutdown hook for this runtime.
-auto GetDispatcherRuntime( trantor::EventLoop& loop ) -> std::shared_ptr<DispatcherRuntime>
+static auto GetDispatcherRuntime( trantor::EventLoop& loop ) -> std::shared_ptr<DispatcherRuntime>
 {
 	static thread_local std::weak_ptr<DispatcherRuntime> current;
 	if( auto runtime = current.lock() )
@@ -256,15 +256,15 @@ auto Dispatcher::IsCurrentThread() const noexcept -> bool
 }
 
 DispatcherOwner::DispatcherOwner(
-	trantor::EventLoop& loop,
 	std::function<void( std::move_only_function<void()>&, std::source_location )> invoke,
 	DispatchOptions options
 )
 {
-	if( trantor::EventLoop::getEventLoopOfCurrentThread() != &loop || !invoke || !options.capacity || !options.batch_size )
+	auto* loop = trantor::EventLoop::getEventLoopOfCurrentThread();
+	if( !loop || !invoke || !options.capacity || !options.batch_size )
 		throw Exception{ "Dispatcher requires its owning loop, an invoker, and nonzero queue limits" };
 
-	auto runtime = GetDispatcherRuntime( loop );
+	auto runtime = GetDispatcherRuntime( *loop );
 	state = std::make_shared<DispatcherState>( runtime, std::move( invoke ), options );
 	auto lock = std::lock_guard{ runtime->mutex };
 	std::erase_if( runtime->queues, []( const auto& queue ) { return queue.expired(); } );

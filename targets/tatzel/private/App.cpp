@@ -75,13 +75,18 @@ namespace {
 
 tatzel::App::App( AppOptions options ) :
 	resource_directory{ ResolveResourceDirectory( options.resource_directory ) },
-	template_path{ ResolveResourcePath( resource_directory, options.template_path ) }
+	template_path{ ResolveResourcePath( resource_directory, options.template_path ) },
+	listen_address{ std::move( options.listen_address ) },
+	port{ options.port }
 {
 	if( global_app ) throw tatzel::Exception{ "Global app already exists" };
 	if( options.template_path.empty() ) throw tatzel::Exception{ "Tatzel template path must not be empty" };
+	if( listen_address.empty() || !port || !options.thread_count ) throw tatzel::Exception{ "Server address, port, and thread count must be nonempty" };
 
 	if( !options.configuration_path.empty() ) drogon::app().loadConfigFile( ResolveResourcePath( resource_directory, options.configuration_path ) );
 	if( !options.document_root.empty() ) drogon::app().setDocumentRoot( ResolveResourcePath( resource_directory, options.document_root ) );
+	drogon::app().setThreadNum( options.thread_count );
+	SetLogLevel( options.log_level );
 	global_app = this;
 }
 
@@ -174,7 +179,7 @@ auto tatzel::App::Run() -> void
 #else
 					const auto mode = "Debug";
 #endif
-					Log( LogLevel::Info, std::string{ "Tatzel listening at http://0.0.0.0:8080 (" } + mode
+					Log( LogLevel::Info, "Tatzel listening at http://" + listen_address + ":" + std::to_string( port ) + " (" + mode
 						+ ", " + std::to_string( registered_page_list.size() ) + " routes)" );
 					for( const auto& page : registered_page_list )
 						Log( LogLevel::Debug, "Registered route: " + page.route_path );
@@ -184,8 +189,8 @@ auto tatzel::App::Run() -> void
 		}
 		catch( ... ) { LogException( std::current_exception(), { {}, "startup_report" } ); }
 	} );
-	Log( LogLevel::Info, "Starting Tatzel on 0.0.0.0:8080" );
-	drogon::app().addListener( "0.0.0.0", 8080 ).run();
+	Log( LogLevel::Info, "Starting Tatzel on " + listen_address + ":" + std::to_string( port ) );
+	drogon::app().addListener( listen_address, port ).run();
 	Log( LogLevel::Info, "Tatzel stopped" );
 }
 

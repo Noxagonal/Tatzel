@@ -49,7 +49,8 @@ application and open `/components` for the interactive examples.
 
 ## Installed package
 
-Tatzel installs a source-based CMake package exposing `Tatzel::Tatzel`, with
-matching browser/theme/template assets and a runtime deployment helper.
+Tatzel installs a shared-library CMake package exposing `Tatzel::Tatzel`, with
+public module interfaces, matching browser/theme/template assets, and a deployment
+helper. Native backend libraries are bundled privately; OpenSSL remains a system dependency.
 See [installation and usage](docs/package.md) and the separate
 [installed-package sample](examples/installed/README.md).

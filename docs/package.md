@@ -1,103 +1,94 @@
 # Install and use the CMake package
 
-Tatzel 0.1 installs a CMake package exposing Tatzel::Tatzel. A separate application
-finds that package, links the target, imports UI, and deploys the matching runtime
-through one CMake helper. The installed sample demonstrates the complete workflow.
+Tatzel installs a compiled, versioned shared library and its public C++ module
+interfaces. Applications use `find_package(Tatzel CONFIG REQUIRED)`, link
+`Tatzel::Tatzel`, and `import UI;`. They generate their own module metadata from
+the installed interfaces; they do not rebuild Tatzel's private implementation.
 
-## Supported build contract
+## Build contract
 
-The CI configuration validates Ubuntu 24.04, Clang 18.1.3, libstdc++ 13, CMake
-4.4.4, Ninja, and C++26 mode. CMake 4.0 is the declared minimum. Use a matching
-compiler and standard library when preparing and consuming an installation.
-Other compilers/platforms are not yet part of the package compatibility promise.
-A working std::stacktrace implementation and its support library are required;
-configuration checks this before building Tatzel.
+The documented baseline is Linux, CMake 4.0+, Ninja 1.11+, Clang 23+, and C++26.
+CMake uses the compiler selected by the caller, including `CXX` or
+`CMAKE_CXX_COMPILER`. Tatzel does not reject a compiler just because its version
+is older, select a different compiler, or install build tools. Usable named
+modules and a working standard-library `std::stacktrace` implementation are
+required. CMake probes the stacktrace support library when building Tatzel.
 
-The package installs module interface and implementation sources. Finding it
-creates a normal library target that the consuming project compiles with its
-own toolchain and build configuration. It does not import prebuilt module files
-or link the framework build's archive. This costs one framework compilation in
-each consumer build, and avoids depending on compiler-specific module artifacts.
-Drogon and Trantor remain native binary dependencies and need a compatible ABI.
+Use a compatible compiler, target platform, standard library, and ABI when
+building the package and its applications. Regenerating module metadata does
+not make a prebuilt C++ library portable across incompatible ABIs.
 
-Preparing the package requires Node.js 24+ and npm to build the locked browser
-sources. Consuming the installed package does not require Node.js or npm.
-The browser output, framework CSS/images, default HTML template, and default
-Drogon configuration are installed together. Server and browser protocol versions
-must match; deploy the runtime from the same installation used by the application.
+The default build embeds static Drogon 1.9.13, its Trantor submodule, JsonCpp
+1.9.6, zlib, and UUID support in Tatzel. Backend headers, targets, and private
+module sources are not installed. OpenSSL and the normal C/C++ system runtimes
+remain shared deployment dependencies. Database, Redis, YAML, Brotli, and c-ares
+integrations are disabled. SQLite belongs only to the optional Workspace sample.
 
-## Prepare and install
+Preparing the package requires Git/network access, OpenSSL development files,
+make, a PIC static zlib library, UUID development files for configure-time API
+probes, and Node.js 24+/npm to build the browser runtime. UUID is built privately
+from util-linux 2.40.2 with PIC. No Autotools installation is needed because the
+upstream release includes its configure script. Missing native build dependencies
+must be supplied by the packager. Consuming the installed package requires no Node/npm, backend headers,
+Drogon/Trantor/JsonCpp installation, or database development package.
 
-On Ubuntu 24.04, install the compiler and system development packages:
+## Build and install Tatzel
 
-```sh
-sudo apt-get update
-sudo apt-get install clang-18 clang-tools-18 libstdc++-13-dev \
-  libjsoncpp-dev libssl-dev zlib1g-dev uuid-dev python3-venv
-python3 -m venv ~/tatzel-tools
-. ~/tatzel-tools/bin/activate
-python3 -m pip install 'cmake==4.4.4' ninja
-```
-
-Make Node.js 24 or newer and npm available on PATH as well. SQLite is needed
-only when building Workspace; the following package-only build omits it.
-
-From a Tatzel checkout:
+Use your existing compiler and tools. From a Tatzel checkout:
 
 ```sh
 cmake -S . -B build/package -G Ninja \
-  -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=Release \
   -DTATZEL_BUILD_DEVELOPMENT=OFF -DTATZEL_BUILD_WORKSPACE=OFF \
   -DCMAKE_INSTALL_PREFIX="$PWD/install/tatzel"
 cmake --build build/package --parallel 2
 cmake --install build/package
 ```
 
-By default this fetches pinned Drogon 1.9.13 and its Trantor dependency. Their
-libraries, headers, and CMake packages are installed into the same prefix.
-System dependencies such as OpenSSL, Jsoncpp, zlib, and UUID are not bundled;
-keep their development packages available when building a consumer.
-TATZEL_USE_SYSTEM_DROGON=ON selects an existing Drogon CMake package instead.
-Build before installing so the compiled browser runtime is present.
+To choose a compiler explicitly, add `-DCMAKE_CXX_COMPILER=clang++` to the initial
+configure command, substituting the compiler already available on your system.
+Build before installing so the matching browser assets are present.
 
-The installation includes:
+`TATZEL_USE_SYSTEM_DROGON=ON` is an alternative for packagers deliberately using
+an installed compatible Drogon package. That choice may retain its shared
+runtime dependencies; the default bundled-dependency checks apply to the default
+build. An embedding project can also supply its own `Drogon::Drogon` target.
 
-| Location | Contents |
+| Installed location | Contents |
 | --- | --- |
-| lib/cmake/Tatzel (or the configured library directory) | Package/version configuration and helper functions. |
-| share/tatzel/source | Public module interfaces and private implementation sources. |
-| share/tatzel/runtime | Matching data/template/configuration, www/app, and www/framework assets. |
-| share/tatzel/examples/installed | Standalone sample project, with its own README. |
-| share/doc/Tatzel | This guide, the framework license, and fetched dependency notices under licenses. |
+| lib/libTatzel.so* | Versioned shared library, SONAME libTatzel.so.0. |
+| include/tatzel | Public .ixx interfaces, including definitions required by templates. |
+| lib/cmake/Tatzel | Imported target, module metadata, version/configuration files, deployment helper. |
+| share/tatzel/runtime | Matching browser JavaScript, framework CSS/images, HTML template, optional backend configuration. |
+| share/tatzel/examples/installed | Independent sample project and README. |
+| share/doc/Tatzel | This guide, license, and dependency notices. |
 
-The package configuration uses its installation location rather than the original
-checkout/build paths. You may relocate the whole prefix before configuring a
-consumer. After configuring a consumer, keep its package prefix available for
-rebuilds, or reconfigure that consumer against the new location.
+The library directory follows GNUInstallDirs and can be lib64 or another
+configured path. You may relocate the entire installation before configuring
+an application. Reconfigure an existing application if its package prefix moves.
 
-## Build the installed sample
+## Use the installed sample
 
-Copy share/tatzel/examples/installed from the installation into a separate working
-directory. With that directory as the current directory:
+Copy `share/tatzel/examples/installed` from the installation into another working
+directory. The copied project has no dependency on the framework checkout:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 \
-  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/absolute/path/to/tatzel-install
-cmake --build build --parallel 2
-./build/TatzelInstalledExample
+cmake -S /path/to/copied/sample -B sample-build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH=/absolute/path/to/tatzel-install
+cmake --build sample-build --parallel 2
+./sample-build/TatzelInstalledExample
 ```
 
-Open http://localhost:8080/. Increment the counter or enter a name and press Greet.
-Each connection owns its state. The sample's optional first argument selects a
-custom runtime directory; see its README.
+Open http://localhost:8080/. Try the counter, greeting, and background-task button.
+Each browser has separate logical state. The background callback returns its UI
+update through the page's Dispatcher and checked element handle.
 
-## Use the target in your own project
+For your own application:
 
 ```cmake
 cmake_minimum_required(VERSION 4.0)
 project(MyApplication LANGUAGES CXX)
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(Tatzel 0.1 CONFIG REQUIRED)
@@ -106,80 +97,72 @@ target_link_libraries(MyApplication PRIVATE Tatzel::Tatzel)
 tatzel_deploy_runtime(MyApplication)
 ```
 
-Select the language standard before creating application targets so CMake's module
-scanner has an explicit CXX_STANDARD. The library also propagates its language
-and module requirements. Application code can
-include the standard headers it uses, then import UI and create tatzel::App.
-No framework-private include directories or Drogon target are needed for the
-sample. Applications directly calling Drogon APIs should link Drogon::Drogon too.
-The original source target Tatzel remains available as well as Tatzel::Tatzel.
-Source embedding with add_subdirectory/FetchContent defaults the development and
-Workspace executables off when Tatzel is not the top-level project.
+The imported target propagates the C++26 requirement. Your `Main.cpp` can import
+UI, construct `tatzel::App`, register pages, and call Run, as the sample does.
 
-## Runtime discovery and deployment
+## Deploy the executable, library, and browser runtime
 
-AppOptions::resource_directory chooses the runtime root. With no explicit root,
-App checks, in order:
+`tatzel_deploy_runtime` copies the shared library under its SONAME next to the
+executable and refreshes its `tatzel-runtime` directory on every build, including
+asset-only changes. On Linux it adds an executable-relative library search path.
 
-1. A nonempty TATZEL_RESOURCE_DIRECTORY environment variable.
-2. An adjacent tatzel-runtime directory next to the real executable on Linux.
-3. The configured build or installed runtime directory compiled into the library.
+Move these together:
 
-An explicit root takes precedence over every automatic option. Relative explicit
-roots use the working directory at App construction and are made absolute.
-A missing selected root raises tatzel::Exception; it does not silently fall back.
-The Linux adjacent-directory check uses /proc/self/exe. On other platforms,
-provide a root explicitly or use the configured fallback; automatic executable
-location is currently implemented only for Linux.
+- The application executable.
+- `libTatzel.so.0` from the executable's build directory.
+- The complete adjacent `tatzel-runtime` directory.
 
-tatzel_deploy_runtime(MyApplication) copies the runtime beside that executable
-whenever the executable target is built, including asset-only changes. Deploy
-the executable together with its adjacent tatzel-runtime directory and required
-system shared libraries. The framework can then run from any working directory,
-without access to its installation's runtime directory. The helper copies files;
-it does not remove application-added files already in that directory.
+The deployed application can run from an unrelated working directory after the
+original installation is unavailable. The destination still needs compatible
+OpenSSL and C/C++ system runtimes. Alternatively, manage the library and its
+search path through your normal system packaging/deployment process.
 
-Customize resource locations in C++:
+Deploy the browser runtime from the same Tatzel installation as the library.
+Protocol versions must match; do not combine assets from another checkout.
+
+## Application options
+
+`AppOptions` owns listener address, port, server thread count, log verbosity, and
+resource paths. Normal startup needs no backend-specific configuration file:
 
 ```cpp
-auto app = tatzel::App{ tatzel::AppOptions{
-    .resource_directory = "/opt/my-application/runtime",
-    .configuration_path = "data/server.json",
-    .template_path = "data/application.html",
-    .document_root = "www"
-} };
+auto options = tatzel::AppOptions{};
+options.listen_address = "127.0.0.1";
+options.port = 8080;
+options.thread_count = 2;
+options.log_level = tatzel::LogLevel::Info;
+auto app = tatzel::App{ std::move( options ) };
 ```
 
-Each file/directory path can be absolute or relative to the selected root.
-An empty configuration_path skips Drogon configuration loading. An empty
-document_root preserves the static root from the Drogon configuration; by default
-App overrides that root with the resolved runtime/www directory. A custom full
-static root must also contain the matching app and framework assets. You may
-copy your own assets into the deployed runtime/www directory without changing
-framework files. Use GetResourceDirectory to locate application-specific files.
+Resource discovery selects the first available source in this order:
 
-The legacy App(configuration_path, template_path) overload retains explicit
-working-directory-relative arguments and the configuration's document root.
-Workspace currently uses that overload and its own working-directory-relative
-database path. Framework runtime discovery does not choose persistence locations
-for applications.
+1. A nonempty `AppOptions::resource_directory`.
+2. A nonempty `TATZEL_RESOURCE_DIRECTORY` environment variable.
+3. An adjacent `tatzel-runtime` directory, resolved from `/proc/self/exe` on Linux.
+4. The configured framework build runtime as a development fallback.
 
-## Verify installation and relocation
+An explicitly selected missing directory is an error. `template_path` defaults
+to `data/template.html`; `document_root` defaults to `www`. Relative paths resolve
+against the selected resource directory. `configuration_path` is empty by
+default and optionally loads advanced Drogon configuration. Explicit Tatzel
+listener/thread/log settings take precedence for the settings they control.
+The existing App(configuration_path, template_path) constructor remains available
+for applications using explicit legacy file paths.
 
-After a complete framework build, run:
+## Package verification
+
+After building with `TATZEL_BUILD_TESTS=ON`, run:
 
 ```sh
+ctest --test-dir build/package --output-on-failure
 python3 tools/check_package.py --build-directory build/package \
-  --work-directory /tmp/tatzel-package-check --compiler clang++-18 --parallel 2
+  --work-directory /tmp/tatzel-package-check \
+  --compiler /absolute/path/to/the/selected/compiler
 ```
 
-Choose a new work directory outside the checkout and framework build. The check
-installs into a prefix containing spaces, relocates it, copies the installed
-sample out, and configures/builds that sample through find_package. It checks
-that the consumer build refers to neither the checkout nor framework build,
-compares deployed runtime files with the installation, checks asset-only deployment
-refreshes, moves the executable,
-makes the installed runtime unavailable, and launches from an empty directory.
-Actual HTTP/browser-asset requests and WebSocket interactions verify the counter,
-text input, environment override, and explicit AppOptions precedence.
-The same check runs in CI alongside the existing behavior and browser suites.
+Use a new work directory. The package check verifies hidden native dependencies,
+installed public interfaces, a relocated prefix containing spaces, a separate
+consumer, dynamic linkage without private-source compilation, asset refresh,
+and deployment after the installed library/runtime directories become
+unavailable. HTTP/WebSocket checks exercise UI actions, background work, resource
+selection, and explicit-path failure.

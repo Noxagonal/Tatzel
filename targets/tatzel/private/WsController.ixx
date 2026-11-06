@@ -20,6 +20,7 @@ module;
 export module UI.WSController;
 
 import UI.Utility;
+import UI.Internal.JSON;
 import UI.Protocol;
 import UI.ClientConnection;
 import UI.PageBuilder;

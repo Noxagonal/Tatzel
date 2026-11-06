@@ -23,8 +23,16 @@ function(tatzel_deploy_runtime TARGET_NAME)
 	add_custom_target("${TARGET_NAME}_tatzel_runtime"
 		COMMAND "${CMAKE_COMMAND}" -E copy_directory "${_RUNTIME_DIRECTORY}"
 			"$<TARGET_FILE_DIR:${TARGET_NAME}>/tatzel-runtime"
+		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:Tatzel::Tatzel>"
+			"$<TARGET_FILE_DIR:${TARGET_NAME}>/$<TARGET_SONAME_FILE_NAME:Tatzel::Tatzel>"
 		VERBATIM
 	)
+	get_target_property(_LIBRARY_IMPORTED Tatzel::Tatzel IMPORTED)
+	if(NOT _LIBRARY_IMPORTED)
+		add_dependencies("${TARGET_NAME}_tatzel_runtime" Tatzel)
+	endif()
+	set_property(TARGET "${TARGET_NAME}" APPEND PROPERTY BUILD_RPATH "$ORIGIN")
+	set_property(TARGET "${TARGET_NAME}" PROPERTY INSTALL_RPATH "$ORIGIN")
 	if(TARGET tatzel_runtime)
 		add_dependencies("${TARGET_NAME}_tatzel_runtime" tatzel_runtime)
 	endif()

@@ -28,7 +28,7 @@ auto tatzel::ClientConnection::Create( drogon::WebSocketConnectionPtr ws_connect
 	if( !loop || !ws_connection ) throw Exception{ "Client connection requires a transport and its owning event loop" };
 
 	auto connection = std::shared_ptr<ClientConnection>{ new ClientConnection{ std::move( ws_connection ) } };
-	connection->dispatcher_owner = std::make_unique<DispatcherOwner>( *loop,
+	connection->dispatcher_owner = std::make_unique<DispatcherOwner>(
 		[ weak = std::weak_ptr{ connection } ](
 			std::move_only_function<void()>& callback,
 			std::source_location origin
@@ -44,7 +44,9 @@ tatzel::ClientConnection::ClientConnection( drogon::WebSocketConnectionPtr ws_co
 	ws_connection{ std::move( ws_connection ) }
 {
 	assert( this->ws_connection );
-	client_updater = std::make_unique<ClientUpdater>( this->ws_connection );
+	client_updater = std::make_unique<ClientUpdater>(
+		[ transport = this->ws_connection ]( std::string_view frame ) { transport->send( std::string{ frame } ); },
+		[ transport = this->ws_connection ] { transport->forceClose(); } );
 	element_adapter = std::make_unique<TatzelElementAdapter>( *client_updater );
 	element_tree = std::make_unique<ClientElementTree>();
 	element_tree->SetRemovalHandler( [ updater = client_updater.get() ]( std::span<const dom::ElementPart> parts ) {

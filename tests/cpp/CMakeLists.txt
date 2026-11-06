@@ -14,12 +14,19 @@ add_executable(TatzelRemovalTests Removal.cpp)
 target_link_libraries(TatzelRemovalTests PRIVATE Tatzel)
 add_test(NAME TatzelRemovalTests COMMAND TatzelRemovalTests)
 
+# Backend integration tests need the same native event-loop/logger instance as
+# the code under test. The installed shared library deliberately hides that instance.
+add_library(TatzelNativeTestBackend STATIC)
+set_default_target_files(TatzelNativeTestBackend "${Tatzel_SOURCE_DIR}/targets/tatzel")
+target_include_directories(TatzelNativeTestBackend PRIVATE "${Tatzel_BINARY_DIR}/targets/tatzel/tatzel-generated")
+target_link_libraries(TatzelNativeTestBackend PUBLIC TatzelStacktrace PRIVATE Drogon::Drogon)
+
 add_executable(TatzelDiagnosticTests Diagnostics.cpp)
-target_link_libraries(TatzelDiagnosticTests PRIVATE Tatzel Drogon::Drogon)
+target_link_libraries(TatzelDiagnosticTests PRIVATE TatzelNativeTestBackend Drogon::Drogon)
 add_test(NAME TatzelDiagnosticTests COMMAND TatzelDiagnosticTests)
 
 add_executable(TatzelDispatcherTests Dispatcher.cpp)
-target_link_libraries(TatzelDispatcherTests PRIVATE Tatzel Drogon::Drogon)
+target_link_libraries(TatzelDispatcherTests PRIVATE TatzelNativeTestBackend Drogon::Drogon)
 add_test(NAME TatzelDispatcherTests COMMAND TatzelDispatcherTests)
 set_tests_properties(TatzelDispatcherTests PROPERTIES TIMEOUT 15)
 
@@ -91,6 +98,24 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 	target_link_options(TatzelDispatcherSanitizerTests PRIVATE -fsanitize=address,undefined)
 	add_test(NAME TatzelDispatcherSanitizerTests COMMAND TatzelDispatcherSanitizerTests)
 	set_tests_properties(TatzelDispatcherSanitizerTests PROPERTIES TIMEOUT 20)
+
+	add_executable(TatzelTaskQueueSanitizerTests
+		TaskQueue.cpp
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/TaskQueue.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Diagnostics.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Logging.cpp")
+	target_sources(TatzelTaskQueueSanitizerTests PRIVATE
+		FILE_SET task_modules TYPE CXX_MODULES
+		BASE_DIRS "${Tatzel_SOURCE_DIR}/targets/tatzel/public"
+		FILES
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/TaskQueue.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Diagnostics.ixx"
+			"${Tatzel_SOURCE_DIR}/targets/tatzel/public/Logging.ixx")
+	target_link_libraries(TatzelTaskQueueSanitizerTests PRIVATE TatzelStacktrace Drogon::Drogon)
+	target_compile_options(TatzelTaskQueueSanitizerTests PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+	target_link_options(TatzelTaskQueueSanitizerTests PRIVATE -fsanitize=address,undefined)
+	add_test(NAME TatzelTaskQueueSanitizerTests COMMAND TatzelTaskQueueSanitizerTests)
+	set_tests_properties(TatzelTaskQueueSanitizerTests PROPERTIES TIMEOUT 20)
 endif()
 
 add_executable(TatzelElementTests Elements.cpp)
@@ -108,3 +133,8 @@ add_test(NAME TatzelComponentTests COMMAND TatzelComponentTests)
 add_executable(TatzelTableTests Tables.cpp)
 target_link_libraries(TatzelTableTests PRIVATE Tatzel Drogon::Drogon)
 add_test(NAME TatzelTableTests COMMAND TatzelTableTests)
+
+add_executable(TatzelTaskQueueTests TaskQueue.cpp)
+target_link_libraries(TatzelTaskQueueTests PRIVATE Tatzel)
+add_test(NAME TatzelTaskQueueTests COMMAND TatzelTaskQueueTests)
+set_tests_properties(TatzelTaskQueueTests PROPERTIES TIMEOUT 20)

@@ -29,3 +29,5 @@ The repository is the documentation source of truth. API contracts are maintaine
 next to the code and the guides explain how those APIs fit together. The static
 output is prepared for eventual hosting at docs.tatzel.dev; deployment and DNS
 are not configured by the documentation build.
+
+- [Background task queue](task-queue.md)

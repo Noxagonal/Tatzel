@@ -3,6 +3,8 @@
 module;
 
 #include <deque>
+#include <cstdint>
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -11,6 +13,7 @@ export module UI.App;
 
 import UI.Page;
 import UI.PageBuilder;
+import UI.Logging;
 
 namespace tatzel {
 
@@ -21,9 +24,13 @@ namespace tatzel {
 export struct AppOptions
 {
 	std::string resource_directory; ///< Runtime root; empty selects automatic discovery.
-	std::string configuration_path = "data/drogon_config.json"; ///< Drogon configuration, or empty for its defaults.
+	std::string configuration_path; ///< Optional advanced backend configuration; empty uses Tatzel defaults.
 	std::string template_path = "data/template.html"; ///< Nonempty HTML document path.
 	std::string document_root = "www"; ///< Static root; empty retains the Drogon configuration's value.
+	std::string listen_address = "0.0.0.0"; ///< Listener address; copied by the application.
+	std::uint16_t port = 8080; ///< Nonzero HTTP listener port.
+	std::size_t thread_count = 1; ///< Positive server worker-thread count.
+	LogLevel log_level = LogLevel::Info; ///< Initial framework and server verbosity.
 };
 
 /// @brief Owns registered logical page factories and runs the Drogon server.
@@ -115,6 +122,8 @@ public:
 private:
 	std::string resource_directory;
 	std::string template_path;
+	std::string listen_address;
+	std::uint16_t port;
 	std::deque<Page> registered_page_list;
 	bool has_run = false;
 };

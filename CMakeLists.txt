@@ -10,23 +10,8 @@ option(TATZEL_BUILD_DEVELOPMENT "Build the development showcases" ${PROJECT_IS_T
 option(TATZEL_BUILD_WORKSPACE "Build the persistent workspace sample" ${PROJECT_IS_TOP_LEVEL})
 option(TATZEL_USE_SYSTEM_DROGON "Use an installed Drogon package instead of fetching it" OFF)
 
-if(NOT TARGET Drogon::Drogon)
-	if(TATZEL_USE_SYSTEM_DROGON)
-		find_package(Drogon 1.9.13 CONFIG REQUIRED)
-	else()
-		include(FetchContent)
-		# Defaults for the fetched dependency; respect an embedding project's choices.
-		set(BUILD_CTL OFF CACHE BOOL "Build drogon_ctl")
-		set(BUILD_EXAMPLES OFF CACHE BOOL "Build Drogon examples")
-		set(BUILD_ORM OFF CACHE BOOL "Build Drogon ORM")
-		set(BUILD_BROTLI OFF CACHE BOOL "Build Brotli support")
-		set(BUILD_YAML_CONFIG OFF CACHE BOOL "Build YAML configuration")
-		FetchContent_Declare(drogon
-			GIT_REPOSITORY https://github.com/drogonframework/drogon.git
-			GIT_TAG v1.9.13 GIT_SHALLOW TRUE)
-		FetchContent_MakeAvailable(drogon)
-	endif()
-endif()
+include(cmake/Dependencies.cmake)
+tatzel_prepare_dependencies()
 
 if(TATZEL_BUILD_TESTS)
 	enable_testing()

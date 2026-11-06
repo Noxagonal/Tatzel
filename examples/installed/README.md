@@ -2,7 +2,7 @@
 
 This is a separate CMake project. It uses only `find_package(Tatzel)` and
 `Tatzel::Tatzel`; it does not include Tatzel's checkout or fetch the framework.
-It demonstrates a counter, text input, logical callbacks, and per-browser state.
+It demonstrates a counter, text input, logical callbacks, and per-browser state, and background work returned through Dispatcher.
 
 First install Tatzel using `docs/package.md` in the checkout. This sample is also
 installed under `share/tatzel/examples/installed`; the installed package guide is
@@ -11,7 +11,7 @@ installed under `share/tatzel/examples/installed`; the installed package guide i
 Copy this directory to a new location, then use your absolute installation prefix:
 
 ```sh
-cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-18 \
+cmake -S . -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/absolute/path/to/tatzel-install
 cmake --build build --parallel 2
 ./build/TatzelInstalledExample
@@ -21,10 +21,13 @@ Open http://localhost:8080/. Each browser connection has its own counter and nam
 The sample listens on port 8080, so stop other Tatzel examples first.
 
 `tatzel_deploy_runtime` copies the framework runtime to `build/tatzel-runtime`
-on every build. Move that directory together with the executable to deploy it;
+on every build. It also copies `libTatzel.so.0` next to the executable. Move the executable,
+that library, and the runtime directory together to deploy them;
 they can run from an unrelated working directory. Linux executable discovery
 uses `/proc/self/exe`, so launching through a symlink also finds the real
-executable's adjacent runtime. System shared libraries remain deployment requirements.
+executable's adjacent runtime. OpenSSL and the C/C++ system runtimes remain deployment requirements.
+CMake 4.0+, Clang 23+, and Ninja are the documented baseline. Your selected
+compiler is used without automatic tool installation or a compiler-version gate.
 
 The optional first argument selects an explicit runtime root:
 

@@ -15,7 +15,7 @@
 | UI.ClientElementTree | targets/tatzel/public | Logical ownership and logical/part identity lookup. |
 | UI.ResourceURL | targets/tatzel/public | Shared scheme checks for logical links and images. |
 | UI.ClientUpdater | targets/tatzel/public | Serialization of concrete DOM operations. |
-| UI.ClientConnection, UI.WSController | targets/tatzel/public | Session ownership and transport routing. |
+| UI.ClientConnection, UI.WSController, UI.Internal.JSON | targets/tatzel/private | Session ownership and transport routing. |
 | Browser TypeScript | targets/typescript_build/src | Live DOM operations, event delegation, and message validation. |
 | Framework CSS | www/framework | Adapter-owned layout rules layered over the default stylesheet. |
 
@@ -45,5 +45,10 @@ TableSortDirection, and TableSelection. The default adapter maps these logical
 objects to native caption/table/thead/tbody/tr/th/td parts. See [tables](tables.md).
 
 AppOptions defines owned resource locations. The installed CMake configuration
-rebuilds the same UI modules through Tatzel::Tatzel and exposes
+imports the compiled shared library as Tatzel::Tatzel, provides its public
+module sources for consumer BMI generation, and exposes
 tatzel_deploy_runtime. See [package installation and usage](package.md).
+
+UI.TaskQueue provides the owned background queue without exposing a transport
+backend. See [background tasks](task-queue.md). JsonCpp stays in private protocol
+implementation; applications need no JSON wrapper or backend headers.

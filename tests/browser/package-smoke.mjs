@@ -55,6 +55,8 @@ async function exercise(binary, cwd, args, environment, title)
 		send("on_input", { part_id: input, value: "Ada" });
 		send("on_click", { part_id: button("Greet") });
 		await waitFor(() => text("Hello, Ada!"));
+		send("on_click", { part_id: button("Run background task") });
+		await waitFor(() => text("Background task complete."));
 		assert.ok(!messages.some(message => message.op === "error"));
 	}
 	catch (error) { console.error(diagnostics); throw error; }
