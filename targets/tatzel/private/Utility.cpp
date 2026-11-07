@@ -1,13 +1,11 @@
 module;
 
 #include <drogon/utils/Utilities.h>
-#include <json/json.h>
 #include <filesystem>
 #include <fstream>
 #include <string>
 #include <string_view>
-#include <cstdint>
-#include <sstream>
+#include <cstddef>
 
 module UI.Utility;
 
@@ -21,28 +19,10 @@ auto tatzel::GetTemplateDocument( const std::filesystem::path& path ) -> std::st
 	auto length = file.tellg();
 	if( length <= 0 ) throw tatzel::Exception{ "Template file is empty or unreadable" };
 	file.seekg( 0 );
-	auto result = std::string( static_cast<size_t>( length ), '\0' );
+	auto result = std::string( static_cast<std::size_t>( length ), '\0' );
 	if( !file.read( result.data(), static_cast<std::streamsize>( result.size() ) ) )
 		throw tatzel::Exception{ "Could not read complete template file" };
 	return result;
-}
-
-auto tatzel::ParseJson( std::string_view text ) -> Json::Value
-{
-	Json::CharReaderBuilder builder;
-	Json::Value result;
-	std::string errors;
-	std::istringstream stream{ std::string{ text } };
-	if( !Json::parseFromStream( builder, stream, &result, &errors ) )
-		throw tatzel::Exception{ "Failed to parse JSON string" };
-	return result;
-}
-
-auto tatzel::JsonToString( const Json::Value& json ) -> std::string
-{
-	Json::StreamWriterBuilder writer;
-	writer[ "indentation" ] = "";
-	return Json::writeString( writer, json );
 }
 
 auto tatzel::GenerateUUID() -> std::string

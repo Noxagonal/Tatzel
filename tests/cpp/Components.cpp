@@ -2,7 +2,7 @@
 
 #include <cassert>
 #include <functional>
-#include <json/json.h>
+#include "JsonFrames.hpp"
 #include <optional>
 #include <string>
 #include <string_view>
@@ -94,7 +94,7 @@ auto Find(
 auto main() -> int
 {
 	auto frames = std::vector<Json::Value>{};
-	auto updater = tatzel::ClientUpdater{ [ &frames ]( const Json::Value& frame ) { frames.push_back( frame ); } };
+	auto updater = tatzel::ClientUpdater{ [ &frames ]( std::string_view frame ) { frames.push_back( ParseFrame( frame ) ); } };
 	auto adapter = tatzel::TatzelElementAdapter{ updater };
 	auto tree = tatzel::ClientElementTree{};
 	tree.SetRemovalHandler( [ &updater ]( auto parts ) { updater.RemoveElementParts( parts ); } );

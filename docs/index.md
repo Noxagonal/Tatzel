@@ -8,12 +8,13 @@ Start with the model, then build the example:
 
 1. [Architecture and ownership](architecture.md)
 2. [Build and run](building.md)
-3. [Working with logical controls](logical-controls.md)
-4. [Logging and exception traces](diagnostics.md)
-5. [Posting work to a logical page](dispatcher.md)
-6. [Reusable components and themes](components.md)
-7. [Tables and stable rows](tables.md)
-8. [Workspace sample application](workspace.md)
+3. [Install and use the CMake package](package.md)
+4. [Working with logical controls](logical-controls.md)
+5. [Logging and exception traces](diagnostics.md)
+6. [Posting work to a logical page](dispatcher.md)
+7. [Reusable components and themes](components.md)
+8. [Tables and stable rows](tables.md)
+9. [Workspace sample application](workspace.md)
 
 For framework development:
 
@@ -28,3 +29,5 @@ The repository is the documentation source of truth. API contracts are maintaine
 next to the code and the guides explain how those APIs fit together. The static
 output is prepared for eventual hosting at docs.tatzel.dev; deployment and DNS
 are not configured by the documentation build.
+
+- [Background task queue](task-queue.md)

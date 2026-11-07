@@ -25,7 +25,7 @@ UI.Element.*. Concrete DOM descriptions use tatzel::dom and UI.DOM.*.
 ## Request and update flow
 
 1. App registers an HTTP route and a logical page factory.
-2. An HTTP request receives data/template.html.
+2. An HTTP request receives the template selected by AppOptions (data/template.html under the resolved runtime by default).
 3. The browser opens /ws and sends connect with its route_path.
 4. The server creates a client-owned logical tree and invokes the page factory once.
 5. Builders create logical controls; the adapter assigns DOM parts; ClientUpdater

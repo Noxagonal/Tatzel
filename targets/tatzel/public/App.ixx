@@ -3,6 +3,8 @@
 module;
 
 #include <deque>
+#include <cstdint>
+#include <cstddef>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -11,8 +13,25 @@ export module UI.App;
 
 import UI.Page;
 import UI.PageBuilder;
+import UI.Logging;
 
 namespace tatzel {
+
+/// @brief Owns server settings and runtime resource locations for an application.
+/// @details Relative file paths use resource_directory. An empty resource directory
+/// selects TATZEL_RESOURCE_DIRECTORY, an adjacent tatzel-runtime directory on Linux,
+/// then the configured package/build runtime.
+export struct AppOptions
+{
+	std::string resource_directory; ///< Runtime root; empty selects automatic discovery.
+	std::string configuration_path; ///< Optional advanced backend configuration; empty uses Tatzel defaults.
+	std::string template_path = "data/template.html"; ///< Nonempty HTML document path.
+	std::string document_root = "www"; ///< Static root; empty retains the Drogon configuration's value.
+	std::string listen_address = "0.0.0.0"; ///< Listener address; copied by the application.
+	std::uint16_t port = 8080; ///< Nonzero HTTP listener port.
+	std::size_t thread_count = 1; ///< Positive server worker-thread count.
+	LogLevel log_level = LogLevel::Info; ///< Initial framework and server verbosity.
+};
 
 /// @brief Owns registered logical page factories and runs the Drogon server.
 /// @details One application may exist at a time. Register pages before Run().
@@ -20,14 +39,21 @@ namespace tatzel {
 export class App
 {
 public:
-	/// @brief Loads runtime configuration and establishes the global application.
+	/// @brief Resolves runtime resources, loads configuration, and establishes the global application.
+	/// @param options Owned paths; relative file paths use the selected runtime root.
+	/// @pre No other App exists; runtime resources and any configuration file are available.
+	/// @post This object is returned by GetGlobalApp(); nonempty option paths are resolved at construction.
+	/// @throws tatzel::Exception If another App exists, resources are invalid, or server limits are empty.
+	App( AppOptions options = {} );
+
+	/// @brief Loads explicit legacy file paths relative to the current working directory.
 	/// @param configuration_path Drogon JSON configuration path, copied during construction.
 	/// @param template_path HTML document path, owned for registered route responses.
 	/// @pre No other App exists; the configuration file is readable.
 	/// @post This object is returned by GetGlobalApp().
 	/// @throws tatzel::Exception If another App already exists.
 	App(
-		std::string_view configuration_path = "./data/drogon_config.json",
+		std::string_view configuration_path,
 		std::string_view template_path = "./data/template.html"
 	);
 
@@ -81,14 +107,23 @@ public:
 	/// @post Registered pages are unchanged.
 	auto FindRegisteredPage( std::string_view route_path ) -> Page*;
 
-	/// @brief Registers the WebSocket controller and runs the server on port 8080.
+	/// @brief Reads the resolved resource directory for application-owned runtime files.
+	/// @return Borrowed absolute directory path valid for this application's lifetime.
+	/// @pre This application is alive.
+	/// @post Runtime configuration is unchanged.
+	auto GetResourceDirectory() const noexcept -> std::string_view { return resource_directory; }
+
+	/// @brief Registers the WebSocket controller and runs the configured server listener.
 	/// @pre Called once after all pages are registered; runtime assets are available.
 	/// @post Returns after Drogon stops; the application cannot be run again.
 	/// @throws tatzel::Exception If Run() has already been called.
 	auto Run() -> void;
 
 private:
+	std::string resource_directory;
 	std::string template_path;
+	std::string listen_address;
+	std::uint16_t port;
 	std::deque<Page> registered_page_list;
 	bool has_run = false;
 };

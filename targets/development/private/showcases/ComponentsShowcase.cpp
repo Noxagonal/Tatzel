@@ -10,7 +10,7 @@ namespace example {
 
 auto BuildComponentsShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void
 {
 	ui.Heading( "Reusable components" );
@@ -50,12 +50,14 @@ auto BuildComponentsShowcase(
 					example::NoteDraft draft,
 					example::NoteSaveToken token
 				) {
-					background.runTaskInQueue( [ dispatcher, handle, draft = std::move( draft ), token = std::move( token ) ] {
+					const auto submitted = background.Post( [ dispatcher, handle, draft = std::move( draft ), token ] {
 						std::this_thread::sleep_for( std::chrono::milliseconds{ 300 } );
 						dispatcher.Post( [ handle, draft, token ] {
 							if( auto* editor = handle.Get() ) editor->CompleteSave( token, draft.title == "fail" ? "Example save failed. Your draft is preserved." : "" );
 						} );
 					} );
+					if( submitted != tatzel::TaskQueueResult::Accepted )
+						if( auto* editor = handle.Get() ) editor->CompleteSave( token, "Background queue busy. Retry saving." );
 				} );
 				panel.Button( std::string{ "Load another record in " } + label, [ handle ] {
 					if( auto* editor = handle.Get() ) editor->Load( { "replacement", "Loaded title", "A fresh record replaces the old draft." } );

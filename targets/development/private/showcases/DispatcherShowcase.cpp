@@ -11,7 +11,7 @@ namespace example {
 
 auto BuildDispatcherShowcase(
 	tatzel::PageBuilder<> ui,
-	trantor::ConcurrentTaskQueue& background
+	tatzel::TaskQueue& background
 ) -> void
 {
 	ui.Heading( "Background work" );
@@ -33,7 +33,7 @@ auto BuildDispatcherShowcase(
 			auto* name = name_handle.Get();
 			if( !name ) return;
 			auto value = std::string{ name->GetValue() };
-			background.runTaskInQueue( [ dispatcher, status, result, form_handle, value = std::move( value ) ] {
+			const auto submitted = background.Post( [ dispatcher, status, result, form_handle, value = std::move( value ) ] {
 				try
 				{
 					std::this_thread::sleep_for( std::chrono::milliseconds{ 150 } );
@@ -51,6 +51,11 @@ auto BuildDispatcherShowcase(
 				}
 				catch( ... ) { tatzel::LogException( std::current_exception(), { "/dispatcher", "background_save" } ); }
 			} );
+			if( submitted != tatzel::TaskQueueResult::Accepted )
+			{
+				if( auto* text = status.Get() ) text->SetText( "Background queue busy; retry" );
+				return;
+			}
 			if( auto* form = form_handle.Get() ) form->SetDisabled( true );
 			if( auto* text = status.Get() ) text->SetText( "Saving" );
 		} );

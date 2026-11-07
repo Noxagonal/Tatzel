@@ -22,7 +22,7 @@ namespace tatzel {
 /// @brief Owns the logical tree and framework services for one browser session.
 /// @details Registry lookups retain shared ownership of this object. Members are
 /// destroyed so the logical tree disappears before its adapter and DOM sender.
-export class ClientConnection
+export class [[gnu::visibility( "hidden" )]] ClientConnection
 {
 public:
 	/// @brief Creates shared session ownership and binds its weak dispatcher invocation boundary.

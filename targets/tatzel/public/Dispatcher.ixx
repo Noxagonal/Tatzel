@@ -7,8 +7,6 @@ module;
 #include <memory>
 #include <source_location>
 
-namespace trantor { class EventLoop; }
-
 export module UI.Dispatcher;
 
 namespace tatzel {
@@ -83,14 +81,12 @@ export class DispatcherOwner
 {
 public:
 	/// @brief Creates a bounded queue and associates it with an existing event loop.
-	/// @param loop Owning loop, which outlives this service or closes it during loop exit.
 	/// @param invoke Framework invoker receiving an owned callback and its submission site.
 	/// @param options Nonzero capacity and batch size.
 	/// @pre Called on loop's thread before loop exit; invoke is nonempty and its captures outlive this service.
 	/// @post GetDispatcher returns an open weak handle and loop exit will cancel pending work.
 	/// @throws tatzel::Exception If the invoker or limits are invalid, or loop is not the caller's current event loop.
 	DispatcherOwner(
-		trantor::EventLoop& loop,
 		std::function<void( std::move_only_function<void()>&, std::source_location )> invoke,
 		DispatchOptions options = {}
 	);
