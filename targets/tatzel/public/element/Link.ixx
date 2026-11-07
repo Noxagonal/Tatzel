@@ -7,8 +7,6 @@ module;
 
 export module UI.Element.Link;
 
-import UI.Diagnostics;
-import UI.ResourceURL;
 export import UI.Element.Text;
 
 namespace tatzel::ui {
@@ -41,14 +39,7 @@ public:
 		std::string_view text,
 		std::string_view url,
 		LinkTarget target = LinkTarget::SameContext
-	) :
-		Text{ id, parent, text },
-		url{ url },
-		target{ target }
-	{
-		ValidateURL( url );
-		ValidateTarget( target );
-	}
+	);
 
 	/// @brief Reads the destination.
 	/// @return Borrowed URL, invalidated by URL mutation or destruction.
@@ -61,14 +52,7 @@ public:
 	/// @pre Called on the owning event loop.
 	/// @post Changed state is stored and a bound adapter queues its destination update.
 	/// @throws tatzel::Exception If the URL is unsupported; existing state is unchanged.
-	auto SetURL( std::string_view url ) -> void
-	{
-		ValidateURL( url );
-		if( this->url == url ) return;
-
-		this->url = url;
-		NotifyChanged();
-	}
+	auto SetURL( std::string_view url ) -> void;
 
 	/// @brief Reads the requested browser context.
 	/// @return Current semantic navigation target.
@@ -81,14 +65,7 @@ public:
 	/// @pre Called on the owning event loop.
 	/// @post Changed state is stored and the adapter queues target and opener policy updates.
 	/// @throws tatzel::Exception If target is undefined; state is unchanged.
-	auto SetTarget( LinkTarget target ) -> void
-	{
-		ValidateTarget( target );
-		if( this->target == target ) return;
-
-		this->target = target;
-		NotifyChanged();
-	}
+	auto SetTarget( LinkTarget target ) -> void;
 
 private:
 	/// @brief Validates supported navigation schemes.
@@ -96,20 +73,14 @@ private:
 	/// @pre None.
 	/// @post Candidate state is unchanged.
 	/// @throws tatzel::Exception If the URL contains whitespace, controls, backslashes, or an unsupported scheme.
-	static auto ValidateURL( std::string_view url ) -> void
-	{
-		if( !detail::IsSafeResourceURL( url, true ) ) throw tatzel::Exception{ "Unsupported Link URL" };
-	}
+	static auto ValidateURL( std::string_view url ) -> void;
 
 	/// @brief Validates a semantic navigation context.
 	/// @param target Candidate target.
 	/// @pre None.
 	/// @post Candidate state is unchanged.
 	/// @throws tatzel::Exception If target is undefined.
-	static auto ValidateTarget( LinkTarget target ) -> void
-	{
-		if( target != LinkTarget::SameContext && target != LinkTarget::NewTab ) throw tatzel::Exception{ "Invalid Link target" };
-	}
+	static auto ValidateTarget( LinkTarget target ) -> void;
 
 	std::string url;
 	LinkTarget target;

@@ -9,8 +9,6 @@ module;
 
 export module UI.Element.Modal;
 
-import UI.Diagnostics;
-
 export import UI.Element.LogicalElement;
 export import UI.Element.Interface.Dismissible;
 
@@ -47,13 +45,7 @@ public:
 	/// @param title New accessible dialog title, copied before returning.
 	/// @pre Called on the owning event loop.
 	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetTitle( std::string_view title ) -> void
-	{
-		if( this->title == title ) return;
-
-		this->title = title;
-		NotifyChanged();
-	}
+	auto SetTitle( std::string_view title ) -> void;
 
 	/// @brief Reads the logical open state.
 	/// @return The logical open state.
@@ -64,33 +56,12 @@ public:
 	/// @brief Opens the logical modal and queues its browser presentation.
 	/// @pre Called on the owning event loop after the modal's content is built.
 	/// @post An active modal is logically open and queues its presentation; removed modals are unchanged.
-	auto Open() -> void
-	{
-		if( IsRemoved() || open ) return;
-
-		open = true;
-		NotifyChanged();
-	}
+	auto Open() -> void;
 
 	/// @brief Closes the modal and invokes its close callback once per transition.
 	/// @pre Called on the owning event loop.
 	/// @post An active open modal queues closed state before its callback; removed/closed modals are unchanged.
-	auto Close() -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || !open ) return;
-
-		open = false;
-		NotifyChanged();
-		if( IsRemoved() ) return;
-
-		auto callback = on_close;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Modal close" };
-			callback();
-		}
-	}
+	auto Close() -> void;
 
 	/// @brief Replaces the close-transition callback.
 	/// @param on_close New callback, or empty to clear it.

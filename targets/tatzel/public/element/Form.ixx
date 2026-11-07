@@ -2,7 +2,6 @@
 /// @brief Coordinated logical form submission and field validation.
 module;
 
-#include <algorithm>
 #include <functional>
 #include <optional>
 #include <span>
@@ -12,8 +11,6 @@ module;
 #include <vector>
 
 export module UI.Element.Form;
-
-import UI.Diagnostics;
 
 export import UI.Element.FormField;
 export import UI.Element.Interface.Submittable;
@@ -49,16 +46,7 @@ public:
 		LogicalElement* parent,
 		std::string_view label,
 		std::function<void()> on_submit
-	) :
-		LogicalElement{ id, parent },
-		label{ label },
-		on_submit{ std::move( on_submit ) }
-	{
-		for( auto* ancestor = parent; ancestor; ancestor = ancestor->GetParent() )
-		{
-			if( dynamic_cast<Form*>( ancestor ) ) throw tatzel::Exception{ "Forms cannot be nested" };
-		}
-	}
+	);
 
 	/// @brief Reads the accessible form name.
 	/// @return Borrowed label, invalidated by label mutation or destruction.
@@ -70,13 +58,7 @@ public:
 	/// @param label New name, copied before returning; empty removes the name.
 	/// @pre Called on the owning event loop.
 	/// @post State is stored and a bound adapter queues the accessibility update.
-	auto SetLabel( std::string_view label ) -> void
-	{
-		if( this->label == label ) return;
-
-		this->label = label;
-		NotifyChanged();
-	}
+	auto SetLabel( std::string_view label ) -> void;
 
 	/// @brief Reports whether the form is disabled.
 	/// @return Whether editing and submission are blocked for the form subtree.
@@ -88,24 +70,13 @@ public:
 	/// @param disabled Whether the form and its controls should be disabled.
 	/// @pre Called on the owning event loop.
 	/// @post State is stored and the adapter queues a subtree-disabled presentation update.
-	auto SetDisabled( bool disabled ) -> void
-	{
-		if( this->disabled == disabled ) return;
-
-		this->disabled = disabled;
-		NotifyChanged();
-	}
+	auto SetDisabled( bool disabled ) -> void;
 
 	/// @brief Collects borrowed logical fields throughout this form's child tree.
 	/// @return Fields in logical traversal order, including disabled fields.
 	/// @pre Called on the owning event loop; the form remains alive while pointers are used.
 	/// @post Ownership and logical state are unchanged.
-	auto GetFields() const -> std::vector<FormField*>
-	{
-		auto fields = std::vector<FormField*>{};
-		if( !IsRemoved() ) CollectFields( *this, fields );
-		return fields;
-	}
+	auto GetFields() const -> std::vector<FormField*>;
 
 	/// @brief Validates snapshot membership, uniqueness, types, and choices before applying values.
 	/// @param submission Exactly one value for every enabled descendant field.
@@ -113,83 +84,26 @@ public:
 	/// @pre Called on the owning event loop; field pointers have been resolved within the current page.
 	/// @post Accepted values are applied without edit callbacks; read-only fields retain server values.
 	/// @note Framework integration API; form validation and submit callbacks run separately.
-	auto ApplySubmission( std::span<const FieldSubmission> submission ) -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || disabled ) return false;
-
-		auto fields = GetFields();
-		std::erase_if( fields, []( const auto* field ) { return field->IsDisabled(); } );
-		if( fields.size() != submission.size() ) return false;
-
-		auto seen = std::vector<FormField*>{};
-		for( const auto& entry : submission )
-		{
-			if( !entry.field || std::ranges::find( fields, entry.field ) == fields.end()
-				|| std::ranges::find( seen, entry.field ) != seen.end()
-				|| !entry.field->CanAcceptFieldValue( entry.value )
-				|| ( entry.edit && entry.field->CheckClientEdit( *entry.edit, entry.value ) != EditAcceptance::Current ) ) return false;
-			seen.push_back( entry.field );
-		}
-
-		for( const auto& entry : submission )
-		{
-			if( entry.edit ) entry.field->AcceptClientEdit( *entry.edit );
-			entry.field->AcceptFieldValue( entry.value );
-		}
-		return true;
-	}
+	auto ApplySubmission( std::span<const FieldSubmission> submission ) -> bool;
 
 	/// @brief Validates all current field values, including read-only fields.
 	/// @return Whether every enabled field is valid; disabled forms succeed and removed forms cancel validation.
 	/// @pre Called on the owning event loop; validators do not mutate values or structure.
 	/// @post Every checked field displays its current error; all fields are checked even after a failure.
-	auto Validate() -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return false;
-		if( disabled ) return true;
-
-		auto valid = true;
-		for( auto* field : GetFields() )
-		{
-			if( !field->IsRemoved() && !field->Validate() ) valid = false;
-			if( IsRemoved() ) return false;
-		}
-		return valid;
-	}
+	auto Validate() -> bool;
 
 	/// @brief Reports whether an enabled field currently has a validation error.
 	/// @return Whether enabled-field validation errors exist; false for a disabled form.
 	/// @pre Called on the owning event loop.
 	/// @post No validators run and no state changes.
-	auto HasErrors() const -> bool
-	{
-		return !IsRemoved() && !disabled && std::ranges::any_of( GetFields(), []( const auto* field ) {
-			return !field->IsDisabled() && !field->GetError().empty();
-		} );
-	}
+	auto HasErrors() const -> bool;
 
 	/// @brief Validates current logical values and invokes the appropriate form callback.
 	/// @return Whether enabled valid submission occurred.
 	/// @pre Called on the owning event loop; callbacks and validators obey page lifetime rules.
 	/// @post A surviving form invokes its valid/invalid callback if installed; removal cancels both callbacks.
 	/// @note Programmatic submission uses current server values, not browser edits still in flight.
-	auto Submit() -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || disabled ) return false;
-
-		const auto valid = Validate();
-		if( IsRemoved() ) return false;
-		auto callback = valid ? on_submit : on_invalid;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ valid ? "Form submit" : "Form invalid" };
-			callback();
-		}
-		return valid;
-	}
+	auto Submit() -> bool;
 
 	/// @brief Dispatches browser submission after its complete snapshot is applied.
 	/// @pre Called on the owning event loop after ApplySubmission succeeds.
@@ -217,14 +131,7 @@ private:
 	static auto CollectFields(
 		const LogicalElement& parent,
 		std::vector<FormField*>& fields
-	) -> void
-	{
-		for( const auto& child : parent.GetChildren() )
-		{
-			if( auto* field = dynamic_cast<FormField*>( child.get() ) ) fields.push_back( field );
-			CollectFields( *child, fields );
-		}
-	}
+	) -> void;
 
 	std::string label;
 	bool disabled = false;

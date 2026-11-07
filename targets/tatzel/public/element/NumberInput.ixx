@@ -2,21 +2,14 @@
 /// @brief Numeric editor with optional finite values and server-side constraints.
 module;
 
-#include <algorithm>
-#include <charconv>
-#include <cstddef>
-#include <cmath>
-#include <format>
 #include <functional>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <system_error>
 #include <utility>
 
 export module UI.Element.NumberInput;
 
-import UI.Diagnostics;
 export import UI.Element.TextInput;
 
 namespace tatzel::ui {
@@ -43,29 +36,7 @@ public:
 		std::string_view label,
 		std::optional<double> value,
 		std::function<void( std::optional<double> )> on_change
-	) :
-		TextInput{ id, parent, label, FormatValue( value ), {} }
-	{
-		SetOnChange( std::move( on_change ) );
-		TextInput::SetValidator( [ this ]( std::string_view text ) -> std::string {
-			auto number = ParseValue( text );
-			if( !text.empty() && !number ) return "Enter a valid finite number.";
-			if( number )
-			{
-				if( minimum && *number < *minimum ) return "Value is below the minimum.";
-				if( maximum && *number > *maximum ) return "Value is above the maximum.";
-				if( step )
-				{
-					const auto offset = ( static_cast<long double>( *number ) - minimum.value_or( 0 ) ) / *step;
-					const auto tolerance = std::min( 0.000001L, 0.000000001L * std::max( 1.0L, std::abs( offset ) ) );
-					if( std::isfinite( offset ) && std::abs( offset - std::round( offset ) ) > tolerance )
-						return "Value does not match the step.";
-				}
-			}
-			auto callback = validator;
-			return callback ? callback( number ) : std::string{};
-		} );
-	}
+	);
 
 	/// @brief Reads the finite numeric value of the current draft.
 	/// @return A numeric copy, or nullopt for empty or invalid input.
@@ -129,17 +100,7 @@ public:
 	auto SetRange(
 		std::optional<double> minimum,
 		std::optional<double> maximum
-	) -> void
-	{
-		CheckFinite( minimum );
-		CheckFinite( maximum );
-		if( minimum && maximum && *minimum > *maximum ) throw tatzel::Exception{ "NumberInput bounds are reversed" };
-		if( this->minimum == minimum && this->maximum == maximum ) return;
-
-		this->minimum = minimum;
-		this->maximum = maximum;
-		NotifyValueChanged();
-	}
+	) -> void;
 
 	/// @brief Reads the permitted increment relative to minimum, or zero when unbounded.
 	/// @return Positive step copy, or nullopt for any finite increment.
@@ -152,15 +113,7 @@ public:
 	/// @pre Called on the owning event loop.
 	/// @post The policy is stored and its browser attribute is queued.
 	/// @throws tatzel::Exception If step is nonfinite or nonpositive; state is unchanged.
-	auto SetStep( std::optional<double> step ) -> void
-	{
-		CheckFinite( step );
-		if( step && *step <= 0 ) throw tatzel::Exception{ "NumberInput step must be positive" };
-		if( this->step == step ) return;
-
-		this->step = step;
-		NotifyValueChanged();
-	}
+	auto SetStep( std::optional<double> step ) -> void;
 
 	/// @brief Installs numeric custom validation after required and numeric checks.
 	/// @param validator Returns an error or empty for success; empty clears custom validation.
@@ -172,34 +125,19 @@ public:
 	/// @param on_change New callback, or empty to clear it.
 	/// @pre Called on the owning event loop; captures outlive invocation.
 	/// @post Accepted changes invoke the callback with a numeric snapshot.
-	auto SetOnChange( std::function<void( std::optional<double> )> on_change ) -> void
-	{
-		TextInput::SetOnChange( [ callback = std::move( on_change ) ]( std::string_view text ) {
-			if( callback ) callback( ParseValue( text ) );
-		} );
-	}
+	auto SetOnChange( std::function<void( std::optional<double> )> on_change ) -> void;
 
 	/// @brief Replaces the numeric editing callback.
 	/// @param on_input New callback, or empty to clear it.
 	/// @pre Called on the owning event loop; captures outlive invocation.
 	/// @post Changed edits invoke the callback with a numeric snapshot.
-	auto SetOnInput( std::function<void( std::optional<double> )> on_input ) -> void
-	{
-		TextInput::SetOnInput( [ callback = std::move( on_input ) ]( std::string_view text ) {
-			if( callback ) callback( ParseValue( text ) );
-		} );
-	}
+	auto SetOnInput( std::function<void( std::optional<double> )> on_input ) -> void;
 
 	/// @brief Replaces the numeric Enter-key callback.
 	/// @param on_submit New callback, or empty to clear it.
 	/// @pre Called on the owning event loop; captures outlive invocation.
 	/// @post Standalone submissions invoke the callback with a numeric snapshot.
-	auto SetOnSubmit( std::function<void( std::optional<double> )> on_submit ) -> void
-	{
-		TextInput::SetOnSubmit( [ callback = std::move( on_submit ) ]( std::string_view text ) {
-			if( callback ) callback( ParseValue( text ) );
-		} );
-	}
+	auto SetOnSubmit( std::function<void( std::optional<double> )> on_submit ) -> void;
 
 private:
 	/// @brief Parses a complete locale-independent finite decimal draft.
@@ -207,54 +145,14 @@ private:
 	/// @return Finite numeric copy, or nullopt for empty, malformed, or overflowing text.
 	/// @pre None.
 	/// @post No state changes.
-	static auto ParseValue( std::string_view text ) noexcept -> std::optional<double>
-	{
-		if( text.empty() ) return std::nullopt;
-		// Match the native editor's decimal grammar before numeric conversion.
-		auto index = size_t{ text.front() == '-' ? 1u : 0u };
-		auto digits = size_t{};
-		while( index < text.size() && text[ index ] >= '0' && text[ index ] <= '9' )
-		{
-			++index;
-			++digits;
-		}
-		if( index < text.size() && text[ index ] == '.' )
-		{
-			++index;
-			const auto start = index;
-			while( index < text.size() && text[ index ] >= '0' && text[ index ] <= '9' )
-			{
-				++index;
-				++digits;
-			}
-			if( index == start ) return std::nullopt;
-		}
-		if( !digits ) return std::nullopt;
-		if( index < text.size() && ( text[ index ] == 'e' || text[ index ] == 'E' ) )
-		{
-			++index;
-			if( index < text.size() && ( text[ index ] == '+' || text[ index ] == '-' ) ) ++index;
-			const auto start = index;
-			while( index < text.size() && text[ index ] >= '0' && text[ index ] <= '9' ) ++index;
-			if( index == start ) return std::nullopt;
-		}
-		if( index != text.size() ) return std::nullopt;
-
-		auto value = double{};
-		const auto result = std::from_chars( text.data(), text.data() + text.size(), value );
-		if( result.ec != std::errc{} || result.ptr != text.data() + text.size() || !std::isfinite( value ) ) return std::nullopt;
-		return value;
-	}
+	static auto ParseValue( std::string_view text ) noexcept -> std::optional<double>;
 
 	/// @brief Rejects nonfinite application-supplied numbers.
 	/// @param value Optional number to check.
 	/// @pre None.
 	/// @post The candidate is unchanged.
 	/// @throws tatzel::Exception If a present number is nonfinite.
-	static auto CheckFinite( std::optional<double> value ) -> void
-	{
-		if( value && !std::isfinite( *value ) ) throw tatzel::Exception{ "NumberInput values must be finite" };
-	}
+	static auto CheckFinite( std::optional<double> value ) -> void;
 
 	/// @brief Formats a finite number for native HTML editing.
 	/// @param value Finite numeric copy, or nullopt for empty.
@@ -262,11 +160,7 @@ private:
 	/// @pre None.
 	/// @post No state changes.
 	/// @throws tatzel::Exception If value is nonfinite.
-	static auto FormatValue( std::optional<double> value ) -> std::string
-	{
-		CheckFinite( value );
-		return value ? std::format( "{}", *value ) : std::string{};
-	}
+	static auto FormatValue( std::optional<double> value ) -> std::string;
 
 	std::optional<double> minimum;
 	std::optional<double> maximum;

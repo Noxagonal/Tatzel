@@ -9,8 +9,6 @@ module;
 
 export module UI.Element.TextArea;
 
-import UI.Diagnostics;
-
 export import UI.Element.TextInput;
 
 namespace tatzel::ui {
@@ -50,14 +48,7 @@ public:
 	/// @pre Called on the owning event loop.
 	/// @post The row count is stored and a bound adapter queues its presentation update.
 	/// @throws tatzel::Exception If rows is zero.
-	auto SetRows( size_t rows ) -> void
-	{
-		if( rows == 0 ) throw tatzel::Exception{ "TextArea rows must be positive" };
-		if( this->rows == rows ) return;
-
-		this->rows = rows;
-		NotifyChanged();
-	}
+	auto SetRows( size_t rows ) -> void;
 
 private:
 	size_t rows = 4;

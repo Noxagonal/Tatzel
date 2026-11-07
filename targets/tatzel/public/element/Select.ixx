@@ -2,20 +2,15 @@
 /// @brief Logical single-choice selection with owned stable option IDs.
 module;
 
-#include <algorithm>
 #include <cstddef>
 #include <functional>
 #include <span>
 #include <string>
 #include <string_view>
-#include <unordered_set>
 #include <utility>
-#include <variant>
 #include <vector>
 
 export module UI.Element.Select;
-
-import UI.Diagnostics;
 
 export import UI.Element.FormField;
 
@@ -52,15 +47,7 @@ public:
 		std::vector<SelectOption> options,
 		std::string_view value,
 		std::function<void( std::string_view )> on_change
-	) :
-		FormField{ id, parent, label },
-		options{ std::move( options ) },
-		value{ value },
-		on_change{ std::move( on_change ) }
-	{
-		ValidateOptions( this->options );
-		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
-	}
+	);
 
 	/// @brief Reads the available choices.
 	/// @return Borrowed choices, invalidated by SetOptions or destruction.
@@ -77,18 +64,7 @@ public:
 	auto SetOptions(
 		std::vector<SelectOption> options,
 		std::string_view fallback = {}
-	) -> void
-	{
-		ValidateOptions( options );
-		if( !fallback.empty() && !std::ranges::any_of( options, [ fallback ]( const auto& option ) { return option.id == fallback && !option.disabled; } ) )
-			throw tatzel::Exception{ "Select fallback is not an enabled option" };
-		auto owned_fallback = std::string{ fallback };
-		RecordChoiceChange();
-		this->options = std::move( options );
-		if( !AcceptsChangeValue( value ) ) value = std::move( owned_fallback );
-		++options_revision;
-		NotifyValueChanged();
-	}
+	) -> void;
 
 	/// @brief Reads the selected stable ID.
 	/// @return Borrowed ID, or empty for no selection; value changes invalidate the view.
@@ -105,17 +81,7 @@ public:
 	auto SetValue(
 		std::string_view value,
 		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
-	) -> void
-	{
-		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
-		if( this->value == value && policy != ValueUpdatePolicy::Replace ) return;
-
-		RecordServerValueChange( policy );
-
-		this->value = value;
-		++value_revision;
-		NotifyValueChanged();
-	}
+	) -> void;
 
 	/// @brief Applies an asynchronous result only while the captured logical revision is current.
 	/// @param value New value, owned by the field after acceptance.
@@ -126,13 +92,7 @@ public:
 	auto TrySetValue(
 		std::string_view value,
 		const EditRevision& revision
-	) -> bool
-	{
-		if( !IsEditRevisionCurrent( revision ) ) return false;
-		SetValue( value );
-		return true;
-	}
-
+	) -> bool;
 
 	/// @brief Reads the visible no-selection prompt.
 	/// @return Borrowed prompt, invalidated by placeholder mutation or destruction.
@@ -144,15 +104,7 @@ public:
 	/// @param placeholder New plain text prompt, copied before returning.
 	/// @pre Called on the owning event loop.
 	/// @post The prompt is owned and a bound adapter queues an options update.
-	auto SetPlaceholder( std::string_view placeholder ) -> void
-	{
-		if( this->placeholder == placeholder ) return;
-
-		RecordChoiceChange();
-		this->placeholder = placeholder;
-		++options_revision;
-		NotifyChanged();
-	}
+	auto SetPlaceholder( std::string_view placeholder ) -> void;
 
 	/// @brief Reports the accepted wire-value type.
 	/// @return Text because selection values are stable string IDs.
@@ -165,12 +117,7 @@ public:
 	/// @return Whether the ID is empty or names an enabled choice.
 	/// @pre None.
 	/// @post State is unchanged.
-	auto AcceptsChangeValue( std::string_view value ) const -> bool override
-	{
-		return value.empty() || std::ranges::any_of( options, [ value ]( const auto& option ) {
-			return option.id == value && !option.disabled;
-		} );
-	}
+	auto AcceptsChangeValue( std::string_view value ) const -> bool override;
 
 	/// @brief Copies the selected ID for form processing.
 	/// @return An owned text value.
@@ -182,38 +129,14 @@ public:
 	/// @param value Correctly typed and permitted selected ID.
 	/// @pre Called on the owning event loop; CanAcceptFieldValue returns true.
 	/// @post An enabled field stores selection without a browser value echo.
-	auto AcceptFieldValue( const FieldValue& value ) -> void override
-	{
-		if( IsDisabled() ) return;
-
-		this->value = std::get<std::string>( value );
-		NotifyValueChanged();
-	}
+	auto AcceptFieldValue( const FieldValue& value ) -> void override;
 
 	/// @brief Accepts a browser selection and invokes the change callback.
 	/// @param value Enabled option ID, or empty for no selection.
 	/// @pre Called on the owning event loop for this selector's editor source.
 	/// @post An enabled control stores the ID before calling application code, without value echoes.
 	/// @throws tatzel::Exception If the ID is unavailable.
-	auto InvokeOnChange( std::string_view value ) -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-
-		if( !AcceptsChangeValue( value ) ) throw tatzel::Exception{ "Select value is not an enabled option" };
-		if( IsDisabled() ) return;
-
-		this->value = value;
-		NotifyValueChanged();
-		if( IsRemoved() ) return;
-		auto callback = on_change;
-		auto snapshot = this->value;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Select change" };
-			callback( snapshot );
-		}
-	}
+	auto InvokeOnChange( std::string_view value ) -> void override;
 
 	/// @brief Replaces the accepted-selection callback.
 	/// @param on_change New callback, or empty to clear it.
@@ -225,13 +148,7 @@ public:
 	/// @param validator Returns an error message or empty for success; may be empty.
 	/// @pre Called on the owning event loop; validators do not mutate fields or structure.
 	/// @post Future validation uses this callback after required-field checks.
-	auto SetValidator( std::function<std::string( std::string_view )> validator ) -> void
-	{
-		SetValidationHandler( [ this, validator = std::move( validator ) ] {
-			auto snapshot = value;
-			return validator ? validator( snapshot ) : std::string{};
-		} );
-	}
+	auto SetValidator( std::function<std::string( std::string_view )> validator ) -> void;
 
 	/// @brief Reads the adapter's explicit selection revision.
 	/// @return Counter incremented only by changed explicit SetValue calls.
@@ -251,17 +168,7 @@ private:
 	/// @pre None.
 	/// @post Candidate choices are unchanged.
 	/// @throws tatzel::Exception If an ID is empty or duplicated.
-	static auto ValidateOptions( std::span<const SelectOption> options ) -> void
-	{
-		auto ids = std::unordered_set<std::string_view>{};
-		for( const auto& option : options )
-		{
-			if( option.id.empty() || !ids.insert( option.id ).second )
-			{
-				throw tatzel::Exception{ "Select option IDs must be unique and nonempty" };
-			}
-		}
-	}
+	static auto ValidateOptions( std::span<const SelectOption> options ) -> void;
 
 	std::vector<SelectOption> options;
 	std::string value;

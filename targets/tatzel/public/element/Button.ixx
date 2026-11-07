@@ -9,8 +9,6 @@ module;
 
 export module UI.Element.Button;
 
-import UI.Diagnostics;
-
 export import UI.Element.LogicalElement;
 export import UI.Element.Style;
 export import UI.Element.Interface.Clickable;
@@ -67,12 +65,7 @@ public:
 	/// @param text New logical label.
 	/// @pre Called on the owning event loop.
 	/// @post The button owns text; a bound adapter queues its DOM text update.
-	auto SetText( std::string_view text ) -> void
-	{
-		if( this->text == text ) return;
-		this->text = text;
-		NotifyChanged();
-	}
+	auto SetText( std::string_view text ) -> void;
 
 	/// @brief Reads button emphasis.
 	/// @return Current logical button emphasis.
@@ -84,12 +77,7 @@ public:
 	/// @param variant New logical button emphasis.
 	/// @pre Called on the owning loop; enum arguments are defined values.
 	/// @post Changed state is stored and a bound adapter queues its presentation.
-	auto SetVariant( ButtonVariant variant ) -> void
-	{
-		if( this->variant == variant ) return;
-		this->variant = variant;
-		NotifyChanged();
-	}
+	auto SetVariant( ButtonVariant variant ) -> void;
 
 	/// @brief Reads control size.
 	/// @return Current logical control size.
@@ -101,12 +89,7 @@ public:
 	/// @param size New logical control size.
 	/// @pre Called on the owning loop; enum arguments are defined values.
 	/// @post Changed state is stored and a bound adapter queues its presentation.
-	auto SetSize( ControlSize size ) -> void
-	{
-		if( this->size == size ) return;
-		this->size = size;
-		NotifyChanged();
-	}
+	auto SetSize( ControlSize size ) -> void;
 
 	/// @brief Reports whether this button rejects activation.
 	/// @return Whether the button is explicitly disabled.
@@ -118,12 +101,7 @@ public:
 	/// @param disabled Whether native and server-side activation are suppressed.
 	/// @pre Called on the owning loop.
 	/// @post State is stored and the adapter synchronizes native disabled state.
-	auto SetDisabled( bool disabled ) -> void
-	{
-		if( this->disabled == disabled ) return;
-		this->disabled = disabled;
-		NotifyChanged();
-	}
+	auto SetDisabled( bool disabled ) -> void;
 
 	/// @brief Replaces the server-side click callback.
 	/// @param on_click New callback, or empty to make clicks no-ops.
@@ -134,18 +112,7 @@ public:
 	/// @brief Dispatches a browser click to application code.
 	/// @pre Called on the owning event loop after the part ID resolves to this button.
 	/// @post An active action-role button invokes its installed callback; removed and submit-role buttons ignore this dispatch.
-	auto InvokeOnClick() -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || disabled || role != ButtonRole::Action ) return;
-
-		auto callback = on_click;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Button click" };
-			callback();
-		}
-	}
+	auto InvokeOnClick() -> void override;
 
 	/// @brief Reads the immutable activation role.
 	/// @return Action or form submission behavior.

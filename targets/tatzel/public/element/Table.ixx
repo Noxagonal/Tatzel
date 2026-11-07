@@ -2,19 +2,15 @@
 /// @brief Semantic tables with stable rows, logical control cells, and application-owned sorting.
 module;
 
-#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <string>
 #include <string_view>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
 export module UI.Element.Table;
 
-import UI.Diagnostics;
 export import UI.Element.LogicalElement;
 export import UI.Element.Checkbox;
 
@@ -97,16 +93,7 @@ public:
 	/// @param text New value, copied before owned child controls are removed.
 	/// @pre Called on the owning loop; headers with sort controls are framework-owned.
 	/// @post Child handles are invalidated and changed text is offered to the browser.
-	auto SetText( std::string_view text ) -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || ( this->text == text && GetChildren().empty() ) ) return;
-		auto owned = std::string{ text };
-		ClearChildren();
-		if( IsRemoved() ) return;
-		this->text = std::move( owned );
-		NotifyChanged();
-	}
+	auto SetText( std::string_view text ) -> void;
 
 	/// @brief Identifies a column header cell.
 	/// @return Whether the adapter maps this cell as a header.
@@ -130,12 +117,7 @@ public:
 	/// @param direction Logical direction for this sortable header.
 	/// @pre Called by Table on the owning loop for a sortable header.
 	/// @post Direction changes queue an attribute update while retaining child controls.
-	auto SetSortDirection( TableSortDirection direction ) -> void
-	{
-		if( sort_direction == direction ) return;
-		sort_direction = direction;
-		NotifyChanged();
-	}
+	auto SetSortDirection( TableSortDirection direction ) -> void;
 
 private:
 	std::string column;
@@ -194,12 +176,7 @@ public:
 	/// @return Borrowed active cell, or nullptr.
 	/// @pre Called on the owning loop.
 	/// @post State is unchanged.
-	auto FindCell( std::string_view column ) const -> TableCell*
-	{
-		for( const auto& child : GetChildren() )
-			if( auto* cell = dynamic_cast<TableCell*>( child.get() ); cell && cell->GetColumnKey() == column ) return cell;
-		return nullptr;
-	}
+	auto FindCell( std::string_view column ) const -> TableCell*;
 
 	/// @brief Binds the framework-created selection checkbox.
 	/// @param selection Non-owning child handle, empty for unselectable rows.
@@ -223,12 +200,7 @@ public:
 	/// @param selected Whether this row is selected.
 	/// @pre Called by Table on the owning loop.
 	/// @post Changed selection appearance is queued without replacing cells.
-	auto SetSelectionState( bool selected ) -> void
-	{
-		if( this->selected == selected ) return;
-		this->selected = selected;
-		NotifyChanged();
-	}
+	auto SetSelectionState( bool selected ) -> void;
 
 private:
 	std::string key;
@@ -259,18 +231,7 @@ public:
 		std::string_view caption,
 		std::vector<TableColumn> columns,
 		TableSelection selection_mode = TableSelection::None
-	) :
-		LogicalElement{ id, parent },
-		caption{ caption },
-		columns{ std::move( columns ) },
-		selection_mode{ selection_mode }
-	{
-		if( this->caption.empty() || this->columns.empty() ) throw tatzel::Exception{ "Table requires a caption and columns" };
-		auto keys = std::unordered_set<std::string>{};
-		for( const auto& column : this->columns )
-			if( column.key.empty() || column.key == SelectionColumn || !keys.insert( column.key ).second )
-				throw tatzel::Exception{ "Table column keys must be unique, nonempty, and nonreserved" };
-	}
+	);
 
 	static constexpr std::string_view SelectionColumn = "__selection"; ///< Reserved framework selection-cell identity.
 
@@ -291,13 +252,7 @@ public:
 	/// @pre Called on the owning loop.
 	/// @post Changed text is owned and the adapter updates the caption.
 	/// @throws tatzel::Exception If caption is empty.
-	auto SetCaption( std::string_view caption ) -> void
-	{
-		if( caption.empty() ) throw tatzel::Exception{ "Table caption must be nonempty" };
-		if( this->caption == caption ) return;
-		this->caption = caption;
-		NotifyChanged();
-	}
+	auto SetCaption( std::string_view caption ) -> void;
 
 	/// @brief Reads the row-selection policy.
 	/// @return Immutable selection mode.
@@ -310,33 +265,13 @@ public:
 	/// @return Borrowed row until removal/destruction, or nullptr.
 	/// @pre Called on the owning loop.
 	/// @post State is unchanged.
-	auto FindRow( std::string_view key ) const -> TableRow*
-	{
-		for( const auto& child : GetChildren() )
-			if( auto* row = dynamic_cast<TableRow*>( child.get() ); row && row->GetKey() == key ) return row;
-		return nullptr;
-	}
+	auto FindRow( std::string_view key ) const -> TableRow*;
 
 	/// @brief Copies borrowed active rows in current semantic order.
 	/// @return Row pointers valid until their removal; no ownership is retained.
 	/// @pre Called on the owning loop.
 	/// @post State is unchanged; newly attached rows follow existing ordered rows.
-	auto GetRows() const -> std::vector<TableRow*>
-	{
-		auto result = std::vector<TableRow*>{};
-		auto remaining = std::unordered_map<std::string_view, TableRow*>{};
-		for( const auto& child : GetChildren() )
-			if( auto* row = dynamic_cast<TableRow*>( child.get() ) ) remaining.emplace( row->GetKey(), row );
-		for( const auto& key : row_order )
-			if( auto found = remaining.find( key ); found != remaining.end() )
-			{
-				result.push_back( found->second );
-				remaining.erase( found );
-			}
-		for( const auto& child : GetChildren() )
-			if( auto* row = dynamic_cast<TableRow*>( child.get() ); row && remaining.contains( row->GetKey() ) ) result.push_back( row );
-		return result;
-	}
+	auto GetRows() const -> std::vector<TableRow*>;
 
 	/// @brief Reads current application row ordering.
 	/// @return Borrowed keys until structural/order mutation.
@@ -349,19 +284,7 @@ public:
 	/// @pre Called on the owning loop after rows are created.
 	/// @post Semantic order changes and one browser child-order update is queued.
 	/// @throws tatzel::Exception If keys are missing/foreign/duplicated or the revision is exhausted.
-	auto SetRowOrder( std::vector<std::string> keys ) -> void
-	{
-		auto rows = GetRows();
-		if( rows.size() != keys.size() ) throw tatzel::Exception{ "Row order must include every active row exactly once" };
-		auto seen = std::unordered_set<std::string>{};
-		for( const auto& key : keys )
-			if( !FindRow( key ) || !seen.insert( key ).second ) throw tatzel::Exception{ "Row order contains a duplicate or unknown key" };
-		if( keys == row_order ) return;
-		if( order_revision == tatzel::MaximumWireRevision ) throw tatzel::Exception{ "Table order revision exhausted" };
-		row_order = std::move( keys );
-		++order_revision;
-		NotifyChanged();
-	}
+	auto SetRowOrder( std::vector<std::string> keys ) -> void;
 
 	/// @brief Reads the adapter's explicit reorder revision.
 	/// @return Monotonic revision changed only by explicit ordering.
@@ -374,50 +297,17 @@ public:
 	/// @return Whether an active row was removed.
 	/// @pre Called on the owning loop.
 	/// @post Removed row/cell/control handles are invalid and remaining rows retain identity.
-	auto RemoveRow( std::string_view key ) -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( auto* row = FindRow( key ) ) return row->Remove();
-		return false;
-	}
+	auto RemoveRow( std::string_view key ) -> bool;
 
 	/// @brief Clears data rows while retaining headers and table identity.
 	/// @pre Called on the owning loop.
 	/// @post Surviving table is empty; successful clearing reports selection change at most once.
-	auto ClearRows() -> void
-	{
-		auto dispatch = BeginDispatch();
-		const auto previous = selected;
-		const auto previous_suppression = suppress_selection;
-		suppress_selection = true;
-		try
-		{
-			for( auto* row : GetRows() ) row->Remove();
-		}
-		catch( ... )
-		{
-			suppress_selection = previous_suppression;
-			throw;
-		}
-		suppress_selection = previous_suppression;
-		if( !IsRemoved() && !suppress_selection && selected != previous ) EmitSelection();
-	}
+	auto ClearRows() -> void;
 
 	/// @brief Updates row order and selection membership after framework ownership changes.
 	/// @pre Called by the builder/tree after insertion or removal is complete.
 	/// @post Removed keys are pruned; table status and any changed selection are synchronized.
-	auto NotifyChildrenChanged() -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-		auto rows = GetRows();
-		row_order.clear();
-		for( auto* row : rows ) row_order.emplace_back( row->GetKey() );
-		const auto previous = selected;
-		std::erase_if( selected, [ this ]( const auto& key ) { return !FindRow( key ); } );
-		NotifyChanged();
-		if( !suppress_selection && selected != previous ) EmitSelection();
-	}
+	auto NotifyChildrenChanged() -> void override;
 
 	/// @brief Reads loading presentation without discarding current rows.
 	/// @return Whether the table is waiting for application data.
@@ -429,12 +319,7 @@ public:
 	/// @param loading Whether data is being loaded.
 	/// @pre Called on the owning loop.
 	/// @post Busy/live feedback and an empty table's state row are synchronized.
-	auto SetLoading( bool loading ) -> void
-	{
-		if( this->loading == loading ) return;
-		this->loading = loading;
-		NotifyChanged();
-	}
+	auto SetLoading( bool loading ) -> void;
 
 	/// @brief Reads empty-state wording.
 	/// @return Borrowed plain text until mutation/destruction.
@@ -459,19 +344,7 @@ public:
 	/// @pre Called on the owning loop.
 	/// @post Header indicators are synchronized; row order and application callbacks are unchanged.
 	/// @throws tatzel::Exception If the column is not sortable or natural-order metadata is inconsistent.
-	auto SetSort( TableSort sort ) -> void
-	{
-		if( sort.direction == TableSortDirection::None )
-		{
-			if( !sort.column.empty() ) throw tatzel::Exception{ "Natural table order has no column key" };
-		}
-		else if( !std::ranges::any_of( columns, [ &sort ]( const auto& column ) { return column.key == sort.column && column.sortable; } ) )
-			throw tatzel::Exception{ "Table sort column is unavailable" };
-		this->sort = std::move( sort );
-		for( const auto& child : GetChildren() )
-			if( auto* cell = dynamic_cast<TableCell*>( child.get() ); cell && cell->IsSortable() )
-				cell->SetSortDirection( cell->GetColumnKey() == this->sort.column ? this->sort.direction : TableSortDirection::None );
-	}
+	auto SetSort( TableSort sort ) -> void;
 
 	/// @brief Replaces the application's sort-request callback.
 	/// @param on_sort Callback receiving copied sort state, or empty.
@@ -483,20 +356,7 @@ public:
 	/// @param column Valid sortable column key captured by the builder's logical button.
 	/// @pre Called on the owning loop.
 	/// @post Header state changes before a copied application callback runs; data sorting remains application-owned.
-	auto RequestSort( std::string_view column ) -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-		auto direction = sort.column == column && sort.direction == TableSortDirection::Ascending
-			? TableSortDirection::Descending : TableSortDirection::Ascending;
-		SetSort( { std::string{ column }, direction } );
-		auto callback = on_sort;
-		if( callback )
-		{
-			auto boundary = tatzel::CallbackScope{ "Table sort" };
-			callback( sort );
-		}
-	}
+	auto RequestSort( std::string_view column ) -> void;
 
 	/// @brief Copies selected stable application keys.
 	/// @return Owned selection values independent of DOM identities.
@@ -509,22 +369,7 @@ public:
 	/// @pre Called on the owning loop.
 	/// @post Native checkboxes receive replacement generations; surviving cell controls remain intact.
 	/// @throws tatzel::Exception If selection is disabled or keys violate membership/cardinality.
-	auto SetSelectedRows( std::vector<std::string> keys ) -> void
-	{
-		if( ( selection_mode == TableSelection::None && !keys.empty() ) || ( selection_mode == TableSelection::Single && keys.size() > 1 ) )
-			throw tatzel::Exception{ "Selection violates the table mode" };
-		auto seen = std::unordered_set<std::string>{};
-		for( const auto& key : keys )
-			if( !FindRow( key ) || !seen.insert( key ).second )
-				throw tatzel::Exception{ "Selection contains a duplicate or unknown row key" };
-		selected = std::move( keys );
-		for( auto* row : GetRows() )
-		{
-			const auto checked = std::ranges::find( selected, row->GetKey() ) != selected.end();
-			row->SetSelectionState( checked );
-			if( auto* control = row->GetSelectionControl().Get() ) control->SetChecked( checked, ValueUpdatePolicy::Replace );
-		}
-	}
+	auto SetSelectedRows( std::vector<std::string> keys ) -> void;
 
 	/// @brief Replaces the application's selection-change callback.
 	/// @param on_selection Callback receiving copied keys, or empty.
@@ -540,40 +385,13 @@ public:
 	auto AcceptRowSelection(
 		std::string_view key,
 		bool checked
-	) -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || selection_mode == TableSelection::None || !FindRow( key ) ) return;
-		const auto previous = selected;
-		if( checked && selection_mode == TableSelection::Single ) selected.clear();
-		std::erase( selected, key );
-		if( checked ) selected.emplace_back( key );
-		for( auto* row : GetRows() )
-		{
-			const auto active = std::ranges::find( selected, row->GetKey() ) != selected.end();
-			row->SetSelectionState( active );
-			if( row->GetKey() != key )
-				if( auto* control = row->GetSelectionControl().Get(); control && control->IsChecked() != active )
-					control->SetChecked( active, ValueUpdatePolicy::Replace );
-		}
-		if( selected != previous ) EmitSelection();
-	}
+	) -> void;
 
 private:
 	/// @brief Delivers owned selection state under the existing callback/removal boundary.
 	/// @pre Called on the owning loop inside an active dispatch scope.
 	/// @post A copied callback may remove this table without invalidating its argument.
-	auto EmitSelection() -> void
-	{
-		if( IsRemoved() ) return;
-		auto callback = on_selection;
-		if( callback )
-		{
-			auto values = selected;
-			auto boundary = tatzel::CallbackScope{ "Table selection" };
-			callback( std::move( values ) );
-		}
-	}
+	auto EmitSelection() -> void;
 
 	std::string caption;
 	std::vector<TableColumn> columns;

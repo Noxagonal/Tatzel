@@ -2,7 +2,6 @@
 /// @brief Reusable search and selection component with owned change snapshots.
 module;
 
-#include <algorithm>
 #include <functional>
 #include <string>
 #include <string_view>
@@ -12,7 +11,6 @@ module;
 export module UI.Component.SearchFilterBar;
 
 export import UI.PageBuilder;
-import UI.Diagnostics;
 
 namespace tatzel::ui {
 
@@ -61,21 +59,7 @@ public:
 		std::string_view id,
 		LogicalElement* parent,
 		SearchFilterOptions options = {}
-	) :
-		Component{ id, parent, "search-filter-bar" },
-		options{ std::move( options ) }
-	{
-		auto keys = std::vector<std::string>{};
-		for( const auto& filter : this->options.filters )
-		{
-			if( filter.key.empty() || std::ranges::find( keys, filter.key ) != keys.end() )
-				throw tatzel::Exception{ "Filter keys must be nonempty and unique" };
-			keys.push_back( filter.key );
-			if( !Available( filter.choices, filter.reset_value ) )
-				throw tatzel::Exception{ "Filter reset value is unavailable" };
-		}
-		SetAppearance( "tatzel-filter-bar" );
-	}
+	);
 
 	/// @brief Builds children after this component is attached to its page.
 	/// @tparam BuilderT Factory-supplied scoped builder type.
@@ -104,14 +88,7 @@ public:
 	/// @return Owned values safe to retain after the callback or send to a worker.
 	/// @pre Called on the owning loop while all built fields are active.
 	/// @post No values or callbacks change.
-	auto GetValues() const -> FilterValues
-	{
-		auto result = FilterValues{};
-		if( auto* search = query.Get() ) result.query = search->GetValue();
-		for( const auto& field : fields )
-			if( auto* select = field.editor.Get() ) result.selections.emplace_back( field.key, select->GetValue() );
-		return result;
-	}
+	auto GetValues() const -> FilterValues;
 
 	/// @brief Replaces the owned coherent-value callback.
 	/// @param on_change Callback receiving copied values; empty clears it.
@@ -122,18 +99,7 @@ public:
 	/// @brief Intentionally clears search and restores configured reset selections.
 	/// @pre Called on the owning loop after Build; reset selections remain available.
 	/// @post Every field begins a fresh edit generation before one coherent callback runs.
-	auto Reset() -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-		for( const auto& field : fields )
-			if( auto* select = field.editor.Get(); select && !select->AcceptsChangeValue( field.reset_value ) )
-				throw tatzel::Exception{ "Filter reset value is unavailable" };
-		if( auto* search = query.Get() ) search->SetValue( "", ValueUpdatePolicy::Replace );
-		for( const auto& field : fields )
-			if( auto* select = field.editor.Get() ) select->SetValue( field.reset_value, ValueUpdatePolicy::Replace );
-		EmitChanged();
-	}
+	auto Reset() -> void;
 
 	/// @brief Silently selects a named filter while retaining all other fields.
 	/// @param key Application selection key.
@@ -146,12 +112,7 @@ public:
 		std::string_view key,
 		std::string_view value,
 		ValueUpdatePolicy policy = ValueUpdatePolicy::Replace
-	) -> void
-	{
-		auto found = std::ranges::find( fields, key, &Field::key );
-		if( found == fields.end() || !found->editor.Get() ) throw tatzel::Exception{ "Unknown or inactive filter key" };
-		found->editor.Get()->SetValue( value, policy );
-	}
+	) -> void;
 
 	/// @brief Refreshes one selector without rebuilding the filter bar or search draft.
 	/// @param key Application key of the selector.
@@ -165,16 +126,7 @@ public:
 		std::string_view key,
 		std::vector<SelectOption> choices,
 		std::string_view fallback
-	) -> std::string
-	{
-		auto found = std::ranges::find( fields, key, &Field::key );
-		if( found == fields.end() || !found->editor.Get() ) throw tatzel::Exception{ "Unknown or inactive filter key" };
-		if( !Available( choices, fallback ) || !Available( choices, found->reset_value ) )
-			throw tatzel::Exception{ "Filter fallback or reset value is unavailable" };
-		auto* select = found->editor.Get();
-		select->SetOptions( std::move( choices ), fallback );
-		return std::string{ select->GetValue() };
-	}
+	) -> std::string;
 
 private:
 	/// @brief Borrowed child identity and reset policy for one selection.
@@ -194,26 +146,12 @@ private:
 	static auto Available(
 		const std::vector<SelectOption>& choices,
 		std::string_view value
-	) -> bool
-	{
-		return value.empty() || std::ranges::any_of( choices, [ value ]( const auto& option ) { return option.id == value && !option.disabled; } );
-	}
+	) -> bool;
 
 	/// @brief Delivers one copied snapshot under callback and removal boundaries.
 	/// @pre Called on the owning loop after a complete state change.
 	/// @post An installed callback runs once and may safely remove this component.
-	auto EmitChanged() -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-		auto callback = on_change;
-		if( callback )
-		{
-			auto values = GetValues();
-			auto boundary = tatzel::CallbackScope{ "Filter change" };
-			callback( std::move( values ) );
-		}
-	}
+	auto EmitChanged() -> void;
 
 	SearchFilterOptions options;
 	ElementHandle<TextInput> query;

@@ -54,8 +54,16 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/public/element/*.ixx"
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/public/dom/*.ixx"
 	)
+	file(GLOB_RECURSE _LOGICAL_IMPLEMENTATIONS CONFIGURE_DEPENDS
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/element/*.cpp"
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/dom/*.cpp"
+	)
+	list(APPEND _LOGICAL_IMPLEMENTATIONS
+		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/ResourceURL.cpp"
+	)
 	add_executable(TatzelRemovalSanitizerTests
 		Removal.cpp
+		${_LOGICAL_IMPLEMENTATIONS}
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/ClientElementTree.cpp"
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Diagnostics.cpp"
 	)
@@ -76,6 +84,7 @@ if(TATZEL_BUILD_SANITIZER_TESTS)
 
 	add_executable(TatzelDispatcherSanitizerTests
 		Dispatcher.cpp
+		${_LOGICAL_IMPLEMENTATIONS}
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/ClientElementTree.cpp"
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Diagnostics.cpp"
 		"${Tatzel_SOURCE_DIR}/targets/tatzel/private/Logging.cpp"

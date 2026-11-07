@@ -7,11 +7,8 @@ module;
 #include <string>
 #include <string_view>
 #include <utility>
-#include <variant>
 
 export module UI.Element.TextInput;
-
-import UI.Diagnostics;
 
 export import UI.Element.FormField;
 export import UI.Element.Interface.Inputable;
@@ -61,16 +58,7 @@ public:
 	auto SetValue(
 		std::string_view value,
 		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
-	) -> void
-	{
-		if( this->value == value && policy != ValueUpdatePolicy::Replace ) return;
-
-		RecordServerValueChange( policy );
-
-		this->value = value;
-		++value_revision;
-		NotifyValueChanged();
-	}
+	) -> void;
 
 	/// @brief Applies an asynchronous result only while the captured logical revision is current.
 	/// @param value New value, owned by the field after acceptance.
@@ -81,13 +69,7 @@ public:
 	auto TrySetValue(
 		std::string_view value,
 		const EditRevision& revision
-	) -> bool
-	{
-		if( !IsEditRevisionCurrent( revision ) ) return false;
-		SetValue( value );
-		return true;
-	}
-
+	) -> bool;
 
 	/// @brief Reads the placeholder.
 	/// @return The placeholder, borrowed until mutation or destruction.
@@ -99,13 +81,7 @@ public:
 	/// @param placeholder New placeholder, copied before returning.
 	/// @pre Called on the owning event loop.
 	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetPlaceholder( std::string_view placeholder ) -> void
-	{
-		if( this->placeholder == placeholder ) return;
-
-		this->placeholder = placeholder;
-		NotifyChanged();
-	}
+	auto SetPlaceholder( std::string_view placeholder ) -> void;
 
 	/// @brief Reads the read-only state.
 	/// @return The read-only state.
@@ -117,13 +93,7 @@ public:
 	/// @param read_only New read-only state.
 	/// @pre Called on the owning event loop.
 	/// @post Logical state is stored and a bound adapter queues any corresponding DOM changes.
-	auto SetReadOnly( bool read_only ) -> void
-	{
-		if( this->read_only == read_only ) return;
-
-		this->read_only = read_only;
-		NotifyChanged();
-	}
+	auto SetReadOnly( bool read_only ) -> void;
 
 	/// @brief Reads the explicit server-value revision for adapter synchronization.
 	/// @return Revision incremented only by a changed SetValue call.
@@ -154,25 +124,7 @@ public:
 	/// @param value Edited text, copied before invoking application code.
 	/// @pre Called on the owning event loop for this editor's input source.
 	/// @post Editable changed input is stored without a value echo; its callback has run.
-	auto InvokeOnInput( std::string_view value ) -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-
-		if( IsDisabled() || read_only || this->value == value ) return;
-
-		this->value = value;
-		NotifyValueChanged();
-		if( IsRemoved() ) return;
-
-		auto callback = on_input;
-		auto snapshot = this->value;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Text input" };
-			callback( snapshot );
-		}
-	}
+	auto InvokeOnInput( std::string_view value ) -> void override;
 
 	/// @brief Reports that this editor accepts string change values.
 	/// @return The text wire-value type.
@@ -184,56 +136,18 @@ public:
 	/// @param value Committed text, copied before invoking application code.
 	/// @pre Called on the owning event loop for this editor's change source.
 	/// @post Editable input is stored without a value echo; its callback has run.
-	auto InvokeOnChange( std::string_view value ) -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-
-		if( IsDisabled() || read_only ) return;
-
-		this->value = value;
-		NotifyValueChanged();
-		if( IsRemoved() ) return;
-
-		auto callback = on_change;
-		auto snapshot = this->value;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Text change" };
-			callback( snapshot );
-		}
-	}
+	auto InvokeOnChange( std::string_view value ) -> void override;
 
 	/// @brief Submits the current logical value when Enter is pressed.
 	/// @pre Called on the owning event loop after the browser's latest edit is accepted.
 	/// @post The submit callback has run if enabled and installed.
-	auto InvokeOnSubmit() -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-
-		if( IsDisabled() ) return;
-
-		auto callback = on_submit;
-		auto snapshot = value;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Text submit" };
-			callback( snapshot );
-		}
-	}
+	auto InvokeOnSubmit() -> void override;
 
 	/// @brief Installs custom validation for this field's current value.
 	/// @param validator Returns an error message or an empty string; empty clears validation.
 	/// @pre Called on the owning event loop; the validator does not mutate field values or structure.
 	/// @post Future Validate calls use this validator after required-field checks.
-	auto SetValidator( std::function<std::string( std::string_view )> validator ) -> void
-	{
-		SetValidationHandler( [ this, validator = std::move( validator ) ] {
-			auto snapshot = value;
-			return validator ? validator( snapshot ) : std::string{};
-		} );
-	}
+	auto SetValidator( std::function<std::string( std::string_view )> validator ) -> void;
 
 	/// @brief Copies this field's value for coordinated form submission.
 	/// @return The owned current value.
@@ -245,13 +159,7 @@ public:
 	/// @param value Correctly typed value from the form snapshot.
 	/// @pre Called on the owning event loop; CanAcceptFieldValue returns true.
 	/// @post Editable enabled state is stored, stale errors are removed, and no value echo is sent.
-	auto AcceptFieldValue( const FieldValue& value ) -> void override
-	{
-		if( IsDisabled() || IsReadOnly() ) return;
-
-		this->value = std::get<std::string>( value );
-		NotifyValueChanged();
-	}
+	auto AcceptFieldValue( const FieldValue& value ) -> void override;
 
 private:
 	std::string value;

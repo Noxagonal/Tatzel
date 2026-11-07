@@ -2,7 +2,6 @@
 /// @brief Event-loop execution scopes used to defer removed-control destruction.
 module;
 
-#include <cassert>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -52,12 +51,7 @@ public:
 	/// @brief Leaves a scope and drains removed elements when the outermost scope ends.
 	/// @pre Called on the owning event loop with nonzero depth; cleanup does not throw.
 	/// @post Depth is decremented and zero-depth cleanup has completed if installed.
-	auto Leave() noexcept -> void
-	{
-		assert( depth > 0 );
-		--depth;
-		if( depth == 0 && on_idle ) on_idle();
-	}
+	auto Leave() noexcept -> void;
 
 	/// @brief Reports whether page code is executing inside a protected scope.
 	/// @return Whether at least one execution scope is active.

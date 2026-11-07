@@ -2,7 +2,6 @@
 /// @brief Logical control identity, ownership, and internal adapter state.
 module;
 
-#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <cstddef>
@@ -58,12 +57,7 @@ public:
 	LogicalElement(
 		std::string_view id,
 		LogicalElement* parent
-	) :
-		id{ id },
-		parent{ parent },
-		dispatch_context{ parent ? parent->dispatch_context : std::make_shared<ElementDispatchContext>() },
-		removal_services{ parent ? parent->removal_services : std::make_shared<ElementRemovalServices>() }
-	{}
+	);
 
 	/// @brief Creates a logical control with an existing DOM representation.
 	/// @param id Unique logical ID.
@@ -79,11 +73,7 @@ public:
 		std::vector<dom::ElementPart>&& parts,
 		size_t base_part_index,
 		size_t child_root_part_index
-	) :
-		LogicalElement{ id, parent }
-	{
-		SetParts( std::move( parts ), base_part_index, child_root_part_index );
-	}
+	);
 
 	/// @brief Prevents duplicate logical ownership.
 	/// @param other Source control.
@@ -146,12 +136,7 @@ public:
 	/// @pre Called on the owning event loop while this object is alive.
 	/// @post Handles are invalid on success; a bound sender queues rendered-root removal; destruction occurs at outermost scope exit.
 	/// @note Without an enclosing execution scope, the pointer is invalid when this method returns.
-	auto Remove() -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( removed || !parent || !removal_services->remove ) return false;
-		return removal_services->remove( *this );
-	}
+	auto Remove() -> bool;
 
 	/// @brief Removes all logical children while preserving this control and its own parts.
 	/// @return Number of detached direct children, including each child's descendants implicitly.
@@ -177,24 +162,13 @@ public:
 		std::function<bool( LogicalElement& )> remove_handler,
 		std::function<size_t( LogicalElement&, std::optional<ChildSlot> )> clear_handler,
 		std::function<void()> on_idle
-	) -> void
-	{
-		assert( !parent );
-		removal_services->remove = std::move( remove_handler );
-		removal_services->clear = std::move( clear_handler );
-		dispatch_context->SetOnIdle( std::move( on_idle ) );
-	}
+	) -> void;
 
 	/// @brief Invalidates this entire subtree before releasing any owned objects.
 	/// @pre Called on the owning event loop before removing or destroying the subtree.
 	/// @post Handles and adapter updates are disabled immediately; ownership is unchanged.
 	/// @note Framework integration API.
-	auto InvalidateSubtree() noexcept -> void
-	{
-		removed = true;
-		lifetime_state->Invalidate();
-		for( const auto& child : child_list ) child->InvalidateSubtree();
-	}
+	auto InvalidateSubtree() noexcept -> void;
 
 	/// @brief Extracts one owned direct child without destroying it.
 	/// @param child Direct logical child to detach.
@@ -202,16 +176,7 @@ public:
 	/// @pre Called on the owning event loop; the caller preserves lifetime until active scopes end.
 	/// @post A detached child is absent from traversal and has no logical parent.
 	/// @note Framework integration API; application code calls Remove instead.
-	auto DetachChild( LogicalElement& child ) -> std::unique_ptr<LogicalElement>
-	{
-		auto found = std::ranges::find_if( child_list, [ &child ]( const auto& owned ) { return owned.get() == &child; } );
-		if( found == child_list.end() ) return nullptr;
-
-		auto result = std::move( *found );
-		child_list.erase( found );
-		result->parent = nullptr;
-		return result;
-	}
+	auto DetachChild( LogicalElement& child ) -> std::unique_ptr<LogicalElement>;
 
 	/// @brief Reads the logical ID.
 	/// @return Borrowed logical ID, not a DOM part ID.
@@ -236,11 +201,7 @@ public:
 	/// @pre No DOM parts have been assigned; the logical parent supports slot.
 	/// @post The adapter can resolve placement without exposing DOM IDs to application code.
 	/// @note Framework integration API; placement is fixed after mapping.
-	auto SetParentSlot( ChildSlot slot ) -> void
-	{
-		assert( part_list.empty() );
-		parent_slot = slot;
-	}
+	auto SetParentSlot( ChildSlot slot ) -> void;
 
 	/// @brief Assigns the adapter-managed DOM representation once.
 	/// @param parts DOM parts to own.
@@ -254,15 +215,7 @@ public:
 		std::vector<dom::ElementPart>&& parts,
 		size_t base_part_index,
 		size_t child_root_part_index
-	) -> void
-	{
-		assert( part_list.empty() );
-		assert( base_part_index < parts.size() );
-		assert( child_root_part_index < parts.size() );
-		part_list = std::move( parts );
-		this->base_part_index = base_part_index;
-		this->child_root_part_index = child_root_part_index;
-	}
+	) -> void;
 
 	/// @brief Reads internal DOM parts.
 	/// @return Borrowed immutable part list.
@@ -304,12 +257,7 @@ public:
 	/// @return Matching part, or nullptr.
 	/// @pre None.
 	/// @post State is unchanged.
-	auto FindPart( std::string_view part_name ) -> dom::ElementPart*
-	{
-		auto part_id = id + "|" + std::string{ part_name };
-		auto found = std::ranges::find_if( part_list, [ &part_id ]( const auto& part ) { return part.GetPartID() == part_id; } );
-		return found == part_list.end() ? nullptr : &*found;
-	}
+	auto FindPart( std::string_view part_name ) -> dom::ElementPart*;
 
 	/// @brief Reads logical children.
 	/// @return Borrowed owned-child list.
@@ -327,23 +275,13 @@ public:
 	/// @param handler Adapter callback, or an empty function to clear it.
 	/// @pre Captured adapter state outlives this control.
 	/// @post Future logical changes invoke the new handler synchronously.
-	auto SetChangeHandler( std::function<void()> handler ) -> void
-	{
-		change_handler = handler ? std::make_shared<std::function<void()>>( std::move( handler ) ) : nullptr;
-	}
+	auto SetChangeHandler( std::function<void()> handler ) -> void;
 
 	/// @brief Assigns adapter-defined appearance names without exposing DOM parts.
 	/// @param appearance Space-separated names owned by the control.
 	/// @pre Called on the owning event loop.
 	/// @post Active controls retain the names and queue adapter presentation updates.
-	auto SetAppearance( std::string_view appearance ) -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( removed || this->appearance == appearance ) return;
-		this->appearance = appearance;
-		auto handler = appearance_handler;
-		if( handler ) ( *handler )( this->appearance );
-	}
+	auto SetAppearance( std::string_view appearance ) -> void;
 
 	/// @brief Reads the adapter-defined appearance names.
 	/// @return Borrowed names, valid until the next appearance change or destruction.
@@ -355,23 +293,13 @@ public:
 	/// @param handler Adapter callback whose captures outlive this control, or empty.
 	/// @pre Called by the adapter on the owning event loop.
 	/// @post Future appearance changes invoke this handler without replacing value handlers.
-	auto SetAppearanceHandler( std::function<void( std::string_view )> handler ) -> void
-	{
-		appearance_handler = handler ? std::make_shared<std::function<void( std::string_view )>>( std::move( handler ) ) : nullptr;
-	}
+	auto SetAppearanceHandler( std::function<void( std::string_view )> handler ) -> void;
 
 protected:
 	/// @brief Notifies the adapter after a logical setter changes state.
 	/// @pre Called on the owning event loop after the logical state is valid.
 	/// @post An active control's installed handler has run if present; removed controls emit no updates.
-	auto NotifyChanged() -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( removed ) return;
-
-		auto handler = change_handler;
-		if( handler ) ( *handler )();
-	}
+	auto NotifyChanged() -> void;
 
 private:
 	/// @brief Delegates child clearing to the owning page under execution protection.
@@ -379,12 +307,7 @@ private:
 	/// @return Number of detached direct children, or zero for removed/unbound controls.
 	/// @pre Called on the owning event loop while this control is alive.
 	/// @post Selected children are detached and queued for destruction at outermost scope exit.
-	auto ClearChildrenImpl( std::optional<ChildSlot> slot ) -> size_t
-	{
-		auto dispatch = BeginDispatch();
-		if( removed || !removal_services->clear ) return 0;
-		return removal_services->clear( *this, slot );
-	}
+	auto ClearChildrenImpl( std::optional<ChildSlot> slot ) -> size_t;
 
 	std::string appearance;
 	std::shared_ptr<std::function<void( std::string_view )>> appearance_handler;

@@ -10,7 +10,6 @@ module;
 export module UI.Component.ConfirmationDialog;
 
 export import UI.PageBuilder;
-import UI.Diagnostics;
 
 namespace tatzel::ui {
 
@@ -72,13 +71,7 @@ public:
 	/// @pre Called on the owning loop after Build; captures outlive invocation.
 	/// @post A new request is pending and the native modal is offered to the browser.
 	/// @throws tatzel::Exception If a request is already pending, callback is empty, or the modal is inactive.
-	auto Request( std::function<void( bool )> on_result ) -> void
-	{
-		if( pending || !on_result || !dialog.Get() ) throw tatzel::Exception{ "Confirmation requires an active idle dialog and a result callback" };
-		this->on_result = std::move( on_result );
-		pending = true;
-		dialog.Get()->Open();
-	}
+	auto Request( std::function<void( bool )> on_result ) -> void;
 
 	/// @brief Reports whether this instance has an unanswered request.
 	/// @return Whether a live request is pending.
@@ -96,19 +89,7 @@ private:
 	/// @param accepted Whether the explicit acceptance action was chosen.
 	/// @pre Called on the owning loop.
 	/// @post The old callback is consumed before reentrant close or application code runs.
-	auto Resolve( bool accepted ) -> void
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() || !pending ) return;
-		pending = false;
-		auto callback = std::move( on_result );
-		if( auto* modal = dialog.Get() ) modal->Close();
-		if( callback )
-		{
-			auto boundary = tatzel::CallbackScope{ "Confirmation result" };
-			callback( accepted );
-		}
-	}
+	auto Resolve( bool accepted ) -> void;
 
 	ConfirmationOptions options;
 	ElementHandle<Modal> dialog;

@@ -146,3 +146,21 @@ auto tatzel::ClientElementTree::DrainRetired() noexcept -> void
 	}
 	draining = false;
 }
+
+auto tatzel::ClientElementTree::FindLogicalElement(
+	ui::LogicalElement& element,
+	std::string_view id,
+	bool match_part
+) -> ui::LogicalElement*
+{
+	if( element.IsRemoved() ) return nullptr;
+	if( !match_part && element.GetID() == id ) return &element;
+	if( match_part && std::ranges::any_of( element.GetParts(),
+		[ id ]( const auto& part ) { return part.GetPartID() == id; } ) ) return &element;
+
+	for( const auto& child : element.GetChildren() )
+	{
+		if( auto* found = FindLogicalElement( *child, id, match_part ) ) return found;
+	}
+	return nullptr;
+}

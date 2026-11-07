@@ -2,7 +2,6 @@
 /// @brief Ownership and lookup of one client's logical control tree.
 module;
 
-#include <algorithm>
 #include <concepts>
 #include <cstddef>
 #include <functional>
@@ -125,19 +124,7 @@ private:
 		ui::LogicalElement& element,
 		std::string_view id,
 		bool match_part
-	) -> ui::LogicalElement*
-	{
-		if( element.IsRemoved() ) return nullptr;
-		if( !match_part && element.GetID() == id ) return &element;
-		if( match_part && std::ranges::any_of( element.GetParts(),
-			[ id ]( const auto& part ) { return part.GetPartID() == id; } ) ) return &element;
-
-		for( const auto& child : element.GetChildren() )
-		{
-			if( auto* found = FindLogicalElement( *child, id, match_part ) ) return found;
-		}
-		return nullptr;
-	}
+	) -> ui::LogicalElement*;
 
 	std::vector<std::unique_ptr<ui::LogicalElement>> retired_elements;
 	std::function<void( std::span<const dom::ElementPart> )> removal_handler;

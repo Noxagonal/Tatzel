@@ -11,7 +11,6 @@ module;
 
 export module UI.Element.FormField;
 
-import UI.Diagnostics;
 export import UI.Protocol;
 export import UI.Element.Style;
 
@@ -55,12 +54,7 @@ public:
 	/// @param size New logical control size.
 	/// @pre Called on the owning loop; enum arguments are defined values.
 	/// @post Changed state is stored and a bound adapter queues its presentation.
-	auto SetSize( ControlSize size ) -> void
-	{
-		if( this->size == size ) return;
-		this->size = size;
-		NotifyChanged();
-	}
+	auto SetSize( ControlSize size ) -> void;
 
 	/// @brief Reads the accessible label.
 	/// @return Borrowed label, invalidated by label mutation or destruction.
@@ -72,13 +66,7 @@ public:
 	/// @param label New label, copied before returning.
 	/// @pre Called on the owning event loop.
 	/// @post Changed text is owned and the adapter queues its label update.
-	auto SetLabel( std::string_view label ) -> void
-	{
-		if( this->label == label ) return;
-
-		this->label = label;
-		NotifyChanged();
-	}
+	auto SetLabel( std::string_view label ) -> void;
 
 	/// @brief Reads the field's own disabled state.
 	/// @return Whether the field is disabled independently of its form.
@@ -90,14 +78,7 @@ public:
 	/// @param disabled Whether editing and submission should omit this field.
 	/// @pre Called on the owning event loop.
 	/// @post State is stored; disabling removes any field error and queues presentation updates.
-	auto SetDisabled( bool disabled ) -> void
-	{
-		if( this->disabled == disabled ) return;
-
-		this->disabled = disabled;
-		if( disabled ) error.clear();
-		NotifyChanged();
-	}
+	auto SetDisabled( bool disabled ) -> void;
 
 	/// @brief Reads the required-field policy.
 	/// @return Whether an empty value fails validation.
@@ -109,13 +90,7 @@ public:
 	/// @param required Whether a value is required; checkboxes must be checked.
 	/// @pre Called on the owning event loop.
 	/// @post Policy and presentation are updated; validation runs when explicitly requested.
-	auto SetRequired( bool required ) -> void
-	{
-		if( this->required == required ) return;
-
-		this->required = required;
-		NotifyChanged();
-	}
+	auto SetRequired( bool required ) -> void;
 
 	/// @brief Reads the current field error.
 	/// @return Borrowed message, invalidated by error mutation or destruction.
@@ -127,13 +102,7 @@ public:
 	/// @param error Error message; empty means no error.
 	/// @pre Called on the owning event loop.
 	/// @post The message is owned and the adapter queues error text and accessibility updates.
-	auto SetError( std::string_view error ) -> void
-	{
-		if( this->error == error ) return;
-
-		this->error = error;
-		NotifyChanged();
-	}
+	auto SetError( std::string_view error ) -> void;
 
 	/// @brief Reports whether browser values may change this field.
 	/// @return Whether this field is read-only; false for ordinary fields.
@@ -152,12 +121,7 @@ public:
 	/// @return Whether the value has the correct type and is an allowed choice.
 	/// @pre Called on the owning event loop.
 	/// @post State is unchanged; required/custom validation is deferred.
-	auto CanAcceptFieldValue( const FieldValue& value ) const -> bool
-	{
-		if( GetChangeValueType() == interface::ChangeValueType::Boolean ) return std::holds_alternative<bool>( value );
-		auto* text = std::get_if<std::string>( &value );
-		return text && AcceptsChangeValue( *text );
-	}
+	auto CanAcceptFieldValue( const FieldValue& value ) const -> bool;
 
 	/// @brief Applies a validated browser snapshot without invoking input/change callbacks.
 	/// @param value Value whose type and permitted choices have been checked.
@@ -169,35 +133,7 @@ public:
 	/// @return Whether validation succeeded; removed fields are ignored and disabled fields clear their errors.
 	/// @pre Called on the owning event loop; validators do not mutate fields or structure.
 	/// @post The field error and accessible error presentation reflect the result.
-	auto Validate() -> bool
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return true;
-
-		if( disabled )
-		{
-			SetError( {} );
-			return true;
-		}
-
-		auto value = GetFieldValue();
-		const auto* text = std::get_if<std::string>( &value );
-		const auto empty = text ? text->empty() : !std::get<bool>( value );
-		if( required && empty ) SetError( "This field is required." );
-		else
-		{
-			auto validator = validation_handler;
-			auto result = std::string{};
-			if( validator )
-			{
-				auto scope = tatzel::CallbackScope{ "Field validator" };
-				result = validator();
-			}
-			if( IsRemoved() ) return true;
-			SetError( result );
-		}
-		return IsRemoved() || error.empty();
-	}
+	auto Validate() -> bool;
 
 	/// @brief Captures this field's current edit identity for asynchronous work.
 	/// @return Owned token identifying this control and its client/server revisions.
@@ -233,13 +169,7 @@ public:
 	auto CheckClientEdit(
 		ClientEdit edit,
 		const FieldValue& value
-	) const -> EditAcceptance
-	{
-		if( edit.epoch > epoch || edit.revision > tatzel::MaximumWireRevision ) return EditAcceptance::Invalid;
-		if( edit.epoch < epoch || edit.revision < client_revision ) return EditAcceptance::Stale;
-		if( edit.revision == client_revision && !IsReadOnly() && value != GetFieldValue() ) return EditAcceptance::Invalid;
-		return EditAcceptance::Current;
-	}
+	) const -> EditAcceptance;
 
 	/// @brief Stores validated browser revision metadata without notifying application callbacks.
 	/// @param edit Metadata already accepted by CheckClientEdit.
@@ -259,19 +189,7 @@ protected:
 	/// @pre Called on the owning loop before a corresponding value notification.
 	/// @post The server token changes; replacement begins a fresh browser edit generation.
 	/// @throws tatzel::Exception If a JavaScript-safe revision counter is exhausted.
-	auto RecordServerValueChange( ValueUpdatePolicy policy ) -> void
-	{
-		if( server_revision == tatzel::MaximumWireRevision || epoch == tatzel::MaximumWireRevision )
-			throw tatzel::Exception{ "Field revision counter exhausted" };
-
-		value_update = { epoch, epoch, client_revision, policy == ValueUpdatePolicy::Replace };
-		++server_revision;
-		if( policy == ValueUpdatePolicy::Replace )
-		{
-			value_update.epoch = ++epoch;
-			client_revision = 0;
-		}
-	}
+	auto RecordServerValueChange( ValueUpdatePolicy policy ) -> void;
 
 	/// @brief Starts a new choices generation while retaining its previous browser-edit baseline.
 	/// @pre Called on the owning loop before replacing native choices or their prompt.

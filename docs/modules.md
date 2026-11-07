@@ -27,7 +27,10 @@ Some UI.Element.* modules are reserved placeholders and export no class yet.
 Only supported controls are re-exported by PageBuilder. This keeps an unfinished
 module from implying an available builder method.
 
-Implementations live under the corresponding target's private directory.
+Module interfaces (`.ixx`) hold declarations and API contracts, plus definitions
+for small functions and templates when appropriate. Other function bodies live
+in matching module implementation files (`.cpp`) under the target's private
+directory. See the [coding conventions](../CODING_CONVENTIONS.md#c-module-interfaces-and-implementations).
 CMake helpers collect ordinary sources, headers, and module interfaces from
 public and private. Browser builds use the source path above, and assets are
 emitted into the ignored www/app directory.

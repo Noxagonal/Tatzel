@@ -54,12 +54,7 @@ public:
 	/// @param text New logical text.
 	/// @pre Called on the owning event loop.
 	/// @post The heading owns text; a bound adapter queues its DOM text update.
-	auto SetText( std::string_view text ) -> void
-	{
-		if( this->text == text ) return;
-		this->text = text;
-		NotifyChanged();
-	}
+	auto SetText( std::string_view text ) -> void;
 
 	/// @brief Reads the semantic heading level.
 	/// @return Current heading style.

@@ -58,6 +58,18 @@ The module umbrella remains UI. Logical controls are exported as
 UI.Element.Heading, UI.Element.Button, and so on. UI.DOM is reserved for concrete
 DOM representations. Keep imports and exports consistent when moving a file.
 
+## C++ module interfaces and implementations
+
+Prefer declarations and API contracts in `.ixx` files. Define ordinary functions
+in the matching `.cpp` file under the target's `private` directory, using
+`module Module.Name;` to attach the implementation to the same named module.
+Small functions such as simple accessors and forwarding wrappers may stay in the
+interface. Keep template definitions and definitions needed for constant
+evaluation in the interface when callers need to see them.
+
+Put implementation-only includes and imports in the `.cpp` file. Keep default
+arguments and API documentation with the declaration.
+
 ## C++ signatures, initializers, and spacing
 
 When a function, constructor, or lambda has multiple parameters, put each

@@ -3,7 +3,6 @@
 module;
 
 #include <span>
-#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -82,12 +81,7 @@ public:
 	/// @return Borrowed value, or no value if absent; mutation invalidates the view.
 	/// @pre None.
 	/// @post State is unchanged.
-	auto GetAttribute( std::string_view attribute ) const -> std::optional<std::string_view>
-	{
-		auto found = std::ranges::find_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
-		if( found == attributes.end() ) return std::nullopt;
-		return found->second;
-	}
+	auto GetAttribute( std::string_view attribute ) const -> std::optional<std::string_view>;
 
 	/// @brief Reads initial text content.
 	/// @return Borrowed text.
@@ -109,21 +103,13 @@ public:
 	auto AddAttribute(
 		std::string_view attribute,
 		std::string_view value
-	) -> void
-	{
-		auto found = std::ranges::find_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
-		if( found == attributes.end() ) attributes.emplace_back( std::string{ attribute }, std::string{ value } );
-		else found->second = value;
-	}
+	) -> void;
 
 	/// @brief Removes an attribute from stored DOM state.
 	/// @param attribute Attribute name to remove.
 	/// @pre None.
 	/// @post The attribute is absent; no browser message is sent.
-	auto RemoveAttribute( std::string_view attribute ) -> void
-	{
-		std::erase_if( attributes, [ attribute ]( const auto& entry ) { return entry.first == attribute; } );
-	}
+	auto RemoveAttribute( std::string_view attribute ) -> void;
 
 	/// @brief Replaces the stored DOM text.
 	/// @param text New text content.

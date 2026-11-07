@@ -3,13 +3,10 @@
 module;
 
 #include <json/json.h>
-#include <sstream>
 #include <string>
 #include <string_view>
 
 export module UI.Internal.JSON;
-
-import UI.Diagnostics;
 
 namespace tatzel {
 
@@ -29,22 +26,3 @@ export [[gnu::visibility( "hidden" )]] auto ParseJson( std::string_view text ) -
 export [[gnu::visibility( "hidden" )]] auto JsonToString( const Json::Value& json ) -> std::string;
 
 }
-
-auto tatzel::ParseJson( std::string_view text ) -> Json::Value
-{
-	Json::CharReaderBuilder builder;
-	Json::Value result;
-	std::string errors;
-	std::istringstream stream{ std::string{ text } };
-	if( !Json::parseFromStream( builder, stream, &result, &errors ) )
-		throw tatzel::Exception{ "Failed to parse JSON string" };
-	return result;
-}
-
-auto tatzel::JsonToString( const Json::Value& json ) -> std::string
-{
-	Json::StreamWriterBuilder writer;
-	writer[ "indentation" ] = "";
-	return Json::writeString( writer, json );
-}
-

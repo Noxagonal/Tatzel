@@ -42,13 +42,7 @@ public:
 	/// @param text New plain text, copied before returning.
 	/// @pre Called on the owning event loop.
 	/// @post Changed text is owned and its bound adapter queues a plain text update.
-	auto SetText( std::string_view text ) -> void
-	{
-		if( this->text == text ) return;
-
-		this->text = text;
-		NotifyChanged();
-	}
+	auto SetText( std::string_view text ) -> void;
 
 	/// @brief Reads text announcement policy.
 	/// @return Current logical text announcement policy.
@@ -60,12 +54,7 @@ public:
 	/// @param live_region New logical text announcement policy.
 	/// @pre Called on the owning loop; enum arguments are defined values.
 	/// @post Changed state is stored and a bound adapter queues its presentation.
-	auto SetLiveRegion( LiveRegion live_region ) -> void
-	{
-		if( this->live_region == live_region ) return;
-		this->live_region = live_region;
-		NotifyChanged();
-	}
+	auto SetLiveRegion( LiveRegion live_region ) -> void;
 
 private:
 	std::string text;

@@ -9,8 +9,6 @@ module;
 
 export module UI.Element.Image;
 
-import UI.Diagnostics;
-import UI.ResourceURL;
 export import UI.Element.LogicalElement;
 
 namespace tatzel::ui {
@@ -34,13 +32,7 @@ public:
 		LogicalElement* parent,
 		std::string_view source,
 		std::string_view alternative_text
-	) :
-		LogicalElement{ id, parent },
-		source{ source },
-		alternative_text{ alternative_text }
-	{
-		ValidateSource( source );
-	}
+	);
 
 	/// @brief Reads the resource URL.
 	/// @return Borrowed text, invalidated by mutation of this property or destruction.
@@ -53,14 +45,7 @@ public:
 	/// @pre Called on the owning event loop.
 	/// @post Changed state is stored and a bound adapter queues its browser update.
 	/// @throws tatzel::Exception If the URL is unsupported; state is unchanged.
-	auto SetSource( std::string_view source ) -> void
-	{
-		ValidateSource( source );
-		if( this->source == source ) return;
-
-		this->source = source;
-		NotifyChanged();
-	}
+	auto SetSource( std::string_view source ) -> void;
 
 	/// @brief Reads the accessible description.
 	/// @return Borrowed text, invalidated by mutation of this property or destruction.
@@ -72,13 +57,7 @@ public:
 	/// @param alternative_text New owned text; empty clears this property.
 	/// @pre Called on the owning event loop.
 	/// @post Changed state is stored and a bound adapter queues its browser update.
-	auto SetAlternativeText( std::string_view alternative_text ) -> void
-	{
-		if( this->alternative_text == alternative_text ) return;
-
-		this->alternative_text = alternative_text;
-		NotifyChanged();
-	}
+	auto SetAlternativeText( std::string_view alternative_text ) -> void;
 
 	/// @brief Reads the intrinsic width.
 	/// @return Positive CSS pixels, or nullopt when unspecified.
@@ -101,15 +80,7 @@ public:
 	auto SetSize(
 		std::optional<size_t> width,
 		std::optional<size_t> height
-	) -> void
-	{
-		if( ( width && !*width ) || ( height && !*height ) ) throw tatzel::Exception{ "Image dimensions must be positive" };
-		if( this->width == width && this->height == height ) return;
-
-		this->width = width;
-		this->height = height;
-		NotifyChanged();
-	}
+	) -> void;
 
 	/// @brief Reports whether offscreen loading may be deferred.
 	/// @return Whether lazy loading is requested.
@@ -121,13 +92,7 @@ public:
 	/// @param lazy_loading Whether offscreen loading may be deferred.
 	/// @pre Called on the owning event loop.
 	/// @post Changed state is stored and the loading attribute is queued.
-	auto SetLazyLoading( bool lazy_loading ) -> void
-	{
-		if( this->lazy_loading == lazy_loading ) return;
-
-		this->lazy_loading = lazy_loading;
-		NotifyChanged();
-	}
+	auto SetLazyLoading( bool lazy_loading ) -> void;
 
 private:
 	/// @brief Checks supported image resource schemes.
@@ -135,10 +100,7 @@ private:
 	/// @pre None.
 	/// @post Candidate state is unchanged.
 	/// @throws tatzel::Exception If source contains whitespace, controls, backslashes, or an unsupported scheme.
-	static auto ValidateSource( std::string_view source ) -> void
-	{
-		if( !detail::IsSafeResourceURL( source, false ) ) throw tatzel::Exception{ "Unsupported Image source" };
-	}
+	static auto ValidateSource( std::string_view source ) -> void;
 
 	std::string source;
 	std::string alternative_text;

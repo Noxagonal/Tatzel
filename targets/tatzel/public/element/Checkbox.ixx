@@ -7,11 +7,8 @@ module;
 #include <string>
 #include <string_view>
 #include <utility>
-#include <variant>
 
 export module UI.Element.Checkbox;
-
-import UI.Diagnostics;
 
 export import UI.Element.FormField;
 
@@ -57,16 +54,7 @@ public:
 	auto SetChecked(
 		bool checked,
 		ValueUpdatePolicy policy = ValueUpdatePolicy::PreserveNewerInput
-	) -> void
-	{
-		if( this->checked == checked && policy != ValueUpdatePolicy::Replace ) return;
-
-		RecordServerValueChange( policy );
-
-		this->checked = checked;
-		++value_revision;
-		NotifyValueChanged();
-	}
+	) -> void;
 
 	/// @brief Applies an asynchronous result only while the captured logical revision is current.
 	/// @param checked New value, owned by the field after acceptance.
@@ -77,13 +65,7 @@ public:
 	auto TrySetChecked(
 		bool checked,
 		const EditRevision& revision
-	) -> bool
-	{
-		if( !IsEditRevisionCurrent( revision ) ) return false;
-		SetChecked( checked );
-		return true;
-	}
-
+	) -> bool;
 
 	/// @brief Reads the explicit server-value revision for the adapter.
 	/// @return Revision incremented only by a changed SetChecked call.
@@ -109,40 +91,13 @@ public:
 	/// @pre Called on the owning event loop for this checkbox's editor part.
 	/// @post An enabled checkbox stores the accepted value before its callback runs.
 	/// @throws tatzel::Exception If value is not a normalized boolean string.
-	auto InvokeOnChange( std::string_view value ) -> void override
-	{
-		auto dispatch = BeginDispatch();
-		if( IsRemoved() ) return;
-
-		if( value != "true" && value != "false" )
-		{
-			throw tatzel::Exception{ "Checkbox changes require a boolean" };
-		}
-		if( IsDisabled() ) return;
-
-		checked = value == "true";
-		NotifyValueChanged();
-		if( IsRemoved() ) return;
-
-		auto callback = on_change;
-		if( callback )
-		{
-			auto scope = tatzel::CallbackScope{ "Checkbox change" };
-			callback( checked );
-		}
-	}
+	auto InvokeOnChange( std::string_view value ) -> void override;
 
 	/// @brief Installs custom validation for this field's current value.
 	/// @param validator Returns an error message or an empty string; empty clears validation.
 	/// @pre Called on the owning event loop; the validator does not mutate field values or structure.
 	/// @post Future Validate calls use this validator after required-field checks.
-	auto SetValidator( std::function<std::string( bool )> validator ) -> void
-	{
-		SetValidationHandler( [ this, validator = std::move( validator ) ] {
-			auto snapshot = checked;
-			return validator ? validator( snapshot ) : std::string{};
-		} );
-	}
+	auto SetValidator( std::function<std::string( bool )> validator ) -> void;
 
 	/// @brief Copies this field's value for coordinated form submission.
 	/// @return The owned current value.
@@ -154,13 +109,7 @@ public:
 	/// @param value Correctly typed value from the form snapshot.
 	/// @pre Called on the owning event loop; CanAcceptFieldValue returns true.
 	/// @post Editable enabled state is stored, stale errors are removed, and no value echo is sent.
-	auto AcceptFieldValue( const FieldValue& value ) -> void override
-	{
-		if( IsDisabled() || IsReadOnly() ) return;
-
-		this->checked = std::get<bool>( value );
-		NotifyValueChanged();
-	}
+	auto AcceptFieldValue( const FieldValue& value ) -> void override;
 
 private:
 	bool checked;

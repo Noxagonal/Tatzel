@@ -3,13 +3,10 @@
 module;
 
 #include <functional>
-#include <string>
 #include <string_view>
 #include <utility>
 
 export module UI.PageBuilderCore;
-
-import UI.Diagnostics;
 
 import UI.ClientElementTree;
 import UI.ClientUpdater;
@@ -89,19 +86,7 @@ public:
 	auto Navigate(
 		std::string_view hash,
 		bool update_browser = true
-	) -> void
-	{
-		if( hash.size() > 2048 || ( !hash.empty() && hash.front() != '#' ) )
-			throw Exception{ "Navigation requires a hash location of at most 2048 bytes" };
-		auto location = std::string{ hash };
-		if( update_browser ) client_updater->SetLocation( location );
-		auto handler = navigation_handler;
-		if( handler )
-		{
-			auto boundary = CallbackScope{ "Page navigation" };
-			handler( location );
-		}
-	}
+	) -> void;
 
 private:
 	std::function<void( std::string_view )> navigation_handler;

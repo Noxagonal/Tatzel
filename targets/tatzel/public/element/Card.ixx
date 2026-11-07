@@ -44,13 +44,7 @@ public:
 	/// @param title New heading; an empty string hides the heading area.
 	/// @pre Called on the owning event loop.
 	/// @post Title is owned and a bound adapter queues the corresponding update.
-	auto SetTitle( std::string_view title ) -> void
-	{
-		if( this->title == title ) return;
-
-		this->title = title;
-		NotifyChanged();
-	}
+	auto SetTitle( std::string_view title ) -> void;
 
 	/// @brief Reports whether this card has an actions area.
 	/// @return Whether an actions builder was supplied.

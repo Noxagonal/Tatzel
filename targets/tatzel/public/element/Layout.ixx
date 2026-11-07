@@ -88,13 +88,7 @@ public:
 	/// @param gap New spacing between children.
 	/// @pre Called on the owning event loop; enum arguments are defined values.
 	/// @post Settings are stored and a bound adapter queues changed layout styling.
-	auto SetGap( Spacing gap ) -> void
-	{
-		if( options.gap == gap ) return;
-
-		options.gap = gap;
-		NotifyChanged();
-	}
+	auto SetGap( Spacing gap ) -> void;
 
 	/// @brief Reads the cross-axis alignment.
 	/// @return Current cross-axis alignment.
@@ -106,13 +100,7 @@ public:
 	/// @param alignment New cross-axis alignment.
 	/// @pre Called on the owning event loop; enum arguments are defined values.
 	/// @post Settings are stored and a bound adapter queues changed layout styling.
-	auto SetAlignment( Alignment alignment ) -> void
-	{
-		if( options.alignment == alignment ) return;
-
-		options.alignment = alignment;
-		NotifyChanged();
-	}
+	auto SetAlignment( Alignment alignment ) -> void;
 
 	/// @brief Reads the main-axis distribution.
 	/// @return Current main-axis distribution.
@@ -124,13 +112,7 @@ public:
 	/// @param justification New main-axis distribution.
 	/// @pre Called on the owning event loop; enum arguments are defined values.
 	/// @post Settings are stored and a bound adapter queues changed layout styling.
-	auto SetJustification( Justification justification ) -> void
-	{
-		if( options.justification == justification ) return;
-
-		options.justification = justification;
-		NotifyChanged();
-	}
+	auto SetJustification( Justification justification ) -> void;
 
 	/// @brief Reads the wrapping policy.
 	/// @return Current wrapping policy.
@@ -142,13 +124,7 @@ public:
 	/// @param wrap New wrapping policy.
 	/// @pre Called on the owning event loop; enum arguments are defined values.
 	/// @post Settings are stored and a bound adapter queues changed layout styling.
-	auto SetWrap( bool wrap ) -> void
-	{
-		if( options.wrap == wrap ) return;
-
-		options.wrap = wrap;
-		NotifyChanged();
-	}
+	auto SetWrap( bool wrap ) -> void;
 
 	/// @brief Reads the layout direction.
 	/// @return The immutable main direction.
