@@ -8,11 +8,13 @@ First install Tatzel using `docs/package.md` in the checkout. This sample is als
 installed under `share/tatzel/examples/installed`; the installed package guide is
 `share/doc/Tatzel/package.md` in the same prefix.
 
-Copy this directory to a new location, then use your absolute installation prefix:
+Copy this directory outside the installation and run the commands from the copy.
+Set `CMAKE_PREFIX_PATH` to the installation root containing `lib` and `share`.
 
 ```sh
 cmake -S . -B build -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/absolute/path/to/tatzel-install
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="/absolute/path/to/tatzel-install"
 cmake --build build --parallel 2
 ./build/TatzelInstalledExample
 ```

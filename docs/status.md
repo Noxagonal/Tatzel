@@ -34,7 +34,7 @@ than earlier experiments.
 | Components | Typed builder construction, logical subtree ownership, failed-build cleanup, reusable filter/confirmation controls, and application editor examples. |
 | Appearance | Named appearances, typed button variants/control sizes, accessible live feedback, local CSS variables, and responsive component styles. |
 | Hash navigation | Initial-location callback, same-page history updates, and native hash/Back/Forward events. |
-| Package | Source-based CMake package with Tatzel::Tatzel, matching runtime assets, deployment helper, standalone installed consumer, and relocation checks. |
+| Package | Versioned shared library and public C++ module interfaces exported through `Tatzel::Tatzel`, with matching runtime assets, a deployment helper, and a standalone sample. |
 | Documentation | Authored Markdown guides, Doxygen contracts, and a static HTML build. |
 
 ## Planned controls
@@ -57,12 +57,12 @@ remains a low-level DOM operation; application code uses logical Remove or Clear
 - Applications embedding the library supply their own outer startup catch; the development example demonstrates it.
 - Batching preserves every command; there is no DOM diff engine, coalescing, per-batch acknowledgment, or retransmission.
 - Checked handles resolve only on the owning event loop; arbitrary raw-pointer captures remain caller-managed.
-- Dispatcher callbacks must remain short; background executors, task cancellation, non-field stale-result policies, and asynchronous validation remain application responsibilities.
+- Keep dispatcher callbacks short and run background callbacks through TaskQueue. Applications manage task cancellation, non-field stale-result policies, and asynchronous validation.
 - No built-in authentication or authorization layer.
 - Tables target small in-memory views; no pagination, virtualization, automatic queries, spreadsheet editing, or chart abstraction.
 - Forms validate synchronously; asynchronous validators, file inputs, and multi-select form fields are not supported.
 - Default framework resources are discovered from an explicit root, environment override, executable-adjacent deployment on Linux, or configured runtime. Explicit legacy App file arguments and application-owned database paths retain their documented working-directory behavior.
-- The package rebuilds Tatzel module sources in the consuming project; Drogon/Trantor and system dependencies must use a compatible toolchain/ABI. Compiler/platform compatibility remains limited to the documented validated toolchains.
+- Applications generate their own binary module interfaces from the installed public sources and link the prebuilt Tatzel library. The application and package require compatible compilers, standard libraries, target platforms, and ABIs.
 - CI targets Ubuntu 24.04 with Clang 23 and CMake 4.0.7, plus docs and browser checks;
   other compiler/platform combinations remain unverified.
 
