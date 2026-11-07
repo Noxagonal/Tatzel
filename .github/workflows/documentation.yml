@@ -58,6 +58,11 @@ jobs:
           curl -fL https://github.com/Kitware/CMake/releases/download/v4.0.7/cmake-4.0.7-linux-x86_64.tar.gz -o "$RUNNER_TEMP/cmake.tar.gz"
           tar -xzf "$RUNNER_TEMP/cmake.tar.gz" -C "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/cmake-4.0.7-linux-x86_64/bin" >> "$GITHUB_PATH"
+      - name: Build and link a consumer against the Release package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          CXX: clang++-23
+        run: ./tools/check_release_package.sh
       - name: Build application and core behavior checks
         run: |
           cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=clang++-23 -DCMAKE_BUILD_TYPE=Debug -DTATZEL_BUILD_TESTS=ON -DTATZEL_BUILD_SANITIZER_TESTS=ON

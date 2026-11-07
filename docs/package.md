@@ -151,6 +151,16 @@ for applications using explicit legacy file paths.
 
 ## Package verification
 
+From the checkout, build and install a fresh Release package and compile an
+independent consumer against it.
+
+```sh
+CXX=clang++ ./tools/check_release_package.sh
+```
+
+The script uses temporary directories and finishes after linking the consumer.
+GitHub Actions also runs this check on pushes to `main`.
+
 After building with `TATZEL_BUILD_TESTS=ON`, run:
 
 ```sh
